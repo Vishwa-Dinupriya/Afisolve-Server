@@ -26,4 +26,32 @@ router.post('/test', verifyToken, async (request, response) => {
 
 });
 
+router.post('/user-details', verifyToken, async (request, response) => {
+    console.log(request.payload);
+    try {
+        const pool = await poolPromise;
+        await pool.request()
+            .input('username', sql.VarChar(50), request.payload.username)
+            .query('SELECT email FROM Users WHERE username = @username', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false,
+                        message: 'Server error'
+                    });
+                } else {
+                    console.log(result.recordset);
+                    response.status(200).send({
+                        status: true,
+                        email: result.recordset[0].email
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({
+            status: false,
+            message: 'Server error'
+        });
+    }
+});
+
 module.exports = router;

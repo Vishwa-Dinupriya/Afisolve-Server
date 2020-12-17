@@ -1,3 +1,5 @@
+const jwt = require('jsonwebtoken')
+
 function verifyToken(req, res, next) {
     if (!req.headers.authentication) {
         return res.status(401).send('Unauthorized request');
@@ -6,13 +8,18 @@ function verifyToken(req, res, next) {
     if (token === 'null') {
         return res.status(401).send('Unauthorized request');
     }
-    let payload = jwt.verify(token, 'secretKey');
-    if (!payload) {
+    try {
+        let payload = jwt.verify(token, 'secretKey');
+        if (!payload) {
+            return res.status(401).send('Unauthorized request');
+        }
+        req.payload = payload;
+
+        next();
+    } catch (exception) {
         return res.status(401).send('Unauthorized request');
     }
-    req.payload = payload;
 
-    next();
 }
 
 module.exports = {
