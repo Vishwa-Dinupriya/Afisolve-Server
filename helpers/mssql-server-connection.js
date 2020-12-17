@@ -4,7 +4,7 @@ const config = {
     server: 'localhost',
     instance: 'MSSQLSERVER',
     user: 'vishwa',
-    password: '123456',
+    password: '12345',
     database: 'afisolve',
     options: {
         enableArithAbort: true,
