@@ -13,7 +13,7 @@ function verifyToken(req, res, next) {
         if (!payload) {
             return res.status(401).send('Unauthorized request');
         }
-        req.payload = payload;
+        req.payload = payload; // attach the payload to request
 
         next();
     } catch (exception) {
