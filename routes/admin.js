@@ -11,46 +11,104 @@ router.get('/', (req, res) => {
     res.send('From admin route');
 });
 
-router.post('/test', verifyToken, async (request, response) => {
-    if (request.payload.role === 'admin') {
-        response.status(200).send({
-            status: true,
-            message: request.payload + ' confirmed you as admin',
-        });
-    } else {
-        response.status(401).send({
-            status: false,
-            message: request.payload + ' you are not admin'
-        })
-    }
+// router.post('/update-complaint-status', verifyToken, async (request, response) => {
+//
+//     const complainID = request.body.complainID;
+//     const pool = await poolPromise;
+//     pool.request()
+//         .input('complainID', sql.Int, complainID)
+//         .query('UPDATE ', (error, result) => {
+//
+//         });
+//
+// });
 
-});
+router.post('/get-complaints-details', verifyToken, async (request, response) => {
 
-router.post('/user-details', verifyToken, async (request, response) => {
-    console.log(request.payload);
+    const pool = await poolPromise;
     try {
-        const pool = await poolPromise;
-        await pool.request()
-            .input('username', sql.VarChar(50), request.payload.username)
-            .query('SELECT email FROM Users WHERE username = @username', (error, result) => {
+        pool.request()
+            .query('select * from COMPLAINT', (error, result) => {
                 if (error) {
                     response.status(500).send({
-                        status: false,
-                        message: 'Server error'
+                        status: false
                     });
                 } else {
-                    console.log(result.recordset);
                     response.status(200).send({
                         status: true,
-                        email: result.recordset[0].email
+                        data: result.recordset
                     });
                 }
             });
     } catch (e) {
-        response.status(500).send({
-            status: false,
-            message: 'Server error'
-        });
+        response.status(500).send({status: false});
+    }
+});
+
+router.post('/get-users-details', verifyToken, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query('select * from USERS', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+
+router.post('/get-products-details', verifyToken, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query('select * from PRODUCT', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+router.post('/get-feedbacks-details', verifyToken, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query('select * from PRODUCT', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
     }
 });
 

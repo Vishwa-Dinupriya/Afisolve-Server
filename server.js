@@ -12,6 +12,7 @@ app1.use(cors());
 const PORT1 = 3000;
 
 const authentication = require('./routes/authentication');
+const home = require('./routes/home');
 const customer = require('./routes/customer');
 const admin = require('./routes/admin');
 const ceo = require('./routes/ceo');
@@ -21,6 +22,7 @@ const projectManager = require('./routes/projectManager');
 
 //=============================================
 app1.use('/authentication', authentication);
+app1.use('/home', home);
 app1.use('/customer', customer);
 app1.use('/admin', admin);
 app1.use('/ceo', ceo);

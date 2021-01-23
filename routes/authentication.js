@@ -41,9 +41,10 @@ router.post('/register', async (request, response) => {
                     if (result.returnValue === 0) {
                         console.log('Data Successfully Entered!');
                         let payload = {
-                            username: result.recordset[0].username,
-                            role: result.recordset[0].role
+                            username: result.recordset[1].username,
+                            role: result.recordset[0].roleName
                         }
+                        console.log(payload);
                         let token = jwt.sign(payload, 'secretKey');
                         response.status(200).send({
                             status: true,
@@ -73,9 +74,9 @@ router.post('/login', async (request, response) => {
     try {
         const pool = await poolPromise;
         await pool.request()
-            .input('username', sql.VarChar(50), data.userName)
-            .input('password', sql.VarChar(20), data.password)
-            .query('SELECT username,role FROM Users WHERE username = @username AND password = @password', (error, result) => {
+            .input('_username', sql.VarChar(50), data.userName)
+            .input('_password', sql.VarChar(20), data.password)
+            .execute('login', (error, result) => {
                 if (error) {
                     console.log(error);
                     response.status(500).send({
@@ -83,19 +84,22 @@ router.post('/login', async (request, response) => {
                         message: 'DB Server error..!'
                     });
                 } else {
-                    if (result.recordset.length !== 0) {
+                    if (result.returnValue === 0) {
                         console.log('login successful..!');
+                        console.log(result.recordsets[1]);
+                        console.log(result.recordsets[0]);
                         let payload = {
-                            username: result.recordset[0].username,
-                            role: result.recordset[0].role
+                            username: result.recordsets[1][0].username,
+                            role: result.recordsets[0][0].roleName
                         }
+                        console.log(payload);
                         let token = jwt.sign(payload, 'secretKey')
                         response.status(200).send({
                             status: true,
                             message: 'Login successful..!',
-                            dbResult: result.recordset,
+                            dbResult: result.recordsets[1],
                             token: token,
-                            role: result.recordset[0].role
+                            role: result.recordset[0].roleName
                         })
                     } else {
                         console.log('Invalid username or password');
