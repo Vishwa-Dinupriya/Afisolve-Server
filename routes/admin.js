@@ -11,6 +11,49 @@ router.get('/', (req, res) => {
     res.send('From admin route');
 });
 
+router.post('/get-users-details', verifyToken, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query('select * from USERS', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+router.post('/get-users-details-brief', verifyToken, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query('select TOP 5 * from USERS', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
 // router.post('/update-complaint-status', verifyToken, async (request, response) => {
 //
 //     const complainID = request.body.complainID;
@@ -45,12 +88,12 @@ router.post('/get-complaints-details', verifyToken, async (request, response) =>
     }
 });
 
-router.post('/get-users-details', verifyToken, async (request, response) => {
+router.post('/get-complaints-details-brief', verifyToken, async (request, response) => {
 
     const pool = await poolPromise;
     try {
         pool.request()
-            .query('select * from USERS', (error, result) => {
+            .query('select TOP 5 * from COMPLAINT', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -95,7 +138,7 @@ router.post('/get-feedbacks-details', verifyToken, async (request, response) => 
     const pool = await poolPromise;
     try {
         pool.request()
-            .query('select * from PRODUCT', (error, result) => {
+            .query('select * from FEEDBACK', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false

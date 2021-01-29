@@ -99,7 +99,8 @@ router.post('/login', async (request, response) => {
                             message: 'Login successful..!',
                             dbResult: result.recordsets[1],
                             token: token,
-                            role: result.recordset[0].roleName
+                            role: result.recordset[0].roleName,
+                            firstname: result.recordsets[1][0].firstName
                         })
                     } else {
                         console.log('Invalid username or password');

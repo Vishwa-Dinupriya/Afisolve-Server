@@ -10,11 +10,12 @@ function verifyToken(req, res, next) {
     }
     try {
         let payload = jwt.verify(token, 'secretKey');
+        let username= payload.username;
         if (!payload) {
             return res.status(401).send('Unauthorized request');
         }
         req.payload = payload; // attach the payload to request
-
+        req.uname=username;
         next();
     } catch (exception) {
         return res.status(401).send('Unauthorized request');
