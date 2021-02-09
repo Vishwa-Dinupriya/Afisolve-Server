@@ -10,12 +10,10 @@ function verifyToken(req, res, next) {
     }
     try {
         let payload = jwt.verify(token, 'secretKey');
-        let username= payload.username;
         if (!payload) {
             return res.status(401).send('Unauthorized request');
         }
         req.payload = payload; // attach the payload to request
-        req.uname=username;
         next();
     } catch (exception) {
         return res.status(401).send('Unauthorized request');
@@ -23,6 +21,20 @@ function verifyToken(req, res, next) {
 
 }
 
+function verifyAdmin(req, res, next) {
+    try {
+        let role = req.payload.role;
+        console.log('this is the role: '+ role);
+        if (role!='admin') {
+            return res.status(401).send('Unauthorized request');
+        }
+        next();
+    } catch (exception) {
+        return res.status(401).send('Unauthorized request');
+    }
+}
+
 module.exports = {
-    verifyToken
+    verifyToken,
+    verifyAdmin
 }

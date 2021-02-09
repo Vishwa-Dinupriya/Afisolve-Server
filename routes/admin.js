@@ -6,12 +6,13 @@ const {poolPromise} = require('../helpers/mssql-server-connection');
 const {sql} = require('../helpers/mssql-server-connection');
 
 const {verifyToken} = require('../helpers/verifyToken');
+const {verifyAdmin} = require('../helpers/verifyToken');
 
-router.get('/', (req, res) => {
+router.get('/', (req, res, next) => {
     res.send('From admin route');
-});
+})
 
-router.post('/get-users-details', verifyToken, async (request, response) => {
+router.post('/get-users-details', verifyToken, verifyAdmin, async (request, response) => {
 
     const pool = await poolPromise;
     try {

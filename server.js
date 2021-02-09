@@ -3,11 +3,28 @@ const bodyParser = require('body-parser');
 const logger = require('morgan');
 const cors = require('cors');
 
+const fileUpload = require('express-fileupload');
+const _ = require('lodash');
+
 const app1 = express();
 
 app1.use(bodyParser.json());
+
 app1.use(logger('dev'));
+
+app1.use(fileUpload({
+    createParentPath: true
+}));
+
+app1.use(express.static('profile-pictures'));
+
 app1.use(cors());
+
+app1.use(bodyParser.json({limit: '2mb'}));
+
+app1.use(bodyParser.urlencoded({
+    extended: true
+}));
 
 const PORT1 = 3000;
 
@@ -18,7 +35,7 @@ const ceo = require('./routes/ceo');
 const accountCoordinator = require('./routes/accountCoordinator');
 const developer = require('./routes/developer');
 const projectManager = require('./routes/projectManager');
-const users = require('./routes/users');
+const common = require('./routes/common');
 
 //=============================================
 app1.use('/authentication', authentication);
@@ -28,7 +45,7 @@ app1.use('/ceo', ceo);
 app1.use('/accountCoordinator', accountCoordinator);
 app1.use('/developer', developer);
 app1.use('/projectManager', projectManager);
-app1.use('/users', users);
+app1.use('/common', common);
 
 //=============================================
 app1.get('/', function (req, res) {
