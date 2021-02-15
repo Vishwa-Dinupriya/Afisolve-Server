@@ -101,4 +101,29 @@ router.get('/get-complaint-detai', verifyToken, async (request, response) => {
         response.status(500).send({status: false});
     }
 });
+
+///Account coordinators lage names ganima........
+
+router.get('/get-account-coordinaters-details', verifyToken, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query('select * from ACCOUNT_COORDINATOR ', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
 module.exports = router;
