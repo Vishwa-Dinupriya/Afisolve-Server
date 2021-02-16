@@ -13,25 +13,35 @@ router.get('/', (req, res) => {
 router.post('/register', async (request, response) => {
 
     const data = request.body;
+    console.log(request.body);
 
     try {
+
+        const roles = new sql.Table('roles');
+        roles.columns.add('role', sql.Int);
+
+        for (const role of data.roles) {
+            roles.rows.add(role);
+        }
+
         const pool = await poolPromise;
         await pool.request()
             .input('_firstname', sql.VarChar(40), data.firstName)
             .input('_lastname', sql.VarChar(40), data.lastName)
             .input('_email', sql.VarChar(50), data.email)
             .input('_password', sql.VarChar(20), data.password)
-            .input('_role', sql.VarChar(25), data.role)
+            .input('_roles', roles)
+            .input('_defaultRole', sql.Int, data.defaultRole)
             .input('_contactNumber', sql.VarChar(20), data.contactNumber)
             .execute('registerUser', (error, result) => {
                 if (error) {
-                    console.log(error.number);
+                    console.log(error);
                     if (error.number === 2627) {
                         response.status(500).send({
                             status: false,
                             message: 'Existing User'
                         });
-                    } else {
+                    } else {//vishwa brogen ahanna
                         response.status(500).send({
                             status: false,
                             message: 'query Error..!'
@@ -46,7 +56,7 @@ router.post('/register', async (request, response) => {
                             status: true,
                             message: 'Data Successfully Entered!'
                         });
-                    } else {
+                    } else {//vishwa brogen ahanna
                         response.status(500).send({message: 'DB Server Error'});
                     }
                 }
@@ -75,7 +85,7 @@ router.post('/login', async (request, response) => {
                     console.log(error);
                     response.status(500).send({
                         status: false,
-                        message: 'DB Server error..!'
+                        message: 'DB query error..!'
                     });
                 } else {
                     if (result.returnValue === 0) {
@@ -114,7 +124,7 @@ router.post('/login', async (request, response) => {
         console.log(error);
         response.status(500).send({
             status: false,
-            message: 'Server error..!'
+            message: 'DB Connection error..!'
         });
     }
 
