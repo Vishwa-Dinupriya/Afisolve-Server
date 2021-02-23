@@ -12,7 +12,7 @@ router.get('/', (req, res) => {
     res.send('From users route');
 });
 
-router.post('/get-user-login-details', verifyToken, async (request, response) => {
+router.post('/home/user-display-details', verifyToken, async (request, response) => {
     console.log(request.payload.username);
     const pool = await poolPromise;
     try {

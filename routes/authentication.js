@@ -47,7 +47,6 @@ router.post('/register', async (request, response) => {
                             message: 'query Error..!'
                         });
                     }
-
                 } else {
                     console.log(result);
                     if (result.returnValue === 0) {
@@ -57,7 +56,7 @@ router.post('/register', async (request, response) => {
                             message: 'Data Successfully Entered!'
                         });
                     } else {//vishwa brogen ahanna
-                        response.status(500).send({message: 'DB Server Error'});
+                        response.status(500).send({message: 'from error handler'});
                     }
                 }
             });
@@ -106,7 +105,7 @@ router.post('/login', async (request, response) => {
                             message: 'Login successful..!',
                             dbResult: result.recordsets[1],
                             token: token,
-                            role: result.recordsets[0][0].roleName, // default role comp. ekat navigate kranne meken
+                            role: result.recordsets[0][0].roleName, // default role compo. ekat navigate kranne meken
                             firstname: result.recordsets[1][0].firstName
                         })
                     } else {
