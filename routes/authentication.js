@@ -1,16 +1,19 @@
 const express = require('express')
 const jwt = require('jsonwebtoken')
-const {verifyToken} = require("../helpers/verifyToken");
 const router = express.Router();
 
 const {poolPromise} = require('../helpers/mssql-server-connection');
 const {sql} = require('../helpers/mssql-server-connection');
 
+const {verifyToken} = require("../helpers/verifyToken");
+const {verifyAdmin} = require('../helpers/verifyToken');
+
+
 router.get('/', (req, res) => {
     res.send('From authentication route');
 });
 
-router.post('/register', async (request, response) => {
+router.post('/register', verifyToken, verifyAdmin, async (request, response) => {
 
     const data = request.body;
     console.log(request.body);

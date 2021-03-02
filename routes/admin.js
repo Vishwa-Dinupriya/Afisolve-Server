@@ -60,17 +60,18 @@ router.post('/get-selected-user-profile-details', verifyToken, verifyAdmin, asyn
 
     console.log(request.payload.username + ' 61 admin.js');
     console.log(request.body.selectedUserEmail + ' 62 admin.js');
+    console.log(request.body);
     const pool = await poolPromise;
     try {
         pool.request()
             .input('_username', sql.VarChar(50), request.body.selectedUserEmail)
-            .execute('selectedUserDetails', (error, result) => {
+            .execute('getSelectedUserDetails', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
                     });
                 } else {
-                    if (result.returnValue === 0){
+                    if (result.returnValue === 0) {
                         console.log(result.recordsets[0][0].firstName + ' 73 admin.js')
                         console.log(JSON.stringify(result) + ' 74 admin.js');
                         // console.log(result.recordsets[0][0].firstName);
@@ -86,7 +87,108 @@ router.post('/get-selected-user-profile-details', verifyToken, verifyAdmin, asyn
                             roles: result.recordsets[1],
                             defaultRoleID: result.recordsets[2][0].roleID
                         })
-                    }else {
+                    } else {
+                        response.status(500).send({message: 'return value = -1'});
+                    }
+                }
+            })
+        ;
+    } catch (e) {
+        response.status(500).send(
+            {
+                status: false
+            }
+        )
+    }
+});
+
+router.post('/update-selected-user-profile-details', verifyToken, verifyAdmin, async (request, response) => {
+
+    const oldEmail = request.body.emailOld;
+    const data = request.body.userNewData;
+    console.log(request.body.emailOld + ' admin.js 107');
+    console.log(request.body.userNewData.defaultRole + ' admin.js 108');
+
+    try {
+
+        const roles = new sql.Table('roles');
+        roles.columns.add('role', sql.Int);
+
+        for (const role of data.roles) {
+            roles.rows.add(role);
+        }
+
+        const pool = await poolPromise;
+        await pool.request()
+            .input('_oldEmail', sql.VarChar(50), oldEmail)
+            .input('_firstname', sql.VarChar(40), data.firstName)
+            .input('_lastname', sql.VarChar(40), data.lastName)
+            .input('_newEmail', sql.VarChar(50), data.email)
+            .input('_password', sql.VarChar(20), data.password)
+            .input('_roles', roles)
+            .input('_defaultRole', sql.Int, data.defaultRole)
+            .input('_contactNumber', sql.VarChar(20), data.contactNumber)
+            .execute('updateSelectedUserDetails', (error, result) => {
+                if (error) {
+                    console.log(error);
+                    response.status(500).send({
+                        status: false,
+                        message: 'query Error..!'
+                    });
+                } else {
+                    console.log(result);
+                    if (result.returnValue === 0) {
+                        console.log('Data Successfully Updated!');
+                        response.status(200).send({
+                            status: true,
+                            message: 'Data Successfully Updated!'
+                        });
+                    } else {
+                        response.status(500).send({message: 'from error handler'});
+                    }
+                }
+            });
+    } catch (error) {
+        console.log(error);
+        response.status(500).send({
+            status: false,
+            message: 'DB connection Error..!'
+        });
+    }
+
+});
+
+router.post('/delete-selected-user', verifyToken, verifyAdmin, async (request, response) => {
+
+    console.log(request.payload.username + ' 61 admin.js');
+    console.log(request.body.selectedUserEmail + ' 62 admin.js');
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .input('_username', sql.VarChar(50), request.body.selectedUserEmail)
+            .execute('deleteSelectedUser', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    if (result.returnValue === 0) {
+                        console.log(result.recordsets[0][0].firstName + ' 73 admin.js')
+                        console.log(JSON.stringify(result) + ' 74 admin.js');
+                        // console.log(result.recordsets[0][0].firstName);
+                        // console.log(JSON.stringify(result.recordsets[1]));
+                        response.status(200).send({
+                            status: true,
+                            firstname: result.recordsets[0][0].firstName,
+                            lastname: result.recordsets[0][0].lastName,
+                            userEmail: result.recordsets[0][0].userEmail,
+                            password: result.recordsets[0][0].password,
+                            contactNumber: result.recordsets[0][0].contactNumber,
+                            activeStatus: result.recordsets[0][0].ativeStatus,
+                            roles: result.recordsets[1],
+                            defaultRoleID: result.recordsets[2][0].roleID
+                        })
+                    } else {
                         response.status(500).send({message: 'return value = -1'});
                     }
                 }
