@@ -8,6 +8,7 @@ const {sql} = require('../helpers/mssql-server-connection');
 const {verifyToken} = require('../helpers/verifyToken');
 const {verifyAdmin} = require('../helpers/verifyToken');
 
+//------------------------------------------users-----------------------------------------------
 router.get('/', (req, res, next) => {
     res.send('From admin route');
 })
@@ -58,22 +59,20 @@ router.post('/get-users-details-brief', verifyToken, verifyAdmin, async (request
 
 router.post('/get-selected-user-profile-details', verifyToken, verifyAdmin, async (request, response) => {
 
-    console.log(request.payload.username + ' 61 admin.js');
-    console.log(request.body.selectedUserEmail + ' 62 admin.js');
-    console.log(request.body);
     const pool = await poolPromise;
     try {
         pool.request()
             .input('_username', sql.VarChar(50), request.body.selectedUserEmail)
             .execute('getSelectedUserDetails', (error, result) => {
                 if (error) {
+                    console.log('cannot run getSelectedUserDetails');
                     response.status(500).send({
                         status: false
                     });
                 } else {
                     if (result.returnValue === 0) {
-                        console.log(result.recordsets[0][0].firstName + ' 73 admin.js')
-                        console.log(JSON.stringify(result) + ' 74 admin.js');
+                        console.log(result.recordsets[0][0].firstName + ' 74 admin.js')
+                        console.log(JSON.stringify(result) + ' 75 admin.js');
                         // console.log(result.recordsets[0][0].firstName);
                         // console.log(JSON.stringify(result.recordsets[1]));
                         response.status(200).send({
@@ -84,10 +83,12 @@ router.post('/get-selected-user-profile-details', verifyToken, verifyAdmin, asyn
                             password: result.recordsets[0][0].password,
                             contactNumber: result.recordsets[0][0].contactNumber,
                             activeStatus: result.recordsets[0][0].ativeStatus,
+                            generalData:result.recordsets[0],
                             roles: result.recordsets[1],
                             defaultRoleID: result.recordsets[2][0].roleID
                         })
                     } else {
+                        console.log('getSelectedUserDetails return -1');
                         response.status(500).send({message: 'return value = -1'});
                     }
                 }
@@ -106,8 +107,9 @@ router.post('/update-selected-user-profile-details', verifyToken, verifyAdmin, a
 
     const oldEmail = request.body.emailOld;
     const data = request.body.userNewData;
-    console.log(request.body.emailOld + ' admin.js 107');
-    console.log(request.body.userNewData.defaultRole + ' admin.js 108');
+    const adminEmail = request.payload.username;
+    console.log(request.body.emailOld + ' admin.js 113');
+    console.log(request.body.userNewData.passwordGroup.password + ' password admin.js 114');
 
     try {
 
@@ -124,16 +126,18 @@ router.post('/update-selected-user-profile-details', verifyToken, verifyAdmin, a
             .input('_firstname', sql.VarChar(40), data.firstName)
             .input('_lastname', sql.VarChar(40), data.lastName)
             .input('_newEmail', sql.VarChar(50), data.email)
-            .input('_password', sql.VarChar(20), data.password)
+            .input('_password', sql.VarChar(20), data.passwordGroup.password)
             .input('_roles', roles)
             .input('_defaultRole', sql.Int, data.defaultRole)
             .input('_contactNumber', sql.VarChar(20), data.contactNumber)
+            .input('_modifiedAdmin', sql.VarChar(50), adminEmail)
             .execute('updateSelectedUserDetails', (error, result) => {
                 if (error) {
+                    console.log('1');
                     console.log(error);
                     response.status(500).send({
                         status: false,
-                        message: 'query Error..!'
+                        message: error
                     });
                 } else {
                     console.log(result);
@@ -144,6 +148,7 @@ router.post('/update-selected-user-profile-details', verifyToken, verifyAdmin, a
                             message: 'Data Successfully Updated!'
                         });
                     } else {
+                        console.log('2');
                         response.status(500).send({message: 'from error handler'});
                     }
                 }
@@ -168,33 +173,22 @@ router.post('/delete-selected-user', verifyToken, verifyAdmin, async (request, r
             .input('_username', sql.VarChar(50), request.body.selectedUserEmail)
             .execute('deleteSelectedUser', (error, result) => {
                 if (error) {
+                    console.log(error);
                     response.status(500).send({
                         status: false
                     });
                 } else {
                     if (result.returnValue === 0) {
-                        console.log(result.recordsets[0][0].firstName + ' 73 admin.js')
-                        console.log(JSON.stringify(result) + ' 74 admin.js');
-                        // console.log(result.recordsets[0][0].firstName);
-                        // console.log(JSON.stringify(result.recordsets[1]));
-                        response.status(200).send({
-                            status: true,
-                            firstname: result.recordsets[0][0].firstName,
-                            lastname: result.recordsets[0][0].lastName,
-                            userEmail: result.recordsets[0][0].userEmail,
-                            password: result.recordsets[0][0].password,
-                            contactNumber: result.recordsets[0][0].contactNumber,
-                            activeStatus: result.recordsets[0][0].ativeStatus,
-                            roles: result.recordsets[1],
-                            defaultRoleID: result.recordsets[2][0].roleID
-                        })
+                        response.status(200).send({});
                     } else {
+                        console.log('return -1 ');
                         response.status(500).send({message: 'return value = -1'});
                     }
                 }
             })
         ;
     } catch (e) {
+        console.log(e);
         response.status(500).send(
             {
                 status: false
@@ -204,6 +198,8 @@ router.post('/delete-selected-user', verifyToken, verifyAdmin, async (request, r
 });
 
 
+
+//----------------------------------------complaints--------------------------------------------
 // router.post('/update-complaint-status', verifyToken, async (request, response) => {
 //
 //     const complainID = request.body.complainID;
@@ -215,28 +211,6 @@ router.post('/delete-selected-user', verifyToken, verifyAdmin, async (request, r
 //         });
 //
 // });
-
-router.post('/get-complaints-details', verifyToken, verifyAdmin, async (request, response) => {
-
-    const pool = await poolPromise;
-    try {
-        pool.request()
-            .query('select * from COMPLAINT', (error, result) => {
-                if (error) {
-                    response.status(500).send({
-                        status: false
-                    });
-                } else {
-                    response.status(200).send({
-                        status: true,
-                        data: result.recordset
-                    });
-                }
-            });
-    } catch (e) {
-        response.status(500).send({status: false});
-    }
-});
 
 router.post('/get-complaints-details-brief', verifyToken, verifyAdmin, async (request, response) => {
 
@@ -256,6 +230,100 @@ router.post('/get-complaints-details-brief', verifyToken, verifyAdmin, async (re
                 }
             });
     } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+router.post('/get-all-complaints', verifyToken, verifyAdmin, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query('select * from COMPLAINT where subComplaintID=0', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    console.log(result);
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+router.post('/get-subComplaints', verifyToken, verifyAdmin, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .input('_complainId', sql.VarChar(10), request.body.selectedComplaintID)
+            .execute('getSubComplaintsOfSelectedComplain', (error, result) => {
+                    if (error) {
+                        console.log('cannot run getSubComplaintsOfSelectedComplain');
+                        response.status(500).send({
+                            status: false
+                        });
+                    } else {
+                        if (result.returnValue === 0) {
+                            console.log(JSON.stringify(result) + ' 74 admin.js');
+                            response.status(200).send({
+                                status: true,
+                                data: result.recordset
+                            })
+                        } else if (result.returnValue === 1) {
+                            console.log(JSON.stringify(result));
+                            response.status(500).send({
+                                status: false,
+                                message: 'no sub-complaints',
+                            })
+                        } else {
+                            console.log('getSubComplaintsOfSelectedComplain return -1');
+                            response.status(500).send({message: 'return value = -1'});
+                        }
+                    }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+
+
+//------------------------------------------products--------------------------------------------
+router.post('/register-product', verifyToken, verifyAdmin, async (request, response) => {
+
+    const data = request.body;
+    const requestedAdminEmail = request.payload.username;
+    try {
+        const pool = await poolPromise;
+        pool.request()
+            .input('_productName', sql.VarChar(40), data.productName)
+            .input('_category', sql.VarChar(20), data.productCategory)
+            .input('_customerEmail', sql.VarChar(50), data.customerEmail)
+            .input('_projectManagerEmail', sql.VarChar(50), data.projectManagerEmail)
+            .input('_accountCoordinatorEmail', sql.VarChar(50), data.accountCoordinatorEmail)
+            .input('_createdAdmin', sql.VarChar(50), requestedAdminEmail)
+            .execute('registerProduct',(error, result)=>{
+                if (error) {
+                    console.log(error);
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        console.log(e);
         response.status(500).send({status: false});
     }
 });
@@ -283,6 +351,7 @@ router.post('/get-products-details', verifyToken, verifyAdmin, async (request, r
     }
 });
 
+//-----------------------------------------feedbacks---------------------------------------------
 router.post('/get-feedbacks-details', verifyToken, verifyAdmin, async (request, response) => {
 
     const pool = await poolPromise;

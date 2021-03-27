@@ -35,7 +35,7 @@ const ceo = require('./routes/ceo');
 const accountCoordinator = require('./routes/accountCoordinator');
 const developer = require('./routes/developer');
 const projectManager = require('./routes/projectManager');
-const common = require('./routes/common');
+const home = require('./routes/home');
 
 //=============================================
 app1.use('/authentication', authentication);
@@ -45,7 +45,7 @@ app1.use('/ceo', ceo);
 app1.use('/accountCoordinator', accountCoordinator);
 app1.use('/developer', developer);
 app1.use('/projectManager', projectManager);
-app1.use('/common', common);
+app1.use('/home', home);
 
 //=============================================
 app1.get('/', function (req, res) {

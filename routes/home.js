@@ -12,13 +12,13 @@ router.get('/', (req, res) => {
     res.send('From users route');
 });
 
-router.post('/home/user-display-details', verifyToken, async (request, response) => {
-    console.log(request.payload.username);
+router.post('/user-toolbar-display-details', verifyToken, async (request, response) => {
+    console.log('request.payload.role: ' + request.payload.role);
     const pool = await poolPromise;
     try {
         pool.request()
             .input('_username', sql.VarChar(50), request.payload.username)
-            .execute ('userLoginDetails', (error, result) => {
+            .execute('userToolbarDetails', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -30,7 +30,8 @@ router.post('/home/user-display-details', verifyToken, async (request, response)
                     response.status(200).send({
                         status: true,
                         firstname: result.recordsets[0][0].firstName,
-                        roles:result.recordsets[1]
+                        roles: result.recordsets[1],
+                        selectedRole: request.payload.role
                     })
                 }
             });
@@ -46,7 +47,7 @@ router.post('/home/user-display-details', verifyToken, async (request, response)
 router.post('/get-profile-picture', verifyToken, async (request, response) => {
 
     try {
-        const image = fs.readFileSync('./profile-pictures/' + request.uname + '.png', {encoding: 'base64'});
+        const image = fs.readFileSync('./profile-pictures/' + request.payload.username + '.png', {encoding: 'base64'});
         response.status(200).send({
             status: true,
             profilePicture: image
@@ -76,7 +77,7 @@ router.post('/upload-profile-picture', verifyToken, async (request, response) =>
                 message: 'Image not found'
             });
         } else {
-            const path = './profile-pictures/' + request.uname + '.png';
+            const path = './profile-pictures/' + request.payload.username + '.png';
             const base64Data = image.replace(/^data:([A-Za-z-+/]+);base64,/, '');
             fs.writeFileSync(path, base64Data, {encoding: 'base64'});
             response.send({
