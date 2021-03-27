@@ -238,67 +238,373 @@ router.get('/get-complaint-today', verifyToken, async (request, response) => {
 //});
 
 router.put('/update-name', verifyToken, async (request, response)=> {
-    //console.log(request.body);
-    const data = request.body
-    console.log(data.accountCoordinatorEmail)
-    response.status(200).send({"message": "Data recieved"});
+    const data = request.body.accountCoordinatorEmail;
+    try {
+        const pool = await poolPromise;
+        pool.request()
+            .input('_cbc', sql.VarChar(50), data)
+            .execute('newupdte', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
 
 })
 
 
 
-router.post('/old-name', verifyToken, async (request, response)=>{
-    const data = request.body.accountCoordinatorName
-    console.log(request.body.accountCoordinatorName + ' projectManager.js 252');
-    //const m=(data.accountCoordinatorEmail)
-    const n=(data)
-    //console.log(m)
-    console.log(n)
+router.put('/old-name', verifyToken, async (request, response)=>{
+    const data = request.body.productID;
+    var n=(data)
 
-    //try {
-       // const pool = await poolPromise;
-      //  await pool.request()
-          //  .input('_olden', sql.VarChar(40), data.accountCoordinatorName)
-           // .execute('UpdateStoredProcedureSecondExample', (error, result) => {
-              //  if (error) {
-                   // console.log(error);
-                  //  response.status(500).send({
-                    //    status: false,
-                   //     message: 'query Error..!'
-                 //   });
-             //   } else {
-                  //  console.log(result);
-                  //  if (result.returnValue === 0) {
-                      //  console.log('Data Successfully Updated!');
-                     //   response.status(200).send({
-                        //    status: true,
-                         //   message: 'Data Successfully Updated!'
-                      //  });
-                  //  } else {
-                     //   response.status(500).send({message: 'from error handler'});
-                  //  }
-             //   }
-          //  });
-  //  } catch (error) {
-    //    console.log(error);
-     //   response.status(500).send({
-        //    status: false,
-         //   message: 'DB connection Error..!'
-      //  });
-        //  }
-   
+    try {
+        const pool = await poolPromise;
+        pool.request()
+            .input('_mbc', sql.VarChar(10), data)
+            .execute('updte', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
 
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+    console.log(n);
 })
 
 
 
+// reminder seen eka methana idn..............................................................
 
 
+router.post('/update-reminder', verifyToken, async (request, response)=> {
+    const data = request.body;
+    const charithe= 'Project-Manager';
+    const whaction= 'Reminder';
+    console.log(data)
+    try {
+        const pool = await poolPromise;
+        pool.request()
+            .input('_rem', sql.VarChar(10), data.productID)
+            .input('_aon', sql.VarChar(40), data.accountCoordinatorName)
+            .input('_kan', sql.VarChar(20), charithe)
+            .input('_wan', sql.VarChar(20), whaction)
+            .execute('newreminder', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+
+})
+
+router.post('/update-time', verifyToken, async (request, response)=> {
+    const data = request.body;
+    console.log(data)
+    try {
+        const pool = await poolPromise;
+        pool.request()
+            .input('_tm', sql.Int, data)
+            .execute('newtime', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+
+})
 
 
+router.get('/get-reminder-details', verifyToken, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query('select * from CHANGINGHISTORY \n' +
+                'where wAction=\'Reminder\'', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
 
 
-//.........................................................................
+//........................changinng history seen eka mmethana idn....................
+
+
+router.put('/update-history-previous', verifyToken, async (request, response)=> {
+    const data = request.body;
+    const charithe1= 'Project-Manager';
+    const whaction1= 'Change A.Coordinator';
+    console.log(data)
+    try {
+        const pool = await poolPromise;
+        pool.request()
+            .input('_pon', sql.VarChar(10), data.productID)
+            .input('_ton', sql.VarChar(40), data.accountCoordinatorName)
+            .input('_ban', sql.VarChar(20), charithe1)
+            .input('_dan', sql.VarChar(20), whaction1)
+            .execute('newhistory', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+
+})
+
+
+router.put('/update-history-new', verifyToken, async (request, response)=> {
+    const data = request.body.accountCoordinatorName;
+    console.log(data)
+    try {
+        const pool = await poolPromise;
+        pool.request()
+            .input('_son', sql.VarChar(40), data)
+            .execute('updatehistory', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+
+})
+
+router.get('/get-notaction-details', verifyToken, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query('SELECT view_buddhi.*\n' +
+                '    FROM view_buddhi\n' +
+                '    WHERE NOT EXISTS(SELECT NULL\n' +
+                '                         FROM CHANGINGHISTORY\n' +
+                '                         WHERE CHANGINGHISTORY.productID = view_buddhi.productID \n' +
+                '                        )', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+
+//........................history seen eka
+
+router.get('/get-full-history', verifyToken, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query('select * from CHANGINGHISTORY', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+
+// ........................................................................................................
+// (dash board ekta vena venama data gnna thana)
+
+router.get('/get-full-count', verifyToken, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query('select COUNT(*) as count from COMPLAINT', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+router.get('/get-pending-count', verifyToken, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query('select COUNT(*) as count from COMPLAINT where status=\'pending\'', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+router.get('/get-working-count', verifyToken, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query('select COUNT(*) as count from COMPLAINT where status=\'working\'', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+router.get('/get-finish-count', verifyToken, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query('select COUNT(*) as count from COMPLAINT where status=\'finish\'', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+router.get('/get-late-count', verifyToken, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query('select COUNT(*) as count from COMPLAINT  where COMPLAINT.lastDateOfPending < GETDATE() AND COMPLAINT.status != \'finish\' \n', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
 
 
 
