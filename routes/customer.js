@@ -121,7 +121,7 @@ router.post('/get-all-products', verifyToken, verifyCustomer, async (request, re
     try {
         pool.request()
             .input('_customerEmail', sql.VarChar(50), request.payload.username)
-            .query('select * from PRODUCT where customerEmail=@_customerEmail ', (error, result) => {
+            .query('select * from PRODUCT where customerEmail=@_customerEmail', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
