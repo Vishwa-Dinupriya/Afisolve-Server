@@ -54,6 +54,20 @@ where complaintID = @_complaintID
     RETURN -1;
 go
 
+CREATE procedure deleteSelectedProduct @_productID INT
+as
+    if exists(select 1
+              from PRODUCT
+              where productID = @_productID)
+        begin
+            DELETE FROM PRODUCT WHERE productID = @_productID;
+        end
+    else
+        begin
+            return -1;
+        end
+go
+
 CREATE procedure deleteSelectedUser @_username VARCHAR(50)
 as
     if exists(select 1
@@ -182,6 +196,58 @@ as
     RETURN -1;
 go
 
+CREATE procedure getSelectedComplaintDetails(@_complaintID int,
+                                             @_subComplaintID int)
+as
+    if exists(select 1
+              from COMPLAINT
+              where complaintID = @_complaintID
+                and subComplaintID = @_subComplaintID)
+        begin
+            select * from COMPLAINT where complaintID = @_complaintID and subComplaintID = @_subComplaintID
+            select statusName
+            from COMPLAINT_STATUS C_S
+                     JOIN COMPLAINT C on C_S.statusID = C.status
+            where c.complaintID = @_complaintID
+              and c.subComplaintID = @_subComplaintID
+            select productName
+            from PRODUCT P
+                     JOIN COMPLAINT C2 on P.productID = C2.productID
+            where C2.complaintID = @_complaintID
+              and C2.subComplaintID = @_subComplaintID
+            select userEmail, firstName, lastName
+            from USERS USR
+                     JOIN PRODUCT P2 on USR.userEmail = P2.projectManagerEmail
+            where P2.productID = (
+                select P.productID
+                from PRODUCT P
+                         JOIN COMPLAINT C2 on P.productID = C2.productID
+                where C2.complaintID = @_complaintID
+                  and C2.subComplaintID = @_subComplaintID)
+            select userEmail, firstName, lastName
+            from USERS USR
+                     JOIN PRODUCT P2 on USR.userEmail = P2.accountCoordinatorEmail
+            where P2.productID = (
+                select P.productID
+                from PRODUCT P
+                         JOIN COMPLAINT C2 on P.productID = C2.productID
+                where C2.complaintID = @_complaintID
+                  and C2.subComplaintID = @_subComplaintID)
+
+            return 0;
+        end
+    else
+        begin
+            GOTO errorHandler;
+        end
+    COMMIT TRANSACTION;
+    RETURN 0;
+
+    errorHandler:
+    ROLLBACK TRANSACTION
+    RETURN -1
+go
+
 CREATE procedure getSelectedUserDetails @_username VARCHAR(50)
 as
     if exists(select 1
@@ -192,8 +258,6 @@ as
                                                          and ur.[default] = 'true')
         begin
             select * from USERS where userEmail = @_username
-            --             select r.roleName from ROLE r, USER_ROLE ur where ur.userEmail = @_username and r.roleID = ur.roleID;
---             select r.roleName from ROLE r, USER_ROLE ur where ur.userEmail = @_username and r.roleID = ur.roleID and ur.[default]= 'true';
             select ur.roleID from USER_ROLE ur where ur.userEmail = @_username;
             select ur.roleID from USER_ROLE ur where ur.userEmail = @_username and ur.[default] = 'true';
             return 0;
@@ -214,10 +278,10 @@ CREATE procedure getSubComplaintsOfSelectedComplain @_complainId VARCHAR(10)
 as
     if exists(select 1
               from COMPLAINT c
-              where c.complaintID = @_complainId
+              where c.complainID = @_complainId
                 and c.subComplaintID != 0)
         begin
-            select * from COMPLAINT where subComplaintID != 0 and complaintID = @_complainId
+            select * from COMPLAINT where subComplaintID != 0 and complainID = @_complainId
             RETURN 0;
         end
     else
@@ -319,7 +383,8 @@ CREATE PROCEDURE registerProduct @_productName varchar(40),
 AS
     BEGIN TRANSACTION
 INSERT INTO PRODUCT
-VALUES (@_productName,
+VALUES ((Select MAX(productID) FROM PRODUCT) + 1,
+        @_productName,
         @_category,
         @_customerEmail,
         @_projectManagerEmail,
@@ -502,5 +567,4 @@ as
             return -1;
         end
 go
-
 
