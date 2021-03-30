@@ -111,7 +111,8 @@ router.post('/login', async (request, response) => {
                             dbResult: result.recordsets[1],
                             token: token,
                             defaultRole: result.recordsets[0][0].roleName, // default role compo. ekat navigate kranne meken
-                            firstname: result.recordsets[1][0].firstName
+                            firstname: result.recordsets[1][0].firstName,
+                            userEmail : result.recordsets[1][0].username
                         })
                     } else {
                         console.log('Invalid username or password');

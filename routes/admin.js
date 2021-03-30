@@ -351,7 +351,6 @@ console.log(' complaintID: '+ request.body.complaintID);
             })
         ;
     } catch (e) {
-        console.log('wtf?');
         response.status(500).send(
             {
                 status: false
@@ -414,6 +413,58 @@ router.post('/get-all-products', verifyToken, verifyAdmin, async (request, respo
             });
     } catch (e) {
         response.status(500).send({status: false});
+    }
+});
+
+router.post('/get-selected-product-details', verifyToken, verifyAdmin, async (request, response) => {
+    console.log(' productID: '+ request.body.productID);
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .input('_productID', sql.Int, request.body.productID)
+            .execute('getSelectedProductDetails', (error, result) => {
+                if (error) {
+                    console.log('cannot run getSelectedProductDetails');
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    if (result.returnValue === 0) {
+                        console.log(JSON.stringify(result) + ' 434 admin.js');
+                        response.status(200).send({
+                            status: true,
+                            data: {
+                                accountCoordinatorEmail: result.recordsets[0][0].accountCoordinatorEmail,
+                                accountCoordinatorFirstName: result.recordsets[3][0].firstName,
+                                accountCoordinatorLastName: result.recordsets[3][0].lastName,
+                                category: result.recordsets[0][0].category,
+                                createdAt: result.recordsets[0][0].createdAt,
+                                createdBy: result.recordsets[0][0].createdBy,
+                                customerEmail:  result.recordsets[0][0].customerEmail,
+                                customerFirstName: result.recordsets[1][0].firstName,
+                                customerLastName: result.recordsets[1][0].lastName,
+                                modifiedAt: result.recordsets[0][0].modifiedAt,
+                                modifiedBy: result.recordsets[0][0].modifiedBy,
+                                productID: result.recordsets[0][0].productID,
+                                productName: result.recordsets[0][0].productName,
+                                projectManagerEmail: result.recordsets[0][0].projectManagerEmail,
+                                projectManagerFirstName: result.recordsets[2][0].firstName,
+                                projectManagerLastName: result.recordsets[2][0].lastName
+                            }
+                        })
+                    } else {
+                        console.log('getSelectedUserDetails return -1');
+                        response.status(500).send({message: 'return value = -1'});
+                    }
+                }
+            })
+        ;
+    } catch (e) {
+        response.status(500).send(
+            {
+                status: false
+            }
+        )
     }
 });
 

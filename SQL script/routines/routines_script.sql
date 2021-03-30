@@ -248,6 +248,40 @@ as
     RETURN -1
 go
 
+CREATE procedure getSelectedProductDetails(@_productID int)
+as
+    if exists(select 1
+              from PRODUCT
+              where productID = @_productID)
+        begin
+            select * from PRODUCT where productID = @_productID
+            select userEmail, firstName, lastName
+            from USERS USR
+                     JOIN PRODUCT P1 on USR.userEmail = P1.customerEmail
+            where P1.productID = @_productID
+            select userEmail, firstName, lastName
+            from USERS USR
+                     JOIN PRODUCT P2 on USR.userEmail = P2.projectManagerEmail
+            where P2.productID = @_productID
+            select userEmail, firstName, lastName
+            from USERS USR
+                     JOIN PRODUCT P3 on USR.userEmail = P3.accountCoordinatorEmail
+            where P3.productID = @_productID
+
+            return 0;
+        end
+    else
+        begin
+            GOTO errorHandler;
+        end
+    COMMIT TRANSACTION;
+    RETURN 0;
+
+    errorHandler:
+    ROLLBACK TRANSACTION
+    RETURN -1
+go
+
 CREATE procedure getSelectedUserDetails @_username VARCHAR(50)
 as
     if exists(select 1
