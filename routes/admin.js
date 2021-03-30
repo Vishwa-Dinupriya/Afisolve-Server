@@ -200,17 +200,6 @@ router.post('/delete-selected-user', verifyToken, verifyAdmin, async (request, r
 
 
 //----------------------------------------complaints--------------------------------------------
-// router.post('/update-complaint-status', verifyToken, async (request, response) => {
-//
-//     const complainID = request.body.complainID;
-//     const pool = await poolPromise;
-//     pool.request()
-//         .input('complainID', sql.Int, complainID)
-//         .query('UPDATE ', (error, result) => {
-//
-//         });
-//
-// });
 
 router.post('/get-complaints-details-brief', verifyToken, verifyAdmin, async (request, response) => {
 
@@ -239,16 +228,38 @@ router.post('/get-all-complaints', verifyToken, verifyAdmin, async (request, res
     const pool = await poolPromise;
     try {
         pool.request()
-            .query('select * from COMPLAINT where subComplaintID=0', (error, result) => {
+            .query(' select * from COMPLAINT C  where C.subComplaintID != 0 \n' +
+                   ' select * from COMPLAINT C  where C.subComplaintID = 0 \n', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
                     });
                 } else {
-                    console.log(result);
+                    console.log(JSON.stringify(result) + ' 248 admin.js');
+                    let complaintElements = [];
+                    for (let i = 0; i < result.recordsets[1].length; i++) {
+                        complaintElements[i] = {
+                            complaintID: result.recordsets[1][i].complaintID,
+                            description: result.recordsets[1][i].description,
+                            finishedDate: result.recordsets[1][i].finishedDate,
+                            lastDateOfPending: result.recordsets[1][i].lastDateOfPending,
+                            productID: result.recordsets[1][i].productID[0],
+                            status: result.recordsets[1][i].status,
+                            subComplaintID: result.recordsets[1][i].subComplaintID,
+                            submittedDate: result.recordsets[1][i].submittedDate,
+                            wipStartDate: result.recordsets[1][i].wipStartDate,
+                            subComplaints: result.recordsets[0].filter(function (element) {
+                                return element.complaintID === result.recordsets[1][i].complaintID;
+                            })
+                        }
+                    }
+                    console.log(complaintElements);
+
                     response.status(200).send({
                         status: true,
-                        data: result.recordset
+                        data: complaintElements,
+                        subComplaints: result.recordsets[0],
+                        mainComplaints: result.recordsets[1],
                     });
                 }
             });
@@ -293,6 +304,62 @@ router.post('/get-subComplaints', verifyToken, verifyAdmin, async (request, resp
     }
 });
 
+router.post('/get-selected-complaint-details', verifyToken, verifyAdmin, async (request, response) => {
+console.log(' complaintID: '+ request.body.complaintID);
+    console.log(' subComplaintID: '+ request.body.subComplaintID);
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .input('_complaintID', sql.Int, request.body.complaintID)
+            .input('_subComplaintID', sql.Int, request.body.subComplaintID)
+            .execute('getSelectedComplaintDetails', (error, result) => {
+                if (error) {
+                    console.log('cannot run getSelectedUserDetails');
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    if (result.returnValue === 0) {
+                        console.log(JSON.stringify(result) + ' 322 admin.js');
+                        response.status(200).send({
+                            status: true,
+                            data: {
+                                complaintID: result.recordsets[0][0].complaintID,
+                                subComplaintID: result.recordsets[0][0].subComplaintID,
+                                description: result.recordsets[0][0].description,
+                                statusID: result.recordsets[0][0].status,
+                                submittedDate: result.recordsets[0][0].submittedDate,
+                                lastDateOfPending: result.recordsets[0][0].lastDateOfPending,
+                                wipStartDate: result.recordsets[0][0].wipStartDate,
+                                finishedDate: result.recordsets[0][0].finishedDate,
+                                productID: result.recordsets[0][0].productID,
+                                statusName: result.recordsets[1][0].statusName,
+                                productName: result.recordsets[2][0].productName,
+                                projectManagerEmail: result.recordsets[3][0].userEmail,
+                                projectManagerFirstName: result.recordsets[3][0].firstName,
+                                projectManagerLastName: result.recordsets[3][0].lastName,
+                                accountCoordinatorEmail: result.recordsets[4][0].userEmail,
+                                accountCoordinatorFirstName: result.recordsets[4][0].firstName,
+                                accountCoordinatorLastName: result.recordsets[4][0].lastName
+                            }
+                        })
+                    } else {
+                        console.log('getSelectedUserDetails return -1');
+                        response.status(500).send({message: 'return value = -1'});
+                    }
+                }
+            })
+        ;
+    } catch (e) {
+        console.log('wtf?');
+        response.status(500).send(
+            {
+                status: false
+            }
+        )
+    }
+});
+
 
 
 //------------------------------------------products--------------------------------------------
@@ -328,8 +395,7 @@ router.post('/register-product', verifyToken, verifyAdmin, async (request, respo
     }
 });
 
-
-router.post('/get-products-details', verifyToken, verifyAdmin, async (request, response) => {
+router.post('/get-all-products', verifyToken, verifyAdmin, async (request, response) => {
 
     const pool = await poolPromise;
     try {
@@ -350,6 +416,40 @@ router.post('/get-products-details', verifyToken, verifyAdmin, async (request, r
         response.status(500).send({status: false});
     }
 });
+
+router.post('/delete-selected-product', verifyToken, verifyAdmin, async (request, response) => {
+
+    console.log(request.body.selectedProductID + ' 377 admin.js');
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .input('_productID', sql.Int, request.body.selectedProductID)
+            .execute('deleteSelectedProduct', (error, result) => {
+                if (error) {
+                    console.log(error);
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    if (result.returnValue === 0) {
+                        response.status(200).send({});
+                    } else {
+                        console.log('return -1 ');
+                        response.status(500).send({message: 'return value = -1'});
+                    }
+                }
+            })
+        ;
+    } catch (e) {
+        console.log(e);
+        response.status(500).send(
+            {
+                status: false
+            }
+        )
+    }
+});
+
 
 //-----------------------------------------feedbacks---------------------------------------------
 router.post('/get-feedbacks-details', verifyToken, verifyAdmin, async (request, response) => {
