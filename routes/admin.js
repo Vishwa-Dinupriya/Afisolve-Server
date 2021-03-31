@@ -202,5 +202,66 @@ router.post('/get-feedbacks-details', verifyToken, verifyAdmin, async (request, 
         response.status(500).send({status: false});
     }
 });
+////////////////////me/////////
 
+router.post('/update-selected-user-profile-details', verifyToken, verifyAdmin, async (request, response) => {
+
+    const oldEmail = request.body.emailOld;
+    const data = request.body.userNewData;
+    const adminEmail = request.payload.username;
+    console.log(request.body.emailOld + ' admin.js 113');
+    console.log(request.body.userNewData.passwordGroup.password + ' password admin.js 114');
+
+    try {
+
+        const roles = new sql.Table('roles');
+        roles.columns.add('role', sql.Int);
+
+        for (const role of data.roles) {
+            roles.rows.add(role);
+        }
+
+        const pool = await poolPromise;
+        await pool.request()
+            .input('_oldEmail', sql.VarChar(50), oldEmail)
+            .input('_firstname', sql.VarChar(40), data.firstName)
+            .input('_lastname', sql.VarChar(40), data.lastName)
+            .input('_newEmail', sql.VarChar(50), data.email)
+            .input('_password', sql.VarChar(20), data.passwordGroup.password)
+            .input('_roles', roles)
+            .input('_defaultRole', sql.Int, data.defaultRole)
+            .input('_contactNumber', sql.VarChar(20), data.contactNumber)
+            .input('_modifiedAdmin', sql.VarChar(50), adminEmail)
+            .execute('updateSelectedUserDetails', (error, result) => {
+                if (error) {
+                    console.log('1');
+                    console.log(error);
+                    response.status(500).send({
+                        status: false,
+                        message: error
+                    });
+                } else {
+                    console.log(result);
+                    if (result.returnValue === 0) {
+                        console.log('Data Successfully Updated!');
+                        response.status(200).send({
+                            status: true,
+                            message: 'Data Successfully Updated!'
+                        });
+                    } else {
+                        console.log('2');
+                        response.status(500).send({message: 'from error handler'});
+                    }
+                }
+            });
+    } catch (error) {
+        console.log(error);
+        response.status(500).send({
+            status: false,
+            message: 'DB connection Error..!'
+        });
+    }
+
+});
+//////////////////////////////////////////////////////
 module.exports = router;
