@@ -16,7 +16,7 @@ router.post('/get-accoorcomplaints-details', verifyToken, async (request, respon
     const pool = await poolPromise;
     try {
         pool.request()
-            .query('select * from COMPLAINT ', (error, result) => {
+            .query('select * from COMPLAINT c,COMPLAINT_STATUS s where c.status=s.statusID order by c.complaintID', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -33,13 +33,14 @@ router.post('/get-accoorcomplaints-details', verifyToken, async (request, respon
     }
 });
 
-//filter new complaints
-router.post('/get-new-accoorcomplaints-details', verifyToken, async (request, response) => {
+
+//filter pending complaints
+router.post('/get-pending-accoorcomplaints-details', verifyToken, async (request, response) => {
 
     const pool = await poolPromise;
     try {
         pool.request()
-            .query("select * from COMPLAINT where complaint_status = 'New'", (error, result) => {
+            .query("select * from COMPLAINT c,COMPLAINT_STATUS s where c.status=s.statusID AND s.statusName = 'Pending' order by c.complaintID", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -55,7 +56,120 @@ router.post('/get-new-accoorcomplaints-details', verifyToken, async (request, re
         response.status(500).send({status: false});
     }
 });
+//filter InProgress complaints
+router.post('/get-InProgress-accoorcomplaints-details', verifyToken, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query("select * from COMPLAINT c,COMPLAINT_STATUS s where c.status=s.statusID AND s.statusName = 'InProgress' order by c.complaintID", (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+//filter InProgress complaints
+router.post('/get-Solved-accoorcomplaints-details', verifyToken, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query("select * from COMPLAINT c,COMPLAINT_STATUS s where c.status=s.statusID AND s.statusName = 'Completed' order by c.complaintID", (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+//filter Closed complaints
+router.post('/get-Closed-accoorcomplaints-details', verifyToken, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query("select * from COMPLAINT c,COMPLAINT_STATUS s where c.status=s.statusID AND s.statusName = 'Closed' order by c.complaintID", (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
 //////////////////////////////////////////////////Tasks///////////////////////////////////////////////////////////////////////////////////
+//Get All task details
+router.post('/get-Task-All-details', verifyToken, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query("select t.taskID,t.complaintID,t.subComplaintID,t.assignDate,t.deadline,t.developerEmail,u.firstName+\' \'+u.lastName as DevName from TASK t,USERS u where t.developerEmail=u.userEmail", (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+
+//Get new task details
+router.post('/get-Task-New-details', verifyToken, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query("select t.taskID,t.complaintID,t.subComplaintID,t.assignDate,t.deadline,t.developerEmail,u.firstName+\' \'+u.lastName as DevName from TASK t,USERS u where t.developerEmail=u.userEmail AND t.task_status='Pending'", (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
 
 //Get ip task details
 router.post('/get-Task-IP-details', verifyToken, async (request, response) => {
@@ -63,7 +177,7 @@ router.post('/get-Task-IP-details', verifyToken, async (request, response) => {
     const pool = await poolPromise;
     try {
         pool.request()
-            .query('select t.taskID,t.complaintID,t.subComplaintID,t.assignDate,t.deadline,t.developerEmail,u.firstName+\' \'+u.lastName as DevName from TASK t,USERS u where t.developerEmail=u.userEmail AND t.completed=0', (error, result) => {
+            .query("select t.taskID,t.complaintID,t.subComplaintID,t.assignDate,t.deadline,t.developerEmail,u.firstName+\' \'+u.lastName as DevName from TASK t,USERS u where t.developerEmail=u.userEmail AND t.task_status='InProgress'", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -79,6 +193,29 @@ router.post('/get-Task-IP-details', verifyToken, async (request, response) => {
         response.status(500).send({status: false});
     }
 });
+//Get Completed task details
+router.post('/get-Task-Comple-details', verifyToken, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query("select t.taskID,t.complaintID,t.subComplaintID,t.developerEmail,u.firstName+\' \'+u.lastName as DevName from TASK t,USERS u where t.developerEmail=u.userEmail AND t.task_status='Completed'", (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
 ///////////////////////////////////////Allocation//////////////////////////////////////////////////////////
 router.post('/get-allocation-details', verifyToken, async (request, response) => {
 
@@ -101,5 +238,7 @@ router.post('/get-allocation-details', verifyToken, async (request, response) =>
         response.status(500).send({status: false});
     }
 });
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 module.exports = router;

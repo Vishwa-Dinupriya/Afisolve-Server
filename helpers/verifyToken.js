@@ -25,7 +25,20 @@ function verifyAdmin(req, res, next) {
     try {
         let role = req.payload.role;
         console.log('this is the role: '+ role);
-        if (role!='admin') {
+        if (role!='Admin') {
+            return res.status(401).send('Unauthorized request');
+        }
+        next();
+    } catch (exception) {
+        return res.status(401).send('Unauthorized request');
+    }
+}
+
+function verifyCustomer(req, res, next) {
+    try {
+        let role = req.payload.role;
+        console.log('this is the role: '+ role);
+        if (role!='customer') {
             return res.status(401).send('Unauthorized request');
         }
         next();
@@ -36,5 +49,6 @@ function verifyAdmin(req, res, next) {
 
 module.exports = {
     verifyToken,
-    verifyAdmin
+    verifyAdmin,
+    verifyCustomer
 }

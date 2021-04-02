@@ -1,19 +1,23 @@
 const express = require('express')
 const jwt = require('jsonwebtoken')
-const {verifyToken} = require("../helpers/verifyToken");
 const router = express.Router();
 
 const {poolPromise} = require('../helpers/mssql-server-connection');
 const {sql} = require('../helpers/mssql-server-connection');
 
+const {verifyToken} = require("../helpers/verifyToken");
+const {verifyAdmin} = require('../helpers/verifyToken');
+
+
 router.get('/', (req, res) => {
     res.send('From authentication route');
 });
 
-router.post('/register', async (request, response) => {
+router.post('/register', verifyToken, verifyAdmin, async (request, response) => {
 
     const data = request.body;
     console.log(request.body);
+    const adminEmail = request.payload.username;
 
     try {
 
@@ -29,10 +33,11 @@ router.post('/register', async (request, response) => {
             .input('_firstname', sql.VarChar(40), data.firstName)
             .input('_lastname', sql.VarChar(40), data.lastName)
             .input('_email', sql.VarChar(50), data.email)
-            .input('_password', sql.VarChar(20), data.password)
+            .input('_password', sql.VarChar(20), data.passwordGroup.password)
             .input('_roles', roles)
             .input('_defaultRole', sql.Int, data.defaultRole)
             .input('_contactNumber', sql.VarChar(20), data.contactNumber)
+            .input('_createdAdmin', sql.VarChar(50), adminEmail)
             .execute('registerUser', (error, result) => {
                 if (error) {
                     console.log(error);
@@ -90,7 +95,7 @@ router.post('/login', async (request, response) => {
                     if (result.returnValue === 0) {
                         console.log('login successful..!');
                         // console.log(JSON.stringify(result, null, 2));
-                        console.log(JSON.stringify(result));
+                        // console.log(JSON.stringify(result));
                         // console.log(result.recordsets[1]);
                         // console.log( result.recordsets[0][0]);
 
@@ -105,8 +110,9 @@ router.post('/login', async (request, response) => {
                             message: 'Login successful..!',
                             dbResult: result.recordsets[1],
                             token: token,
-                            role: result.recordsets[0][0].roleName, // default role compo. ekat navigate kranne meken
-                            firstname: result.recordsets[1][0].firstName
+                            defaultRole: result.recordsets[0][0].roleName, // default role compo. ekat navigate kranne meken
+                            firstname: result.recordsets[1][0].firstName,
+                            userEmail : result.recordsets[1][0].username
                         })
                     } else {
                         console.log('Invalid username or password');
@@ -150,11 +156,10 @@ router.post('/role-change', verifyToken, async (request, response) => {
                         status: true,
                         message: 'Role changing successful..!',
                         token: token,
-                        role: result.recordsets[0][0].roleName, // role comp. ekat navigate kranne meken
+                        requestedRole: result.recordsets[0][0].roleName, // role comp. ekat navigate kranne meken
                     })
                 } else {
                     console.log('Unauthorized role');
-
                     response.status(401).send({
                         status: false,
                         message: 'Unauthorized role'
