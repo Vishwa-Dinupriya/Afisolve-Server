@@ -10,6 +10,8 @@ const {verifyToken} = require('../helpers/verifyToken');
 router.get('/', (req, res) => {
     res.send('From authentication route');
 });
+
+
 //--------------------------------------------------view reports
 
 router.get('/get-complaint-details1', verifyToken, async (request, response) => {
@@ -17,8 +19,8 @@ router.get('/get-complaint-details1', verifyToken, async (request, response) => 
     const pool = await poolPromise;
     try {
         pool.request()
-            .query('select * from  COMPLAINT c, PRODUCT p, ACCOUNT_COORDINATOR a\n' +
-                'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail ', (error, result) => {
+            .query('select c.complainID, c.subComplaintID, p.productID, c.description, c.status, c.submittedDate, a.accountCoordinatorName  from  COMPLAINT c, PRODUCT p, ACCOUNT_COORDINATOR a\n' +
+                'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -64,7 +66,8 @@ router.get('/get-complaint-det', verifyToken, async (request, response) => {
     const pool = await poolPromise;
     try {
         pool.request()
-            .query('select * from COMPLAINT where status = \'working\'\n', (error, result) => {
+            .query('select c.complainID, c.subComplaintID, p.productID, c.description, c.status, c.submittedDate, a.accountCoordinatorName  from  COMPLAINT c, PRODUCT p, ACCOUNT_COORDINATOR a\n' +
+                'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail and c.status = \'working\'\n', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -87,7 +90,8 @@ router.get('/get-complaint-de', verifyToken, async (request, response) => {
     const pool = await poolPromise;
     try {
         pool.request()
-            .query('select * from COMPLAINT where status = \'finish\'\n', (error, result) => {
+            .query('select c.complainID, c.subComplaintID, p.productID, c.description, c.status, c.submittedDate, a.accountCoordinatorName  from  COMPLAINT c, PRODUCT p, ACCOUNT_COORDINATOR a\n' +
+                'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail and c.status = \'finish\'\n', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -110,7 +114,8 @@ router.get('/get-complaint-detai', verifyToken, async (request, response) => {
     const pool = await poolPromise;
     try {
         pool.request()
-            .query('select * from COMPLAINT where status = \'pending\'\n', (error, result) => {
+            .query('select c.complainID, c.subComplaintID, p.productID, c.description, c.status, c.submittedDate, a.accountCoordinatorName  from  COMPLAINT c, PRODUCT p, ACCOUNT_COORDINATOR a\n' +
+                'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail and c.status = \'pending\'\n', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -605,7 +610,77 @@ router.get('/get-late-count', verifyToken, async (request, response) => {
     }
 });
 
+//pending  and finish complaints
+router.get('/get-complaint-pf', verifyToken, async (request, response) => {
 
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query('select c.complainID, c.subComplaintID, p.productID, c.description, c.status, c.submittedDate, a.accountCoordinatorName  from  COMPLAINT c, PRODUCT p, ACCOUNT_COORDINATOR a\n' +
+                'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail and (c.status = \'finish\' or c.status = \'pending\')', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+//working and pending complaint
+router.get('/get-complaint-wp', verifyToken, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query('select c.complainID, c.subComplaintID, p.productID, c.description, c.status, c.submittedDate, a.accountCoordinatorName  from  COMPLAINT c, PRODUCT p, ACCOUNT_COORDINATOR a\n' +
+                'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail and (c.status = \'working\' or c.status = \'pending\')', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+///finish and working complaint
+router.get('/get-complaint-fw', verifyToken, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query('select c.complainID, c.subComplaintID, p.productID, c.description, c.status, c.submittedDate, a.accountCoordinatorName  from  COMPLAINT c, PRODUCT p, ACCOUNT_COORDINATOR a\n' +
+                'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail and (c.status = \'working\' or c.status = \'finish\')', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
 
 
 module.exports = router;
