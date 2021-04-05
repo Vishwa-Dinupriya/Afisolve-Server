@@ -51,4 +51,35 @@ VALUES ((SELECT MAX(complaintID) from COMPLAINT) + 1,
     ROLLBACK TRANSACTION
     RETURN -1;
 go
+/* Update Complaint Status */
+create procedure updateSelectedComplaintStatusDetails (@_ID INT, @_subID INT, @_Status varchar(10))
+AS
+    BEGIN TRANSACTION
+UPDATE COMPLAINT
+SET status = (select statusID from COMPLAINT_STATUS where statusName = @_Status )
+WHERE complaintID = @_ID AND  subComplaintID = @_subID
+
+    COMMIT TRANSACTION;
+    RETURN 0;
+
+    errorHandler:
+    ROLLBACK TRANSACTION
+    RETURN -1;
+go
+
+/* Update developer task details */
+create procedure updateDevTaskStatus (@_taskID INT,@_task_status varchar(20))
+AS
+    BEGIN TRANSACTION
+UPDATE TASK
+SET task_status = @_task_status
+WHERE taskID = @_taskID;
+
+    COMMIT TRANSACTION;
+    RETURN 0;
+
+    errorHandler:
+    ROLLBACK TRANSACTION
+    RETURN -1;
+go
 
