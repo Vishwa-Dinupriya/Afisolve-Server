@@ -34,7 +34,21 @@ function verifyAdmin(req, res, next) {
     }
 }
 
+
+function verifyProjectManager(req, res, next) {
+    try {
+        let role = req.payload.role;
+        console.log('this is the role: '+ role);
+        if (role!='project-manager') {
+            return res.status(401).send('Unauthorized request');
+        }
+        next();
+    } catch (exception) {
+        return res.status(401).send('Unauthorized request');
+    }
+}
 module.exports = {
     verifyToken,
-    verifyAdmin
+    verifyAdmin,
+    verifyProjectManager
 }

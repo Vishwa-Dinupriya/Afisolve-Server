@@ -1,6 +1,8 @@
 const express = require('express')
 const jwt = require('jsonwebtoken')
+const {verifyProjectManager} = require("../helpers/verifyToken");
 const router = express.Router();
+const nodemailer = require('nodemailer');
 
 const {poolPromise} = require('../helpers/mssql-server-connection');
 const {sql} = require('../helpers/mssql-server-connection');
@@ -12,15 +14,16 @@ router.get('/', (req, res) => {
 });
 
 
-//--------------------------------------------------view reports
+//------------------------------------------view reports-------------------------------------------
 
-router.get('/get-complaint-details1', verifyToken, async (request, response) => {
+router.get('/get-complaint-details1', verifyToken,verifyProjectManager, async (request, response) => {
 
     const pool = await poolPromise;
     try {
         pool.request()
+            .input('_pmEmail', sql.VarChar(50), request.payload.username)
             .query('select c.complainID, c.subComplaintID, p.productID, c.description, c.status, c.submittedDate, a.accountCoordinatorName  from  COMPLAINT c, PRODUCT p, ACCOUNT_COORDINATOR a\n' +
-                'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail', (error, result) => {
+                'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail and p.projectManagerEmail=@_pmEmail', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -37,13 +40,19 @@ router.get('/get-complaint-details1', verifyToken, async (request, response) => 
     }
 });
 
-//---------------------------------------------------------------------------------------------
-router.get('/get-complaint-details', verifyToken, async (request, response) => {
+
+
+
+
+//---------------------------late complaint----------------------------------------------------
+router.get('/get-complaint-details', verifyToken, verifyProjectManager,  async (request, response) => {
 
     const pool = await poolPromise;
     try {
         pool.request()
-            .query('select * from view_buddhi', (error, result) => {
+            .input('_pmEmail', sql.VarChar(50), request.payload.username)
+            .query('select c.complainID, p.productID, c.description, c.submittedDate, c.lastDateOfPending, a.accountCoordinatorName, a.accountCoordinatorEmail  from  COMPLAINT c, PRODUCT p, ACCOUNT_COORDINATOR a\n' +
+                'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail and c.lastDateOfPending < GETDATE() and p.projectManagerEmail=@_pmEmail', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -59,15 +68,19 @@ router.get('/get-complaint-details', verifyToken, async (request, response) => {
         response.status(500).send({status: false});
     }
 });
+
+
+
 //----------------------------------------------------------------------------------
 ///working progress complaints
-router.get('/get-complaint-det', verifyToken, async (request, response) => {
+router.get('/get-complaint-det', verifyToken,verifyProjectManager, async (request, response) => {
 
     const pool = await poolPromise;
     try {
         pool.request()
+            .input('_pmEmail', sql.VarChar(50), request.payload.username)
             .query('select c.complainID, c.subComplaintID, p.productID, c.description, c.status, c.submittedDate, a.accountCoordinatorName  from  COMPLAINT c, PRODUCT p, ACCOUNT_COORDINATOR a\n' +
-                'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail and c.status = \'working\'\n', (error, result) => {
+                'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail and c.status = \'working\' and p.projectManagerEmail=@_pmEmail', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -85,13 +98,14 @@ router.get('/get-complaint-det', verifyToken, async (request, response) => {
 });
 
 ///finish complaint
-router.get('/get-complaint-de', verifyToken, async (request, response) => {
+router.get('/get-complaint-de', verifyToken, verifyProjectManager,  async (request, response) => {
 
     const pool = await poolPromise;
     try {
         pool.request()
+            .input('_pmEmail', sql.VarChar(50), request.payload.username)
             .query('select c.complainID, c.subComplaintID, p.productID, c.description, c.status, c.submittedDate, a.accountCoordinatorName  from  COMPLAINT c, PRODUCT p, ACCOUNT_COORDINATOR a\n' +
-                'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail and c.status = \'finish\'\n', (error, result) => {
+                'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail and c.status = \'finish\' and p.projectManagerEmail=@_pmEmail', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -109,13 +123,14 @@ router.get('/get-complaint-de', verifyToken, async (request, response) => {
 });
 
 ///pending complaint
-router.get('/get-complaint-detai', verifyToken, async (request, response) => {
+router.get('/get-complaint-detai', verifyToken, verifyProjectManager, async (request, response) => {
 
     const pool = await poolPromise;
     try {
         pool.request()
+            .input('_pmEmail', sql.VarChar(50), request.payload.username)
             .query('select c.complainID, c.subComplaintID, p.productID, c.description, c.status, c.submittedDate, a.accountCoordinatorName  from  COMPLAINT c, PRODUCT p, ACCOUNT_COORDINATOR a\n' +
-                'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail and c.status = \'pending\'\n', (error, result) => {
+                'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail and c.status = \'pending\' and p.projectManagerEmail=@_pmEmail', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -132,7 +147,9 @@ router.get('/get-complaint-detai', verifyToken, async (request, response) => {
     }
 });
 
-///Account coordinators lage names ganima........
+
+
+///-----------------------------Account coordinators lage names ganima........
 
 router.get('/get-account-coordinaters-details', verifyToken, async (request, response) => {
 
@@ -160,88 +177,7 @@ router.get('/get-account-coordinaters-details', verifyToken, async (request, res
 
 
 
-//-------------------------------------------time wise gnna eka
-
-//this year
-
-router.get('/get-complaint-year', verifyToken, async(request, response) => {
-
-    const pool = await poolPromise;
-    try {
-        pool.request()
-            .query('select * from COMPLAINT \n' +
-                'where submittedDate > DATEADD(month, -1,GETDATE())', (error, result) => {
-                if (error) {
-                    response.status(500).send({
-                        status: false
-                    });
-                } else {
-                    response.status(200).send({
-                        status: true,
-                        data: result.recordset
-                    });
-                }
-            });
-    } catch (e) {
-        response.status(500).send({status: false});
-    }
-});
-
-///this month
-
-router.get('/get-complaint-month', verifyToken, async (request, response) => {
-
-    const pool = await poolPromise;
-    try {
-        pool.request()
-            .query('select * from COMPLAINT \n' +
-                'where submittedDate > DATEADD(month, -1,GETDATE())', (error, result) => {
-                if (error) {
-                    response.status(500).send({
-                        status: false
-                    });
-                } else {
-                    response.status(200).send({
-                        status: true,
-                        data: result.recordset
-                    });
-                }
-            });
-    } catch (e) {
-        response.status(500).send({status: false});
-    }
-});
-
-///today
-router.get('/get-complaint-today', verifyToken, async (request, response) => {
-
-    const pool = await poolPromise;
-    try {
-        pool.request()
-            .query('select * from COMPLAINT \n' +
-                'where cast(submittedDate as Date) = cast(getdate() as date)\n ', (error, result) => {
-                if (error) {
-                    response.status(500).send({
-                        status: false
-                    });
-                } else {
-                    response.status(200).send({
-                        status: true,
-                        data: result.recordset
-                    });
-                }
-            });
-    } catch (e) {
-        response.status(500).send({status: false});
-    }
-});
-
-//--------------------------------------------------------------------------------------------------
-
-//router.post('/update-name', async (request, response) => {
-    //console.log(request.body);
-//});
-
+//------------------------------------------------ aluth namak enter kirima................
 router.put('/update-name', verifyToken, async (request, response)=> {
     const data = request.body.accountCoordinatorEmail;
     try {
@@ -267,16 +203,55 @@ router.put('/update-name', verifyToken, async (request, response)=> {
 
 })
 
-
+// ................................. old acc. coordiwa ayin kirima -------------------------
 
 router.put('/old-name', verifyToken, async (request, response)=>{
-    const data = request.body.productID;
-    var n=(data)
+    const data = request.body;
+    const maile = data.accountCoordinatorEmail;
+    const pdr = data.productID;
+
+
+
+    async function main() {
+        // Generate test SMTP service account from ethereal.email
+        // Only needed if you don't have a real mail account for testing
+        let testAccount = await nodemailer.createTestAccount();
+
+        // create reusable transporter object using the default SMTP transport
+        let transporter = nodemailer.createTransport({
+            host: "smtp.ethereal.email",
+            // service: "gmail",
+            port: 587,
+            secure: false, // true for 465, false for other ports
+            auth: {
+                user: testAccount.user, // generated ethereal user
+                pass: testAccount.pass, // generated ethereal password
+            },
+        });
+
+        // send mail with defined transport object
+        let info = await transporter.sendMail({
+            from: '"Admin: Complaint Management System" <foo@example.com>', // sender address
+            to: maile, // list of receivers
+            subject: "Remove Account Coordinator", // Subject line
+            text: "You have not complete providing solution for "  + pdr +" product complaint. so, You have been remove from Account Coordinator of the " + pdr + "product ID product", // plain text body
+            html: "You have not complete providing solution for "  + pdr +" product complaint. so, You have been remove from Account Coordinator of the " + pdr + "product ID product", // html body
+        });
+
+        console.log("Message sent: %s", info.messageId);
+        // Message sent: <b658f8ca-6296-ccf4-8306-87d57a0b4321@example.com>
+
+        // Preview only available when sending through an Ethereal account
+        console.log("Preview URL: %s", nodemailer.getTestMessageUrl(info));
+        // Preview URL: https://ethereal.email/message/WaQKMgKddxQDoou...
+    }
+
+    main().catch(console.error);
 
     try {
         const pool = await poolPromise;
         pool.request()
-            .input('_mbc', sql.VarChar(10), data)
+            .input('_mbc', sql.VarChar(10), data.productID)
             .execute('updte', (error, result) => {
                 if (error) {
                     response.status(500).send({
@@ -306,6 +281,64 @@ router.post('/update-reminder', verifyToken, async (request, response)=> {
     const charithe= 'Project-Manager';
     const whaction= 'Reminder';
     console.log(data)
+
+
+
+    const acemailll = data.accountCoordinatorEmail;
+    const comiddd = data.complainID;
+    console.log(acemail);
+
+
+    // .............................................................
+    async function main() {
+        // Generate test SMTP service account from ethereal.email
+        // Only needed if you don't have a real mail account for testing
+        let testAccount = await nodemailer.createTestAccount();
+
+        // create reusable transporter object using the default SMTP transport
+        let transporter = nodemailer.createTransport({
+            host: "smtp.ethereal.email",
+            // service: "gmail",
+            port: 587,
+            secure: false, // true for 465, false for other ports
+            auth: {
+                user: testAccount.user, // generated ethereal user
+                pass: testAccount.pass, // generated ethereal password
+            },
+        });
+
+        // send mail with defined transport object
+        let info = await transporter.sendMail({
+            from: '"Admin: Complaint Management System" <foo@example.com>', // sender address
+            to: acemailll, // list of receivers
+            subject: "Reminder", // Subject line
+            text: "You have not complete providing solution for "  + comiddd +" complaint. please, complete your work quickly", // plain text body
+            html: "You have not complete providing solution for " + comiddd+ " complaint. please, complete your work quickly", // html body
+        });
+
+        console.log("Message sent: %s", info.messageId);
+        // Message sent: <b658f8ca-6296-ccf4-8306-87d57a0b4321@example.com>
+
+        // Preview only available when sending through an Ethereal account
+        console.log("Preview URL: %s", nodemailer.getTestMessageUrl(info));
+        // Preview URL: https://ethereal.email/message/WaQKMgKddxQDoou...
+    }
+
+    main().catch(console.error);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     try {
         const pool = await poolPromise;
         pool.request()
@@ -331,33 +364,6 @@ router.post('/update-reminder', verifyToken, async (request, response)=> {
     }
 
 })
-
-router.post('/update-time', verifyToken, async (request, response)=> {
-    const data = request.body;
-    console.log(data)
-    try {
-        const pool = await poolPromise;
-        pool.request()
-            .input('_tm', sql.Int, data)
-            .execute('newtime', (error, result) => {
-                if (error) {
-                    response.status(500).send({
-                        status: false
-                    });
-
-                } else {
-                    response.status(200).send({
-                        status: true,
-                        data: result.recordset
-                    });
-                }
-            });
-    } catch (e) {
-        response.status(500).send({status: false});
-    }
-
-})
-
 
 router.get('/get-reminder-details', verifyToken, async (request, response) => {
 
@@ -388,8 +394,8 @@ router.get('/get-reminder-details', verifyToken, async (request, response) => {
 
 router.put('/update-history-previous', verifyToken, async (request, response)=> {
     const data = request.body;
-    const charithe1= 'Project-Manager';
-    const whaction1= 'Change A.Coordinator';
+    const charithe1 = 'Project-Manager';
+    const whaction1 = 'Change A.Coordinator';
     console.log(data)
     try {
         const pool = await poolPromise;
@@ -444,33 +450,6 @@ router.put('/update-history-new', verifyToken, async (request, response)=> {
 
 })
 
-router.get('/get-notaction-details', verifyToken, async (request, response) => {
-
-    const pool = await poolPromise;
-    try {
-        pool.request()
-            .query('SELECT view_buddhi.*\n' +
-                '    FROM view_buddhi\n' +
-                '    WHERE NOT EXISTS(SELECT NULL\n' +
-                '                         FROM CHANGINGHISTORY\n' +
-                '                         WHERE CHANGINGHISTORY.productID = view_buddhi.productID \n' +
-                '                        )', (error, result) => {
-                if (error) {
-                    response.status(500).send({
-                        status: false
-                    });
-                } else {
-                    response.status(200).send({
-                        status: true,
-                        data: result.recordset
-                    });
-                }
-            });
-    } catch (e) {
-        response.status(500).send({status: false});
-    }
-});
-
 
 //........................history seen eka
 
@@ -500,12 +479,13 @@ router.get('/get-full-history', verifyToken, async (request, response) => {
 // ........................................................................................................
 // (dash board ekta vena venama data gnna thana)
 
-router.get('/get-full-count', verifyToken, async (request, response) => {
+router.get('/get-full-count', verifyToken, verifyProjectManager, async (request, response) => {
 
     const pool = await poolPromise;
     try {
         pool.request()
-            .query('select COUNT(*) as count from COMPLAINT', (error, result) => {
+            .input('_pmEmail', sql.VarChar(50), request.payload.username)
+            .query('select COUNT(*) as count from COMPLAINT c , PRODUCT p where c.productID=p.productID and p.projectManagerEmail=@_pmEmail', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -522,12 +502,13 @@ router.get('/get-full-count', verifyToken, async (request, response) => {
     }
 });
 
-router.get('/get-pending-count', verifyToken, async (request, response) => {
+router.get('/get-pending-count', verifyToken, verifyProjectManager, async (request, response) => {
 
     const pool = await poolPromise;
     try {
         pool.request()
-            .query('select COUNT(*) as count from COMPLAINT where status=\'pending\'', (error, result) => {
+            .input('_pmEmail', sql.VarChar(50), request.payload.username)
+            .query('select COUNT(*) as count from COMPLAINT c , PRODUCT p where c.productID=p.productID and p.projectManagerEmail=@_pmEmail and c.status=\'pending\'', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -544,12 +525,13 @@ router.get('/get-pending-count', verifyToken, async (request, response) => {
     }
 });
 
-router.get('/get-working-count', verifyToken, async (request, response) => {
+router.get('/get-working-count', verifyToken, verifyProjectManager, async (request, response) => {
 
     const pool = await poolPromise;
     try {
         pool.request()
-            .query('select COUNT(*) as count from COMPLAINT where status=\'working\'', (error, result) => {
+            .input('_pmEmail', sql.VarChar(50), request.payload.username)
+            .query('select COUNT(*) as count from COMPLAINT c , PRODUCT p where c.productID=p.productID and p.projectManagerEmail=@_pmEmail and  c.status=\'working\'', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -566,12 +548,13 @@ router.get('/get-working-count', verifyToken, async (request, response) => {
     }
 });
 
-router.get('/get-finish-count', verifyToken, async (request, response) => {
+router.get('/get-finish-count', verifyToken, verifyProjectManager, async (request, response) => {
 
     const pool = await poolPromise;
     try {
         pool.request()
-            .query('select COUNT(*) as count from COMPLAINT where status=\'finish\'', (error, result) => {
+            .input('_pmEmail', sql.VarChar(50), request.payload.username)
+            .query('select COUNT(*) as count from COMPLAINT c , PRODUCT p where c.productID=p.productID and p.projectManagerEmail=@_pmEmail and c.status=\'finish\'', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -588,12 +571,13 @@ router.get('/get-finish-count', verifyToken, async (request, response) => {
     }
 });
 
-router.get('/get-late-count', verifyToken, async (request, response) => {
+router.get('/get-late-count', verifyToken, verifyProjectManager, async (request, response) => {
 
     const pool = await poolPromise;
     try {
         pool.request()
-            .query('select COUNT(*) as count from COMPLAINT  where COMPLAINT.lastDateOfPending < GETDATE() AND COMPLAINT.status != \'finish\' \n', (error, result) => {
+            .input('_pmEmail', sql.VarChar(50), request.payload.username)
+            .query('select COUNT(*) as count from COMPLAINT c , PRODUCT p where c.productID=p.productID and p.projectManagerEmail=@_pmEmail and  c.lastDateOfPending < GETDATE() AND c.status != \'finish\' \n', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -609,15 +593,48 @@ router.get('/get-late-count', verifyToken, async (request, response) => {
         response.status(500).send({status: false});
     }
 });
+
+// -------------------------- no action -----------------------
+
+router.get('/get-notaction-details', verifyToken, verifyProjectManager, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .input('_pmEmail', sql.VarChar(50), request.payload.username)
+            .query('SELECT view_buddhi.*\n' +
+                '    FROM view_buddhi\n' +
+                '    WHERE NOT EXISTS(SELECT NULL\n' +
+                '                         FROM CHANGINGHISTORY\n' +
+                '                         WHERE CHANGINGHISTORY.productID = view_buddhi.productID \n' +
+                '                        ) and view_buddhi.projectManagerEmail = @_pmEmail', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+
 
 //pending  and finish complaints
-router.get('/get-complaint-pf', verifyToken, async (request, response) => {
+router.get('/get-complaint-pf', verifyToken, verifyProjectManager, async (request, response) => {
 
     const pool = await poolPromise;
     try {
         pool.request()
+            .input('_pmEmail', sql.VarChar(50), request.payload.username)
             .query('select c.complainID, c.subComplaintID, p.productID, c.description, c.status, c.submittedDate, a.accountCoordinatorName  from  COMPLAINT c, PRODUCT p, ACCOUNT_COORDINATOR a\n' +
-                'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail and (c.status = \'finish\' or c.status = \'pending\')', (error, result) => {
+                'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail and p.projectManagerEmail=@_pmEmail and  (c.status = \'finish\' or c.status = \'pending\')', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -635,13 +652,14 @@ router.get('/get-complaint-pf', verifyToken, async (request, response) => {
 });
 
 //working and pending complaint
-router.get('/get-complaint-wp', verifyToken, async (request, response) => {
+router.get('/get-complaint-wp', verifyToken, verifyProjectManager, async (request, response) => {
 
     const pool = await poolPromise;
     try {
         pool.request()
+            .input('_pmEmail', sql.VarChar(50), request.payload.username)
             .query('select c.complainID, c.subComplaintID, p.productID, c.description, c.status, c.submittedDate, a.accountCoordinatorName  from  COMPLAINT c, PRODUCT p, ACCOUNT_COORDINATOR a\n' +
-                'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail and (c.status = \'working\' or c.status = \'pending\')', (error, result) => {
+                'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail and p.projectManagerEmail=@_pmEmail and (c.status = \'working\' or c.status = \'pending\')', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -659,13 +677,14 @@ router.get('/get-complaint-wp', verifyToken, async (request, response) => {
 });
 
 ///finish and working complaint
-router.get('/get-complaint-fw', verifyToken, async (request, response) => {
+router.get('/get-complaint-fw', verifyToken, verifyProjectManager, async (request, response) => {
 
     const pool = await poolPromise;
     try {
         pool.request()
+            .input('_pmEmail', sql.VarChar(50), request.payload.username)
             .query('select c.complainID, c.subComplaintID, p.productID, c.description, c.status, c.submittedDate, a.accountCoordinatorName  from  COMPLAINT c, PRODUCT p, ACCOUNT_COORDINATOR a\n' +
-                'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail and (c.status = \'working\' or c.status = \'finish\')', (error, result) => {
+                'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail and p.projectManagerEmail=@_pmEmail and (c.status = \'working\' or c.status = \'finish\')', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -681,6 +700,64 @@ router.get('/get-complaint-fw', verifyToken, async (request, response) => {
         response.status(500).send({status: false});
     }
 });
+
+
+
+/// .....................................get message
+
+router.get('/get-message', verifyToken, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query('SELECT * FROM MESSAGE m\n' +
+                'ORDER BY m.sendtime', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+
+
+////----------------------------------type msg---------------------------------
+router.put('/send-msg', verifyToken, async (request, response)=> {
+    const data = request.body.massege;
+    const sen= 'projectManager';
+    console.log(data)
+    try {
+        const pool = await poolPromise;
+        pool.request()
+            .input('_rem', sql.VarChar(200), data)
+            .input('_senn', sql.VarChar(20), sen)
+            .execute('newmsg', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+
+})
 
 
 module.exports = router;

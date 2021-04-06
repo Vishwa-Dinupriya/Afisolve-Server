@@ -12,6 +12,9 @@ router.get('/', (req, res) => {
     res.send('From ceo route');
 });
 
+///---------------------------------------------------------------------------------------------------------------------
+
+// -----------------------grt reports----------------
 
 router.get('/get-complaint-details1', verifyToken, async (request, response) => {
 
@@ -36,7 +39,7 @@ router.get('/get-complaint-details1', verifyToken, async (request, response) => 
     }
 });
 
-//---------------------------------------------------------------------------------------------
+//--------------------------------------------late complaints-------------------------------------------------
 router.get('/get-complaint-details', verifyToken, async (request, response) => {
 
     const pool = await poolPromise;
@@ -159,87 +162,7 @@ router.get('/get-account-coordinaters-details', verifyToken, async (request, res
 
 
 
-//-------------------------------------------time wise gnna eka
-
-//this year
-
-router.get('/get-complaint-year', verifyToken, async(request, response) => {
-
-    const pool = await poolPromise;
-    try {
-        pool.request()
-            .query('select * from COMPLAINT \n' +
-                'where submittedDate > DATEADD(month, -1,GETDATE())', (error, result) => {
-                if (error) {
-                    response.status(500).send({
-                        status: false
-                    });
-                } else {
-                    response.status(200).send({
-                        status: true,
-                        data: result.recordset
-                    });
-                }
-            });
-    } catch (e) {
-        response.status(500).send({status: false});
-    }
-});
-
-///this month
-
-router.get('/get-complaint-month', verifyToken, async (request, response) => {
-
-    const pool = await poolPromise;
-    try {
-        pool.request()
-            .query('select * from COMPLAINT \n' +
-                'where submittedDate > DATEADD(month, -1,GETDATE())', (error, result) => {
-                if (error) {
-                    response.status(500).send({
-                        status: false
-                    });
-                } else {
-                    response.status(200).send({
-                        status: true,
-                        data: result.recordset
-                    });
-                }
-            });
-    } catch (e) {
-        response.status(500).send({status: false});
-    }
-});
-
-///today
-router.get('/get-complaint-today', verifyToken, async (request, response) => {
-
-    const pool = await poolPromise;
-    try {
-        pool.request()
-            .query('select * from COMPLAINT \n' +
-                'where cast(submittedDate as Date) = cast(getdate() as date)\n ', (error, result) => {
-                if (error) {
-                    response.status(500).send({
-                        status: false
-                    });
-                } else {
-                    response.status(200).send({
-                        status: true,
-                        data: result.recordset
-                    });
-                }
-            });
-    } catch (e) {
-        response.status(500).send({status: false});
-    }
-});
-
-//--------------------------------------------------------------------------------------------------
-
-//router.post('/update-name', async (request, response) => {
-//console.log(request.body);
-//});
+//---------------------------------------------- new acc co-------------------------
 
 router.put('/update-name', verifyToken, async (request, response)=> {
     const data = request.body.accountCoordinatorEmail;
@@ -266,16 +189,55 @@ router.put('/update-name', verifyToken, async (request, response)=> {
 
 })
 
-
+// remove krana acc.name----------------
 
 router.put('/old-name', verifyToken, async (request, response)=>{
-    const data = request.body.productID;
-    var n=(data)
+    const data = request.body;
+    const maile = data.accountCoordinatorEmail;
+    const pdr = data.productID;
+
+
+
+    async function main() {
+        // Generate test SMTP service account from ethereal.email
+        // Only needed if you don't have a real mail account for testing
+        let testAccount = await nodemailer.createTestAccount();
+
+        // create reusable transporter object using the default SMTP transport
+        let transporter = nodemailer.createTransport({
+            host: "smtp.ethereal.email",
+            // service: "gmail",
+            port: 587,
+            secure: false, // true for 465, false for other ports
+            auth: {
+                user: testAccount.user, // generated ethereal user
+                pass: testAccount.pass, // generated ethereal password
+            },
+        });
+
+        // send mail with defined transport object
+        let info = await transporter.sendMail({
+            from: '"Admin: Complaint Management System" <foo@example.com>', // sender address
+            to: maile, // list of receivers
+            subject: "Remove Account Coordinator", // Subject line
+            text: "You have not complete providing solution for "  + pdr +" product complaint. so, You have been remove from Account Coordinator of the " + pdr + "product ID product", // plain text body
+            html: "You have not complete providing solution for "  + pdr +" product complaint. so, You have been remove from Account Coordinator of the " + pdr + "product ID product", // html body
+        });
+
+        console.log("Message sent: %s", info.messageId);
+        // Message sent: <b658f8ca-6296-ccf4-8306-87d57a0b4321@example.com>
+
+        // Preview only available when sending through an Ethereal account
+        console.log("Preview URL: %s", nodemailer.getTestMessageUrl(info));
+        // Preview URL: https://ethereal.email/message/WaQKMgKddxQDoou...
+    }
+
+    main().catch(console.error);
 
     try {
         const pool = await poolPromise;
         pool.request()
-            .input('_mbc', sql.VarChar(10), data)
+            .input('_mbc', sql.VarChar(10), data.productID)
             .execute('updte', (error, result) => {
                 if (error) {
                     response.status(500).send({
@@ -332,8 +294,8 @@ router.post('/update-reminder', verifyToken, async (request, response)=> {
             from: '"Fred Foo 👻" <foo@example.com>', // sender address
             to: acemail, // list of receivers
             subject: "Reminder", // Subject line
-            text: "You have not complete providing solution for "  + {comid} +" complaint. please, complete your work quickly", // plain text body
-            html: "You have not complete providing solution for " + {comid} + " complaint. please, complete your work quickly", // html body
+            text: "You have not complete providing solution for "  + comid +" complaint. please, complete your work quickly", // plain text body
+            html: "You have not complete providing solution for " + comid + " complaint. please, complete your work quickly", // html body
         });
 
         console.log("Message sent: %s", info.messageId);
@@ -383,36 +345,6 @@ router.post('/update-reminder', verifyToken, async (request, response)=> {
     }
 
 })
-
-router.post('/update-time', verifyToken, async (request, response)=> {
-    const data = request.body;
-    console.log(data)
-    try {
-        const pool = await poolPromise;
-        pool.request()
-            .input('_tm', sql.Int, data)
-            .execute('newtime', (error, result) => {
-                if (error) {
-                    response.status(500).send({
-                        status: false
-                    });
-
-                } else {
-                    response.status(200).send({
-                        status: true,
-                        data: result.recordset
-                    });
-                }
-            });
-    } catch (e) {
-        response.status(500).send({status: false});
-    }
-
-})
-
-
-
-
 
 
 router.get('/get-reminder-details', verifyToken, async (request, response) => {
@@ -473,6 +405,7 @@ router.put('/update-history-previous', verifyToken, async (request, response)=> 
 
 })
 
+//----------------------aluth acc di history update-----------------
 
 router.put('/update-history-new', verifyToken, async (request, response)=> {
     const data = request.body.accountCoordinatorName;
@@ -499,6 +432,8 @@ router.put('/update-history-new', verifyToken, async (request, response)=> {
     }
 
 })
+
+//---------------------------no action-----------------------------------------------
 
 router.get('/get-notaction-details', verifyToken, async (request, response) => {
 
@@ -738,6 +673,63 @@ router.get('/get-complaint-fw', verifyToken, async (request, response) => {
         response.status(500).send({status: false});
     }
 });
+
+
+/// ..................................... get message--------------
+
+router.get('/get-message', verifyToken, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query('SELECT * FROM MESSAGE m\n' +
+                'ORDER BY m.sendtime', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+//---------------------------- new msg---------------------------
+
+router.put('/send-msgg', verifyToken, async (request, response)=> {
+    const data = request.body.massege;
+    const sen= 'ceo';
+    console.log(data)
+    try {
+        const pool = await poolPromise;
+        pool.request()
+            .input('_rem', sql.VarChar(200), data)
+            .input('_senn', sql.VarChar(20), sen)
+            .execute('newmsg', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+
+})
+
 
 
 module.exports = router;
