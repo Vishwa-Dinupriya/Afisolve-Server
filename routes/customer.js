@@ -109,7 +109,7 @@ router.post('/get-selected-complaint-details', verifyToken, verifyCustomer, asyn
             .input('_subComplaintID', sql.Int, request.body.subComplaintID)
             .execute('getSelectedComplaintDetailsCustomer', (error, result) => {
                 if (error) {
-                    console.log('cannot run getSelectedUserDetails');
+                    console.log('cannot run getSelectedComplaintDetailsCustomer');
                     response.status(500).send({
                         status: false
                     });
@@ -327,7 +327,7 @@ router.put('/save-comment_', verifyToken, verifyCustomer, async (request, respon
                     });
 
                 } else {
-                    console.log(JSON.stringify(result) + ' 91 ceo.js');
+                    console.log(JSON.stringify(result) + '330 customer');
                     if (result.recordsets.length !== 0) {
                         for (let i = 0; i < result.recordsets.length; i++) {
                             //encoding and save the picture to the local memory
@@ -347,4 +347,5 @@ router.put('/save-comment_', verifyToken, verifyCustomer, async (request, respon
     }
 
 })
+
 module.exports = router;
