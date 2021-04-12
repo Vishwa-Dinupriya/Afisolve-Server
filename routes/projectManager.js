@@ -14,6 +14,7 @@ router.get('/', (req, res) => {
 });
 
 
+
 //------------------------------------------view reports-------------------------------------------
 
 router.get('/get-complaint-details1', verifyToken,verifyProjectManager, async (request, response) => {
@@ -758,6 +759,7 @@ router.put('/send-msg', verifyToken, async (request, response)=> {
     }
 
 })
+
 
 
 module.exports = router;
