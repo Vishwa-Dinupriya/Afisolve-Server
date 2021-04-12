@@ -52,7 +52,7 @@ router.get('/get-complaint-details', verifyToken, verifyProjectManager,  async (
         pool.request()
             .input('_pmEmail', sql.VarChar(50), request.payload.username)
             .query('select c.complainID, p.productID, c.description, c.submittedDate, c.lastDateOfPending, a.accountCoordinatorName, a.accountCoordinatorEmail  from  COMPLAINT c, PRODUCT p, ACCOUNT_COORDINATOR a\n' +
-                'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail and c.lastDateOfPending < GETDATE() and p.projectManagerEmail=@_pmEmail', (error, result) => {
+                'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail and c.lastDateOfPending < GETDATE() and c.status != \'finish\' and p.projectManagerEmail=@_pmEmail', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
