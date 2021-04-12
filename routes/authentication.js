@@ -166,7 +166,7 @@ router.post('/login', async (request, response) => {
     try {
         const pool = await poolPromise;
         await pool.request()
-            .input('_email', sql.VarChar(50), data.email)
+            .input('_username', sql.VarChar(50), data.email)
             .input('_password', sql.VarChar(20), data.password)
             .execute('login', (error, result) => {
                 if (error) {
@@ -210,7 +210,7 @@ router.post('/login', async (request, response) => {
             });
 
     } catch (error) {
-        console.log(error);
+        // console.log(error);
         response.status(500).send({
             status: false,
             message: 'DB Connection error..!'
@@ -219,21 +219,7 @@ router.post('/login', async (request, response) => {
 
 });
 
-router.post('/role-change', verifyToken, async (request, response) => {
-    console.log(request.payload.username);
-    console.log(request.body.roleName);
-    const pool = await poolPromise;
-    try {
-        pool.request()
-            .input('_username', sql.VarChar(50), request.payload.username)
-            .input('_requestedRole', sql.VarChar(25), request.body.roleName)
-            .execute('roleChange', (error, result) => {
-                if (result.returnValue === 0) {
-                    console.log('Role changing successful..!');
-                    let payload = {
-                        username: result.recordsets[1][0].username,
-                        role: result.recordsets[0][0].roleName //aye backend ekata enne meka
-                    }
+
 
                     let token = jwt.sign(payload, 'secretKey')
                     response.status(200).send({
@@ -258,5 +244,6 @@ router.post('/role-change', verifyToken, async (request, response) => {
         });
     }
 });
+
 
 module.exports = router;

@@ -42,7 +42,7 @@ router.post('/get-users-details-brief', verifyToken, verifyAdmin, async (request
     const pool = await poolPromise;
     try {
         pool.request()
-            .query('select TOP 5 * from USERS', (error, result) => {
+            .query('select * from USERS where USERS.activeStatus = \'true\'', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
