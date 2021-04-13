@@ -168,6 +168,105 @@ router.post('/create-feedback', verifyToken, verifyCustomer, async (request, res
     }
 });
 
+//-------------------------------------------------customer-comments---------------------------------------------------------------------------------------------------------
+
+//--get comments for requested complaint ID
+router.get('/get-comments', verifyToken, verifyCustomer, async (request, response) => {
+    console.log(request.payload);
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .input('_complaintID', sql.Int, request.query.complaintID)
+            .query('SELECT * FROM COMMENT C WHERE complaintID=@_complaintID ORDER BY C.submittedTime ', (error, result) => {
+                if (error) {
+                    console.log(error);
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    let comments = [];
+                    let textOrImage;
+                    let avatarPicture;
+                    const nComments = result.recordsets[0].length;
+                    for (let i = 0; i < nComments; i++) {
+                        if (result.recordsets[0][i].isImage == true) {
+                            try {//get the picture to 'img' from local memory
+                                textOrImage = fs.readFileSync('./pictures/comment-pictures/' + result.recordsets[0][i].textOrImageName, {encoding: 'base64'})
+                            } catch (error) {
+                                textOrImage = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
+                            }
+                        } else { // when comment is not an image
+                            textOrImage = result.recordsets[0][i].textOrImageName
+                        }
+                        if (result.recordsets[0][i].senderEmail !== request.payload.username) {
+                            console.log(result.recordsets[0][i].senderEmail);
+                            try {//get the picture to 'img' from local memory
+                                avatarPicture = fs.readFileSync('./pictures/profile-pictures/' + result.recordsets[0][i].senderEmail + '.png', {encoding: 'base64'})
+                            } catch (error) {
+                                avatarPicture = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
+                            }
+                        } else { // when comment is not an image
+                            avatarPicture = null;
+                        }
+                        comments[i] = {
+                            IsImage: result.recordsets[0][i].isImage,
+                            content: textOrImage,
+                            senderEmail: result.recordsets[0][i].senderEmail,
+                            senderAvatarPicture: avatarPicture
+                        }
+                    }
+                    response.status(200).send({
+                        status: true,
+                        data: comments
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+})
+
+//--save comments for requested complaint ID
+router.put('/save-comment_', verifyToken, verifyCustomer, async (request, response) => {
+    console.log(request.payload.username);
+    console.log('nOfImages: ' + request.body.images.length);
+    console.log('text' + request.body.text);
+    const images = request.body.images;
+    try {
+        const pool = await poolPromise;
+        pool.request()
+            .input('_senderEmail', sql.VarChar(50), request.payload.username)
+            .input('_complaintID', sql.Int, request.body.complaintID)
+            .input('_text', sql.VarChar(), request.body.text)
+            .input('_noOfImages', sql.Int, request.body.images.length)
+            .execute('saveComment', (error, result) => {
+                if (error) {
+                    console.log(error);
+                    response.status(500).send({
+                        status: false
+                    });
+
+                } else {
+                    console.log(JSON.stringify(result) + '330 customer');
+                    if (result.recordsets.length !== 0) {
+                        for (let i = 0; i < result.recordsets.length; i++) {
+                            //encoding and save the picture to the local memory
+                            const path = './pictures/comment-pictures/' + result.recordsets[i][0].textOrImageName;
+                            const base64Data = images[i].replace(/^data:([A-Za-z-+/]+);base64,/, '');
+                            fs.writeFileSync(path, base64Data, {encoding: 'base64'});
+                        }
+                    }
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+
+})
 
 
 module.exports = router;
