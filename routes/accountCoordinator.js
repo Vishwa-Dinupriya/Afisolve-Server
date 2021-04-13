@@ -5,6 +5,8 @@ const {poolPromise} = require('../helpers/mssql-server-connection');
 const {sql} = require('../helpers/mssql-server-connection');
 const {verifyToken} = require('../helpers/verifyToken');
 const {verifyAccountCoordinator} = require('../helpers/verifyToken');
+const nodemailer = require("nodemailer");
+
 
 router.get('/', (req, res) => {
     res.send('From authentication route');
@@ -60,6 +62,7 @@ router.post('/update-common-complaint-status', verifyToken, verifyAccountCoordin
     } catch (e) {
         response.status(500).send({status: false});
     }
+
 });
 
 //Complaint profile current
@@ -118,7 +121,8 @@ router.post('/get-accoorcomplaints-details', verifyToken, async (request, respon
     const pool = await poolPromise;
     try {
         pool.request()
-            .query('select c.complaintID,c.subComplaintID,c.finishedDate,c.lastDateOfPending,c.submittedDate,c.wipStartDate,s.statusName,p.productName, p.category, c.productID from COMPLAINT c,COMPLAINT_STATUS s, PRODUCT p where c.status=s.statusID AND c.productID= p.productID order by c.complaintID',
+            .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
+            .query('select c.complaintID,c.subComplaintID,c.finishedDate,c.lastDateOfPending,c.submittedDate,c.wipStartDate,s.statusName,p.productName, p.category, c.productID from COMPLAINT c,COMPLAINT_STATUS s, PRODUCT p where c.status=s.statusID AND c.productID= p.productID AND p.accountCoordinatorEmail = @_accountCoordinatorEmail order by c.complaintID',
                 (error, result) => {
                 if (error) {
                     response.status(500).send({
@@ -141,7 +145,8 @@ router.post('/get-pending-accoorcomplaints-details', verifyToken, async (request
     const pool = await poolPromise;
     try {
         pool.request()
-            .query("select c.complaintID,c.subComplaintID,c.finishedDate,c.lastDateOfPending,c.submittedDate,c.wipStartDate,s.statusName,p.productName, p.category , c.productID from COMPLAINT c,COMPLAINT_STATUS s, PRODUCT p where c.status=s.statusID AND c.productID= p.productID AND s.statusName = 'Pending' order by c.complaintID", (error, result) => {
+            .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
+            .query("select c.complaintID,c.subComplaintID,c.finishedDate,c.lastDateOfPending,c.submittedDate,c.wipStartDate,s.statusName,p.productName, p.category , c.productID from COMPLAINT c,COMPLAINT_STATUS s, PRODUCT p where c.status=s.statusID AND c.productID= p.productID AND s.statusName = 'Pending' AND p.accountCoordinatorEmail = @_accountCoordinatorEmail order by c.complaintID", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -163,7 +168,8 @@ router.post('/get-InProgress-accoorcomplaints-details', verifyToken, async (requ
     const pool = await poolPromise;
     try {
         pool.request()
-            .query("select c.complaintID,c.subComplaintID,c.finishedDate,c.lastDateOfPending,c.submittedDate,c.wipStartDate,s.statusName,p.productName, p.category, c.productID from COMPLAINT c,COMPLAINT_STATUS s, PRODUCT p where c.status=s.statusID AND c.productID= p.productID AND s.statusName = 'InProgress' order by c.complaintID", (error, result) => {
+            .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
+            .query("select c.complaintID,c.subComplaintID,c.finishedDate,c.lastDateOfPending,c.submittedDate,c.wipStartDate,s.statusName,p.productName, p.category, c.productID from COMPLAINT c,COMPLAINT_STATUS s, PRODUCT p where c.status=s.statusID AND c.productID= p.productID AND s.statusName = 'InProgress' AND p.accountCoordinatorEmail = @_accountCoordinatorEmail order by c.complaintID", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -185,7 +191,8 @@ router.post('/get-Solved-accoorcomplaints-details', verifyToken, async (request,
     const pool = await poolPromise;
     try {
         pool.request()
-            .query("select c.complaintID,c.subComplaintID,c.finishedDate,c.lastDateOfPending,c.submittedDate,c.wipStartDate,s.statusName,p.productName, p.category, c.productID from COMPLAINT c,COMPLAINT_STATUS s, PRODUCT p where c.status=s.statusID AND c.productID= p.productID AND s.statusName = 'Completed' order by c.complaintID", (error, result) => {
+            .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
+            .query("select c.complaintID,c.subComplaintID,c.finishedDate,c.lastDateOfPending,c.submittedDate,c.wipStartDate,s.statusName,p.productName, p.category, c.productID from COMPLAINT c,COMPLAINT_STATUS s, PRODUCT p where c.status=s.statusID AND c.productID= p.productID AND s.statusName = 'Completed' AND p.accountCoordinatorEmail = @_accountCoordinatorEmail order by c.complaintID", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -207,7 +214,8 @@ router.post('/get-Closed-accoorcomplaints-details', verifyToken, async (request,
     const pool = await poolPromise;
     try {
         pool.request()
-            .query("select c.complaintID,c.subComplaintID,c.finishedDate,c.lastDateOfPending,c.submittedDate,c.wipStartDate,s.statusName,p.productName, p.category, c.productID from COMPLAINT c,COMPLAINT_STATUS s, PRODUCT p where c.status=s.statusID AND c.productID= p.productID AND s.statusName = 'Closed' order by c.complaintID", (error, result) => {
+            .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
+            .query("select c.complaintID,c.subComplaintID,c.finishedDate,c.lastDateOfPending,c.submittedDate,c.wipStartDate,s.statusName,p.productName, p.category, c.productID from COMPLAINT c,COMPLAINT_STATUS s, PRODUCT p where c.status=s.statusID AND c.productID= p.productID AND s.statusName = 'Closed' AND p.accountCoordinatorEmail = @_accountCoordinatorEmail order by c.complaintID", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -259,7 +267,8 @@ router.post('/get-Task-All-details', verifyToken, async (request, response) => {
     const pool = await poolPromise;
     try {
         pool.request()
-            .query("select t.taskID,t.complaintID,t.subComplaintID,t.assignDate,t.deadline,t.developerEmail,u.firstName+\' \'+u.lastName as DevName from TASK t,USERS u where t.developerEmail=u.userEmail", (error, result) => {
+            .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
+            .query("select t.taskID,t.complaintID,t.subComplaintID,t.assignDate,t.deadline,t.developerEmail,u.firstName+\' \'+u.lastName as DevName from TASK t,USERS u where t.developerEmail=u.userEmail AND t.accountCoordinatorEmail = @_accountCoordinatorEmail order by t.complaintID", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -281,7 +290,7 @@ router.post('/get-Task-New-details', verifyToken, async (request, response) => {
     const pool = await poolPromise;
     try {
         pool.request()
-            .query("select t.taskID,t.complaintID,t.subComplaintID,t.assignDate,t.deadline,t.developerEmail,u.firstName+\' \'+u.lastName as DevName from TASK t,USERS u where t.developerEmail=u.userEmail AND t.task_status='Pending'", (error, result) => {
+            .query("select t.taskID,t.complaintID,t.subComplaintID,t.assignDate,t.deadline,t.developerEmail,u.firstName+\' \'+u.lastName as DevName from TASK t,USERS u where t.developerEmail=u.userEmail AND t.task_status='Pending' AND p.accountCoordinatorEmail = @_accountCoordinatorEmail", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -303,7 +312,7 @@ router.post('/get-Task-IP-details', verifyToken, verifyAccountCoordinator, async
     const pool = await poolPromise;
     try {
         pool.request()
-            .query("select t.taskID,t.complaintID,t.subComplaintID,t.assignDate,t.deadline,t.developerEmail,u.firstName+\' \'+u.lastName as DevName from TASK t,USERS u where t.developerEmail=u.userEmail AND t.task_status='InProgress'", (error, result) => {
+            .query("select t.taskID,t.complaintID,t.subComplaintID,t.assignDate,t.deadline,t.developerEmail,u.firstName+\' \'+u.lastName as DevName from TASK t,USERS u where t.developerEmail=u.userEmail AND t.task_status='InProgress' AND t.accountCoordinatorEmail = @_accountCoordinatorEmail", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -325,7 +334,7 @@ router.post('/get-Task-Comple-details', verifyToken, async (request, response) =
     const pool = await poolPromise;
     try {
         pool.request()
-            .query("select t.taskID,t.complaintID,t.subComplaintID,t.developerEmail,u.firstName+\' \'+u.lastName as DevName from TASK t,USERS u where t.developerEmail=u.userEmail AND t.task_status='Completed'", (error, result) => {
+            .query("select t.taskID,t.complaintID,t.subComplaintID,t.developerEmail,u.firstName+\' \'+u.lastName as DevName from TASK t,USERS u where t.developerEmail=u.userEmail AND t.task_status='Completed' AND t.accountCoordinatorEmail = @_accountCoordinatorEmail", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -428,4 +437,65 @@ router.post('/get-product-details', verifyToken, verifyAccountCoordinator, async
     }
 });
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+//-----------------------Send Mail-----------------------------//
+router.post('/sendMail', verifyToken, verifyAccountCoordinator, async (request, response) => {
+    const data = request.body;
+    console.log(data)
+    const receiver= data.recMail;
+    const subject = data.subject;
+    const message = data.message;
+    const senderEmail = request.payload.username;
+    console.log(receiver);
+
+    // Nodemailer
+
+    // async..await is not allowed in global scope, must use a wrapper
+    async function main() {
+        // Generate test SMTP service account from ethereal.email
+        // Only needed if you don't have a real mail account for testing
+        let testAccount = await nodemailer.createTestAccount();
+
+        // create reusable transporter object using the default SMTP transport
+        let transporter = nodemailer.createTransport({
+            host: "smtp.ethereal.email",
+            port: 587,
+            secure: false, // true for 465, false for other ports
+            auth: {
+                user: testAccount.user, // generated ethereal user
+                pass: testAccount.pass, // generated ethereal password
+            },
+        });
+
+        // send mail with defined transport object
+        let info = await transporter.sendMail({
+            from: '"Senders Name" <foo@example.com>', // sender address
+            to: receiver, // list of receivers
+            subject: subject, // Subject line
+            text: message, // plain text body
+            html: message, // html body
+        });
+
+        console.log("Message sent: %s", info.messageId);
+        // Message sent: <b658f8ca-6296-ccf4-8306-87d57a0b4321@example.com>
+
+        // Preview only available when sending through an Ethereal account
+        console.log("Preview URL: %s", nodemailer.getTestMessageUrl(info));
+        // Preview URL: https://ethereal.email/message/WaQKMgKddxQDoou...
+    }
+
+    main().catch(console.error);
+    response.status(200).send({
+        status: true,
+
+    });
+
+});
+
+
+
+
+
+
+//////////////////////////////////////////////////////////////////////////////////////
 module.exports = router;
