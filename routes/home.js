@@ -27,7 +27,7 @@ router.post('/user-toolbar-display-details', verifyToken, async (request, respon
                         status: false
                     });
                 } else {
-                    // console.log(JSON.stringify(result));
+                    console.log(JSON.stringify(result));
                     let img;
                     try {//get the picture to 'img' from local memory
                         img = fs.readFileSync('./pictures/profile-pictures/' + request.payload.username + '.png', {encoding: 'base64'})

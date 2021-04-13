@@ -21,21 +21,21 @@ router.get('/get-complaint-details1', verifyToken,verifyProjectManager, async (r
 
     const pool = await poolPromise;
     try {
-        pool.request()
-            .input('_pmEmail', sql.VarChar(50), request.payload.username)
-            .query('select c.complainID, c.subComplaintID, p.productID, c.description, c.status, c.submittedDate, a.accountCoordinatorName  from  COMPLAINT c, PRODUCT p, ACCOUNT_COORDINATOR a\n' +
-                'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail and p.projectManagerEmail=@_pmEmail', (error, result) => {
-                if (error) {
-                    response.status(500).send({
-                        status: false
-                    });
-                } else {
-                    response.status(200).send({
-                        status: true,
-                        data: result.recordset
-                    });
-                }
-            });
+        // pool.request()
+        //     .input('_pmEmail', sql.VarChar(50), request.payload.username)
+        //     .query('select c.complainID, c.subComplaintID, p.productID, c.description, c.status, c.submittedDate, a.accountCoordinatorName  from  COMPLAINT c, PRODUCT p, ACCOUNT_COORDINATOR a\n' +
+        //         'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail and p.projectManagerEmail=@_pmEmail', (error, result) => {
+        //         if (error) {
+        //             response.status(500).send({
+        //                 status: false
+        //             });
+        //         } else {
+        //             response.status(200).send({
+        //                 status: true,
+        //                 data: result.recordset
+        //             });
+        //         }
+        //     });
     } catch (e) {
         response.status(500).send({status: false});
     }
@@ -50,21 +50,21 @@ router.get('/get-complaint-details', verifyToken, verifyProjectManager,  async (
 
     const pool = await poolPromise;
     try {
-        pool.request()
-            .input('_pmEmail', sql.VarChar(50), request.payload.username)
-            .query('select c.complainID, p.productID, c.description, c.submittedDate, c.lastDateOfPending, a.accountCoordinatorName, a.accountCoordinatorEmail  from  COMPLAINT c, PRODUCT p, ACCOUNT_COORDINATOR a\n' +
-                'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail and c.lastDateOfPending < GETDATE() and c.status != \'finish\' and p.projectManagerEmail=@_pmEmail', (error, result) => {
-                if (error) {
-                    response.status(500).send({
-                        status: false
-                    });
-                } else {
-                    response.status(200).send({
-                        status: true,
-                        data: result.recordset
-                    });
-                }
-            });
+        // pool.request()
+        //     .input('_pmEmail', sql.VarChar(50), request.payload.username)
+        //     .query('select c.complainID, p.productID, c.description, c.submittedDate, c.lastDateOfPending, a.accountCoordinatorName, a.accountCoordinatorEmail  from  COMPLAINT c, PRODUCT p, ACCOUNT_COORDINATOR a\n' +
+        //         'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail and c.lastDateOfPending < GETDATE() and c.status != \'finish\' and p.projectManagerEmail=@_pmEmail', (error, result) => {
+        //         if (error) {
+        //             response.status(500).send({
+        //                 status: false
+        //             });
+        //         } else {
+        //             response.status(200).send({
+        //                 status: true,
+        //                 data: result.recordset
+        //             });
+        //         }
+        //     });
     } catch (e) {
         response.status(500).send({status: false});
     }
@@ -78,21 +78,21 @@ router.get('/get-complaint-det', verifyToken,verifyProjectManager, async (reques
 
     const pool = await poolPromise;
     try {
-        pool.request()
-            .input('_pmEmail', sql.VarChar(50), request.payload.username)
-            .query('select c.complainID, c.subComplaintID, p.productID, c.description, c.status, c.submittedDate, a.accountCoordinatorName  from  COMPLAINT c, PRODUCT p, ACCOUNT_COORDINATOR a\n' +
-                'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail and c.status = \'working\' and p.projectManagerEmail=@_pmEmail', (error, result) => {
-                if (error) {
-                    response.status(500).send({
-                        status: false
-                    });
-                } else {
-                    response.status(200).send({
-                        status: true,
-                        data: result.recordset
-                    });
-                }
-            });
+        // pool.request()
+        //     .input('_pmEmail', sql.VarChar(50), request.payload.username)
+        //     .query('select c.complainID, c.subComplaintID, p.productID, c.description, c.status, c.submittedDate, a.accountCoordinatorName  from  COMPLAINT c, PRODUCT p, ACCOUNT_COORDINATOR a\n' +
+        //         'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail and c.status = \'working\' and p.projectManagerEmail=@_pmEmail', (error, result) => {
+        //         if (error) {
+        //             response.status(500).send({
+        //                 status: false
+        //             });
+        //         } else {
+        //             response.status(200).send({
+        //                 status: true,
+        //                 data: result.recordset
+        //             });
+        //         }
+        //     });
     } catch (e) {
         response.status(500).send({status: false});
     }
@@ -103,21 +103,21 @@ router.get('/get-complaint-de', verifyToken, verifyProjectManager,  async (reque
 
     const pool = await poolPromise;
     try {
-        pool.request()
-            .input('_pmEmail', sql.VarChar(50), request.payload.username)
-            .query('select c.complainID, c.subComplaintID, p.productID, c.description, c.status, c.submittedDate, a.accountCoordinatorName  from  COMPLAINT c, PRODUCT p, ACCOUNT_COORDINATOR a\n' +
-                'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail and c.status = \'finish\' and p.projectManagerEmail=@_pmEmail', (error, result) => {
-                if (error) {
-                    response.status(500).send({
-                        status: false
-                    });
-                } else {
-                    response.status(200).send({
-                        status: true,
-                        data: result.recordset
-                    });
-                }
-            });
+        // pool.request()
+        //     .input('_pmEmail', sql.VarChar(50), request.payload.username)
+        //     .query('select c.complainID, c.subComplaintID, p.productID, c.description, c.status, c.submittedDate, a.accountCoordinatorName  from  COMPLAINT c, PRODUCT p, ACCOUNT_COORDINATOR a\n' +
+        //         'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail and c.status = \'finish\' and p.projectManagerEmail=@_pmEmail', (error, result) => {
+        //         if (error) {
+        //             response.status(500).send({
+        //                 status: false
+        //             });
+        //         } else {
+        //             response.status(200).send({
+        //                 status: true,
+        //                 data: result.recordset
+        //             });
+        //         }
+        //     });
     } catch (e) {
         response.status(500).send({status: false});
     }
@@ -128,21 +128,21 @@ router.get('/get-complaint-detai', verifyToken, verifyProjectManager, async (req
 
     const pool = await poolPromise;
     try {
-        pool.request()
-            .input('_pmEmail', sql.VarChar(50), request.payload.username)
-            .query('select c.complainID, c.subComplaintID, p.productID, c.description, c.status, c.submittedDate, a.accountCoordinatorName  from  COMPLAINT c, PRODUCT p, ACCOUNT_COORDINATOR a\n' +
-                'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail and c.status = \'pending\' and p.projectManagerEmail=@_pmEmail', (error, result) => {
-                if (error) {
-                    response.status(500).send({
-                        status: false
-                    });
-                } else {
-                    response.status(200).send({
-                        status: true,
-                        data: result.recordset
-                    });
-                }
-            });
+        // pool.request()
+        //     .input('_pmEmail', sql.VarChar(50), request.payload.username)
+        //     .query('select c.complainID, c.subComplaintID, p.productID, c.description, c.status, c.submittedDate, a.accountCoordinatorName  from  COMPLAINT c, PRODUCT p, ACCOUNT_COORDINATOR a\n' +
+        //         'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail and c.status = \'pending\' and p.projectManagerEmail=@_pmEmail', (error, result) => {
+        //         if (error) {
+        //             response.status(500).send({
+        //                 status: false
+        //             });
+        //         } else {
+        //             response.status(200).send({
+        //                 status: true,
+        //                 data: result.recordset
+        //             });
+        //         }
+        //     });
     } catch (e) {
         response.status(500).send({status: false});
     }
@@ -156,19 +156,19 @@ router.get('/get-account-coordinaters-details', verifyToken, async (request, res
 
     const pool = await poolPromise;
     try {
-        pool.request()
-            .query('select * from ACCOUNT_COORDINATOR ', (error, result) => {
-                if (error) {
-                    response.status(500).send({
-                        status: false
-                    });
-                } else {
-                    response.status(200).send({
-                        status: true,
-                        data: result.recordset
-                    });
-                }
-            });
+        // pool.request()
+        //     .query('select * from ACCOUNT_COORDINATOR ', (error, result) => {
+        //         if (error) {
+        //             response.status(500).send({
+        //                 status: false
+        //             });
+        //         } else {
+        //             response.status(200).send({
+        //                 status: true,
+        //                 data: result.recordset
+        //             });
+        //         }
+        //     });
     } catch (e) {
         response.status(500).send({status: false});
     }
@@ -370,20 +370,20 @@ router.get('/get-reminder-details', verifyToken, async (request, response) => {
 
     const pool = await poolPromise;
     try {
-        pool.request()
-            .query('select * from CHANGINGHISTORY \n' +
-                'where wAction=\'Reminder\'', (error, result) => {
-                if (error) {
-                    response.status(500).send({
-                        status: false
-                    });
-                } else {
-                    response.status(200).send({
-                        status: true,
-                        data: result.recordset
-                    });
-                }
-            });
+        // pool.request()
+        //     .query('select * from CHANGINGHISTORY \n' +
+        //         'where wAction=\'Reminder\'', (error, result) => {
+        //         if (error) {
+        //             response.status(500).send({
+        //                 status: false
+        //             });
+        //         } else {
+        //             response.status(200).send({
+        //                 status: true,
+        //                 data: result.recordset
+        //             });
+        //         }
+        //     });
     } catch (e) {
         response.status(500).send({status: false});
     }
@@ -399,25 +399,25 @@ router.put('/update-history-previous', verifyToken, async (request, response)=> 
     const whaction1 = 'Change A.Coordinator';
     console.log(data)
     try {
-        const pool = await poolPromise;
-        pool.request()
-            .input('_pon', sql.VarChar(10), data.productID)
-            .input('_ton', sql.VarChar(40), data.accountCoordinatorName)
-            .input('_ban', sql.VarChar(20), charithe1)
-            .input('_dan', sql.VarChar(20), whaction1)
-            .execute('newhistory', (error, result) => {
-                if (error) {
-                    response.status(500).send({
-                        status: false
-                    });
-
-                } else {
-                    response.status(200).send({
-                        status: true,
-                        data: result.recordset
-                    });
-                }
-            });
+        // const pool = await poolPromise;
+        // pool.request()
+        //     .input('_pon', sql.VarChar(10), data.productID)
+        //     .input('_ton', sql.VarChar(40), data.accountCoordinatorName)
+        //     .input('_ban', sql.VarChar(20), charithe1)
+        //     .input('_dan', sql.VarChar(20), whaction1)
+        //     .execute('newhistory', (error, result) => {
+        //         if (error) {
+        //             response.status(500).send({
+        //                 status: false
+        //             });
+        //
+        //         } else {
+        //             response.status(200).send({
+        //                 status: true,
+        //                 data: result.recordset
+        //             });
+        //         }
+        //     });
     } catch (e) {
         response.status(500).send({status: false});
     }
@@ -429,22 +429,22 @@ router.put('/update-history-new', verifyToken, async (request, response)=> {
     const data = request.body.accountCoordinatorName;
     console.log(data)
     try {
-        const pool = await poolPromise;
-        pool.request()
-            .input('_son', sql.VarChar(40), data)
-            .execute('updatehistory', (error, result) => {
-                if (error) {
-                    response.status(500).send({
-                        status: false
-                    });
-
-                } else {
-                    response.status(200).send({
-                        status: true,
-                        data: result.recordset
-                    });
-                }
-            });
+        // const pool = await poolPromise;
+        // pool.request()
+        //     .input('_son', sql.VarChar(40), data)
+        //     .execute('updatehistory', (error, result) => {
+        //         if (error) {
+        //             response.status(500).send({
+        //                 status: false
+        //             });
+        //
+        //         } else {
+        //             response.status(200).send({
+        //                 status: true,
+        //                 data: result.recordset
+        //             });
+        //         }
+        //     });
     } catch (e) {
         response.status(500).send({status: false});
     }
@@ -458,19 +458,19 @@ router.get('/get-full-history', verifyToken, async (request, response) => {
 
     const pool = await poolPromise;
     try {
-        pool.request()
-            .query('select * from CHANGINGHISTORY', (error, result) => {
-                if (error) {
-                    response.status(500).send({
-                        status: false
-                    });
-                } else {
-                    response.status(200).send({
-                        status: true,
-                        data: result.recordset
-                    });
-                }
-            });
+        // pool.request()
+        //     .query('select * from CHANGINGHISTORY', (error, result) => {
+        //         if (error) {
+        //             response.status(500).send({
+        //                 status: false
+        //             });
+        //         } else {
+        //             response.status(200).send({
+        //                 status: true,
+        //                 data: result.recordset
+        //             });
+        //         }
+        //     });
     } catch (e) {
         response.status(500).send({status: false});
     }
@@ -484,20 +484,20 @@ router.get('/get-full-count', verifyToken, verifyProjectManager, async (request,
 
     const pool = await poolPromise;
     try {
-        pool.request()
-            .input('_pmEmail', sql.VarChar(50), request.payload.username)
-            .query('select COUNT(*) as count from COMPLAINT c , PRODUCT p where c.productID=p.productID and p.projectManagerEmail=@_pmEmail', (error, result) => {
-                if (error) {
-                    response.status(500).send({
-                        status: false
-                    });
-                } else {
-                    response.status(200).send({
-                        status: true,
-                        data: result.recordset
-                    });
-                }
-            });
+        // pool.request()
+        //     .input('_pmEmail', sql.VarChar(50), request.payload.username)
+        //     .query('select COUNT(*) as count from COMPLAINT c , PRODUCT p where c.productID=p.productID and p.projectManagerEmail=@_pmEmail', (error, result) => {
+        //         if (error) {
+        //             response.status(500).send({
+        //                 status: false
+        //             });
+        //         } else {
+        //             response.status(200).send({
+        //                 status: true,
+        //                 data: result.recordset
+        //             });
+        //         }
+        //     });
     } catch (e) {
         response.status(500).send({status: false});
     }
@@ -507,20 +507,20 @@ router.get('/get-pending-count', verifyToken, verifyProjectManager, async (reque
 
     const pool = await poolPromise;
     try {
-        pool.request()
-            .input('_pmEmail', sql.VarChar(50), request.payload.username)
-            .query('select COUNT(*) as count from COMPLAINT c , PRODUCT p where c.productID=p.productID and p.projectManagerEmail=@_pmEmail and c.status=\'pending\'', (error, result) => {
-                if (error) {
-                    response.status(500).send({
-                        status: false
-                    });
-                } else {
-                    response.status(200).send({
-                        status: true,
-                        data: result.recordset
-                    });
-                }
-            });
+        // pool.request()
+        //     .input('_pmEmail', sql.VarChar(50), request.payload.username)
+        //     .query('select COUNT(*) as count from COMPLAINT c , PRODUCT p where c.productID=p.productID and p.projectManagerEmail=@_pmEmail and c.status=\'pending\'', (error, result) => {
+        //         if (error) {
+        //             response.status(500).send({
+        //                 status: false
+        //             });
+        //         } else {
+        //             response.status(200).send({
+        //                 status: true,
+        //                 data: result.recordset
+        //             });
+        //         }
+        //     });
     } catch (e) {
         response.status(500).send({status: false});
     }
@@ -530,20 +530,20 @@ router.get('/get-working-count', verifyToken, verifyProjectManager, async (reque
 
     const pool = await poolPromise;
     try {
-        pool.request()
-            .input('_pmEmail', sql.VarChar(50), request.payload.username)
-            .query('select COUNT(*) as count from COMPLAINT c , PRODUCT p where c.productID=p.productID and p.projectManagerEmail=@_pmEmail and  c.status=\'working\'', (error, result) => {
-                if (error) {
-                    response.status(500).send({
-                        status: false
-                    });
-                } else {
-                    response.status(200).send({
-                        status: true,
-                        data: result.recordset
-                    });
-                }
-            });
+        // pool.request()
+        //     .input('_pmEmail', sql.VarChar(50), request.payload.username)
+        //     .query('select COUNT(*) as count from COMPLAINT c , PRODUCT p where c.productID=p.productID and p.projectManagerEmail=@_pmEmail and  c.status=\'working\'', (error, result) => {
+        //         if (error) {
+        //             response.status(500).send({
+        //                 status: false
+        //             });
+        //         } else {
+        //             response.status(200).send({
+        //                 status: true,
+        //                 data: result.recordset
+        //             });
+        //         }
+        //     });
     } catch (e) {
         response.status(500).send({status: false});
     }
@@ -553,20 +553,20 @@ router.get('/get-finish-count', verifyToken, verifyProjectManager, async (reques
 
     const pool = await poolPromise;
     try {
-        pool.request()
-            .input('_pmEmail', sql.VarChar(50), request.payload.username)
-            .query('select COUNT(*) as count from COMPLAINT c , PRODUCT p where c.productID=p.productID and p.projectManagerEmail=@_pmEmail and c.status=\'finish\'', (error, result) => {
-                if (error) {
-                    response.status(500).send({
-                        status: false
-                    });
-                } else {
-                    response.status(200).send({
-                        status: true,
-                        data: result.recordset
-                    });
-                }
-            });
+        // pool.request()
+        //     .input('_pmEmail', sql.VarChar(50), request.payload.username)
+        //     .query('select COUNT(*) as count from COMPLAINT c , PRODUCT p where c.productID=p.productID and p.projectManagerEmail=@_pmEmail and c.status=\'finish\'', (error, result) => {
+        //         if (error) {
+        //             response.status(500).send({
+        //                 status: false
+        //             });
+        //         } else {
+        //             response.status(200).send({
+        //                 status: true,
+        //                 data: result.recordset
+        //             });
+        //         }
+        //     });
     } catch (e) {
         response.status(500).send({status: false});
     }
@@ -576,20 +576,20 @@ router.get('/get-late-count', verifyToken, verifyProjectManager, async (request,
 
     const pool = await poolPromise;
     try {
-        pool.request()
-            .input('_pmEmail', sql.VarChar(50), request.payload.username)
-            .query('select COUNT(*) as count from COMPLAINT c , PRODUCT p where c.productID=p.productID and p.projectManagerEmail=@_pmEmail and  c.lastDateOfPending < GETDATE() AND c.status != \'finish\' \n', (error, result) => {
-                if (error) {
-                    response.status(500).send({
-                        status: false
-                    });
-                } else {
-                    response.status(200).send({
-                        status: true,
-                        data: result.recordset
-                    });
-                }
-            });
+        // pool.request()
+        //     .input('_pmEmail', sql.VarChar(50), request.payload.username)
+        //     .query('select COUNT(*) as count from COMPLAINT c , PRODUCT p where c.productID=p.productID and p.projectManagerEmail=@_pmEmail and  c.lastDateOfPending < GETDATE() AND c.status != \'finish\' \n', (error, result) => {
+        //         if (error) {
+        //             response.status(500).send({
+        //                 status: false
+        //             });
+        //         } else {
+        //             response.status(200).send({
+        //                 status: true,
+        //                 data: result.recordset
+        //             });
+        //         }
+        //     });
     } catch (e) {
         response.status(500).send({status: false});
     }
@@ -632,21 +632,21 @@ router.get('/get-complaint-pf', verifyToken, verifyProjectManager, async (reques
 
     const pool = await poolPromise;
     try {
-        pool.request()
-            .input('_pmEmail', sql.VarChar(50), request.payload.username)
-            .query('select c.complainID, c.subComplaintID, p.productID, c.description, c.status, c.submittedDate, a.accountCoordinatorName  from  COMPLAINT c, PRODUCT p, ACCOUNT_COORDINATOR a\n' +
-                'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail and p.projectManagerEmail=@_pmEmail and  (c.status = \'finish\' or c.status = \'pending\')', (error, result) => {
-                if (error) {
-                    response.status(500).send({
-                        status: false
-                    });
-                } else {
-                    response.status(200).send({
-                        status: true,
-                        data: result.recordset
-                    });
-                }
-            });
+        // pool.request()
+        //     .input('_pmEmail', sql.VarChar(50), request.payload.username)
+        //     .query('select c.complainID, c.subComplaintID, p.productID, c.description, c.status, c.submittedDate, a.accountCoordinatorName  from  COMPLAINT c, PRODUCT p, ACCOUNT_COORDINATOR a\n' +
+        //         'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail and p.projectManagerEmail=@_pmEmail and  (c.status = \'finish\' or c.status = \'pending\')', (error, result) => {
+        //         if (error) {
+        //             response.status(500).send({
+        //                 status: false
+        //             });
+        //         } else {
+        //             response.status(200).send({
+        //                 status: true,
+        //                 data: result.recordset
+        //             });
+        //         }
+        //     });
     } catch (e) {
         response.status(500).send({status: false});
     }
@@ -657,21 +657,21 @@ router.get('/get-complaint-wp', verifyToken, verifyProjectManager, async (reques
 
     const pool = await poolPromise;
     try {
-        pool.request()
-            .input('_pmEmail', sql.VarChar(50), request.payload.username)
-            .query('select c.complainID, c.subComplaintID, p.productID, c.description, c.status, c.submittedDate, a.accountCoordinatorName  from  COMPLAINT c, PRODUCT p, ACCOUNT_COORDINATOR a\n' +
-                'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail and p.projectManagerEmail=@_pmEmail and (c.status = \'working\' or c.status = \'pending\')', (error, result) => {
-                if (error) {
-                    response.status(500).send({
-                        status: false
-                    });
-                } else {
-                    response.status(200).send({
-                        status: true,
-                        data: result.recordset
-                    });
-                }
-            });
+        // pool.request()
+        //     .input('_pmEmail', sql.VarChar(50), request.payload.username)
+        //     .query('select c.complainID, c.subComplaintID, p.productID, c.description, c.status, c.submittedDate, a.accountCoordinatorName  from  COMPLAINT c, PRODUCT p, ACCOUNT_COORDINATOR a\n' +
+        //         'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail and p.projectManagerEmail=@_pmEmail and (c.status = \'working\' or c.status = \'pending\')', (error, result) => {
+        //         if (error) {
+        //             response.status(500).send({
+        //                 status: false
+        //             });
+        //         } else {
+        //             response.status(200).send({
+        //                 status: true,
+        //                 data: result.recordset
+        //             });
+        //         }
+        //     });
     } catch (e) {
         response.status(500).send({status: false});
     }
@@ -682,21 +682,21 @@ router.get('/get-complaint-fw', verifyToken, verifyProjectManager, async (reques
 
     const pool = await poolPromise;
     try {
-        pool.request()
-            .input('_pmEmail', sql.VarChar(50), request.payload.username)
-            .query('select c.complainID, c.subComplaintID, p.productID, c.description, c.status, c.submittedDate, a.accountCoordinatorName  from  COMPLAINT c, PRODUCT p, ACCOUNT_COORDINATOR a\n' +
-                'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail and p.projectManagerEmail=@_pmEmail and (c.status = \'working\' or c.status = \'finish\')', (error, result) => {
-                if (error) {
-                    response.status(500).send({
-                        status: false
-                    });
-                } else {
-                    response.status(200).send({
-                        status: true,
-                        data: result.recordset
-                    });
-                }
-            });
+        // pool.request()
+        //     .input('_pmEmail', sql.VarChar(50), request.payload.username)
+        //     .query('select c.complainID, c.subComplaintID, p.productID, c.description, c.status, c.submittedDate, a.accountCoordinatorName  from  COMPLAINT c, PRODUCT p, ACCOUNT_COORDINATOR a\n' +
+        //         'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail and p.projectManagerEmail=@_pmEmail and (c.status = \'working\' or c.status = \'finish\')', (error, result) => {
+        //         if (error) {
+        //             response.status(500).send({
+        //                 status: false
+        //             });
+        //         } else {
+        //             response.status(200).send({
+        //                 status: true,
+        //                 data: result.recordset
+        //             });
+        //         }
+        //     });
     } catch (e) {
         response.status(500).send({status: false});
     }
@@ -710,20 +710,20 @@ router.get('/get-message', verifyToken, async (request, response) => {
 
     const pool = await poolPromise;
     try {
-        pool.request()
-            .query('SELECT * FROM MESSAGE m\n' +
-                'ORDER BY m.sendtime', (error, result) => {
-                if (error) {
-                    response.status(500).send({
-                        status: false
-                    });
-                } else {
-                    response.status(200).send({
-                        status: true,
-                        data: result.recordset
-                    });
-                }
-            });
+        // pool.request()
+        //     .query('SELECT * FROM MESSAGE m\n' +
+        //         'ORDER BY m.sendtime', (error, result) => {
+        //         if (error) {
+        //             response.status(500).send({
+        //                 status: false
+        //             });
+        //         } else {
+        //             response.status(200).send({
+        //                 status: true,
+        //                 data: result.recordset
+        //             });
+        //         }
+        //     });
     } catch (e) {
         response.status(500).send({status: false});
     }
