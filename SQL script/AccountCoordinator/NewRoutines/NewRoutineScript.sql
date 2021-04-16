@@ -1,3 +1,4 @@
+/*Create new task*/
 CREATE PROCEDURE createTask @_complaintID int,
                             @_subComplaintID int,
                             @_deadline datetime,
@@ -82,4 +83,55 @@ WHERE taskID = @_taskID;
     ROLLBACK TRANSACTION
     RETURN -1;
 go
+
+/* Get selected developer task details */
+CREATE procedure getSelectedDevTaskDetails(@_taskID int)
+as
+    if exists(select 1 from TASK where taskID = @_taskID)
+        begin
+            select * from TASK where taskID = @_taskID
+            select u.contactNumber,u.firstName + ' '+u.lastName as accoorName
+            from USERS u, TASK t
+            where u.userEmail = t.accountCoordinatorEmail
+
+
+            return 0;
+        end
+    else
+        begin
+            GOTO errorHandler;
+        end
+    COMMIT TRANSACTION;
+    RETURN 0;
+
+    errorHandler:
+    ROLLBACK TRANSACTION
+    RETURN -1
+go
+/* Get selected complaint details */
+CREATE procedure getSelectedAccComplaintDetailsCurrent(@_complaintID int,
+                                             @_subComplaintID int)
+as
+    if exists(select 1
+              from COMPLAINT
+              where complaintID = @_complaintID
+                and subComplaintID = @_subComplaintID)
+        begin
+           select * from COMPLAINT where complaintID = @_complaintID AND subComplaintID = @_subComplaintID
+           select * from USERS u,PRODUCT p where u.userEmail = p.projectManagerEmail
+            return 0;
+        end
+    else
+        begin
+            GOTO errorHandler;
+        end
+    COMMIT TRANSACTION;
+    RETURN 0;
+
+    errorHandler:
+    ROLLBACK TRANSACTION
+    RETURN -1
+go
+
+
 

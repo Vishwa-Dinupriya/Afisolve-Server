@@ -268,7 +268,7 @@ router.post('/get-Task-All-details', verifyToken, async (request, response) => {
     try {
         pool.request()
             .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
-            .query("select t.taskID,t.complaintID,t.subComplaintID,t.assignDate,t.deadline,t.developerEmail,u.firstName+\' \'+u.lastName as DevName from TASK t,USERS u where t.developerEmail=u.userEmail AND t.accountCoordinatorEmail = @_accountCoordinatorEmail order by t.complaintID", (error, result) => {
+            .query("select t.taskID,t.complaintID,t.subComplaintID,t.assignDate,t.deadline,t.task_status,t.developerEmail,u.firstName+\' \'+u.lastName as DevName from TASK t,USERS u where t.developerEmail=u.userEmail AND t.accountCoordinatorEmail = @_accountCoordinatorEmail order by t.complaintID", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -290,7 +290,8 @@ router.post('/get-Task-New-details', verifyToken, async (request, response) => {
     const pool = await poolPromise;
     try {
         pool.request()
-            .query("select t.taskID,t.complaintID,t.subComplaintID,t.assignDate,t.deadline,t.developerEmail,u.firstName+\' \'+u.lastName as DevName from TASK t,USERS u where t.developerEmail=u.userEmail AND t.task_status='Pending' AND p.accountCoordinatorEmail = @_accountCoordinatorEmail", (error, result) => {
+            .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
+            .query("select t.taskID,t.complaintID,t.subComplaintID,t.assignDate,t.deadline,t.developerEmail,u.firstName+\' \'+u.lastName as DevName from TASK t,USERS u where t.developerEmail=u.userEmail AND t.task_status='Pending' AND t.accountCoordinatorEmail = @_accountCoordinatorEmail", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -312,6 +313,7 @@ router.post('/get-Task-IP-details', verifyToken, verifyAccountCoordinator, async
     const pool = await poolPromise;
     try {
         pool.request()
+            .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
             .query("select t.taskID,t.complaintID,t.subComplaintID,t.assignDate,t.deadline,t.developerEmail,u.firstName+\' \'+u.lastName as DevName from TASK t,USERS u where t.developerEmail=u.userEmail AND t.task_status='InProgress' AND t.accountCoordinatorEmail = @_accountCoordinatorEmail", (error, result) => {
                 if (error) {
                     response.status(500).send({
@@ -334,6 +336,7 @@ router.post('/get-Task-Comple-details', verifyToken, async (request, response) =
     const pool = await poolPromise;
     try {
         pool.request()
+            .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
             .query("select t.taskID,t.complaintID,t.subComplaintID,t.developerEmail,u.firstName+\' \'+u.lastName as DevName from TASK t,USERS u where t.developerEmail=u.userEmail AND t.task_status='Completed' AND t.accountCoordinatorEmail = @_accountCoordinatorEmail", (error, result) => {
                 if (error) {
                     response.status(500).send({
@@ -420,7 +423,7 @@ router.post('/get-product-details', verifyToken, verifyAccountCoordinator, async
     const pool = await poolPromise;
     try {
         pool.request()
-            .query("select p.productID,p.productName,p.category,u.firstName+' '+u.lastName as CusName,c.companyName,c.customerEmail,u.contactNumber from PRODUCT p,CUSTOMER c,USERS u where p.customerEmail=c.customerEmail AND c.customerEmail=u.userEmail", (error, result) => {
+            .query("select p.productID,p.productName,p.category,u.firstName+' '+u.lastName as CusName,u.userEmail,u.contactNumber from PRODUCT p,USERS u where p.customerEmail=u.userEmail", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -492,7 +495,105 @@ router.post('/sendMail', verifyToken, verifyAccountCoordinator, async (request, 
 
 });
 
+//-------------------------------------------------customer-comments---------------------------------------------------------------------------------------------------------
 
+//--get comments for requested complaint ID
+router.get('/get-comments', verifyToken, verifyAccountCoordinator, async (request, response) => {
+    console.log(request.payload);
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .input('_complaintID', sql.Int, request.query.complaintID)
+            .query('SELECT * FROM COMMENT C WHERE complaintID=@_complaintID ORDER BY C.submittedTime ', (error, result) => {
+                if (error) {
+                    console.log(error);
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    let comments = [];
+                    let textOrImage;
+                    let avatarPicture;
+                    const nComments = result.recordsets[0].length;
+                    for (let i = 0; i < nComments; i++) {
+                        if (result.recordsets[0][i].isImage == true) {
+                            try {//get the picture to 'img' from local memory
+                                textOrImage = fs.readFileSync('./pictures/comment-pictures/' + result.recordsets[0][i].textOrImageName, {encoding: 'base64'})
+                            } catch (error) {
+                                textOrImage = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
+                            }
+                        } else { // when comment is not an image
+                            textOrImage = result.recordsets[0][i].textOrImageName
+                        }
+                        if (result.recordsets[0][i].senderEmail !== request.payload.username) {
+                            console.log(result.recordsets[0][i].senderEmail);
+                            try {//get the picture to 'img' from local memory
+                                avatarPicture = fs.readFileSync('./pictures/profile-pictures/' + result.recordsets[0][i].senderEmail + '.png', {encoding: 'base64'})
+                            } catch (error) {
+                                avatarPicture = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
+                            }
+                        } else { // when comment is not an image
+                            avatarPicture = null;
+                        }
+                        comments[i] = {
+                            IsImage: result.recordsets[0][i].isImage,
+                            content: textOrImage,
+                            senderEmail: result.recordsets[0][i].senderEmail,
+                            senderAvatarPicture: avatarPicture
+                        }
+                    }
+                    response.status(200).send({
+                        status: true,
+                        data: comments
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+})
+
+//--save comments for requested complaint ID
+router.put('/save-comment_', verifyToken, verifyAccountCoordinator, async (request, response) => {
+    console.log(request.payload.username);
+    console.log('nOfImages: ' + request.body.images.length);
+    console.log('text' + request.body.text);
+    const images = request.body.images;
+    try {
+        const pool = await poolPromise;
+        pool.request()
+            .input('_senderEmail', sql.VarChar(50), request.payload.username)
+            .input('_complaintID', sql.Int, request.body.complaintID)
+            .input('_text', sql.VarChar(), request.body.text)
+            .input('_noOfImages', sql.Int, request.body.images.length)
+            .execute('saveComment', (error, result) => {
+                if (error) {
+                    console.log(error);
+                    response.status(500).send({
+                        status: false
+                    });
+
+                } else {
+                    console.log(JSON.stringify(result) + '330 accountCoordinator');
+                    if (result.recordsets.length !== 0) {
+                        for (let i = 0; i < result.recordsets.length; i++) {
+                            //encoding and save the picture to the local memory
+                            const path = './pictures/comment-pictures/' + result.recordsets[i][0].textOrImageName;
+                            const base64Data = images[i].replace(/^data:([A-Za-z-+/]+);base64,/, '');
+                            fs.writeFileSync(path, base64Data, {encoding: 'base64'});
+                        }
+                    }
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+
+})
 
 
 
