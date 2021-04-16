@@ -268,7 +268,7 @@ router.post('/get-Task-All-details', verifyToken, async (request, response) => {
     try {
         pool.request()
             .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
-            .query("select t.taskID,t.complaintID,t.subComplaintID,t.assignDate,t.deadline,t.developerEmail,u.firstName+\' \'+u.lastName as DevName from TASK t,USERS u where t.developerEmail=u.userEmail AND t.accountCoordinatorEmail = @_accountCoordinatorEmail order by t.complaintID", (error, result) => {
+            .query("select t.taskID,t.complaintID,t.subComplaintID,t.assignDate,t.deadline,t.task_status,t.developerEmail,u.firstName+\' \'+u.lastName as DevName from TASK t,USERS u where t.developerEmail=u.userEmail AND t.accountCoordinatorEmail = @_accountCoordinatorEmail order by t.complaintID", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -291,7 +291,7 @@ router.post('/get-Task-New-details', verifyToken, async (request, response) => {
     try {
         pool.request()
             .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
-            .query("select t.taskID,t.complaintID,t.subComplaintID,t.assignDate,t.deadline,t.developerEmail,u.firstName+\' \'+u.lastName as DevName from TASK t,USERS u where t.developerEmail=u.userEmail AND t.task_status='Pending' AND p.accountCoordinatorEmail = @_accountCoordinatorEmail", (error, result) => {
+            .query("select t.taskID,t.complaintID,t.subComplaintID,t.assignDate,t.deadline,t.developerEmail,u.firstName+\' \'+u.lastName as DevName from TASK t,USERS u where t.developerEmail=u.userEmail AND t.task_status='Pending' AND t.accountCoordinatorEmail = @_accountCoordinatorEmail", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -423,7 +423,7 @@ router.post('/get-product-details', verifyToken, verifyAccountCoordinator, async
     const pool = await poolPromise;
     try {
         pool.request()
-            .query("select p.productID,p.productName,p.category,u.firstName+' '+u.lastName as CusName,c.companyName,c.customerEmail,u.contactNumber from PRODUCT p,CUSTOMER c,USERS u where p.customerEmail=c.customerEmail AND c.customerEmail=u.userEmail", (error, result) => {
+            .query("select p.productID,p.productName,p.category,u.firstName+' '+u.lastName as CusName,u.userEmail,u.contactNumber from PRODUCT p,USERS u where p.customerEmail=u.userEmail", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
