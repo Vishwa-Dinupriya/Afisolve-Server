@@ -1,5 +1,6 @@
 const express = require('express')
 const bodyParser = require('body-parser');
+
 const logger = require('morgan');
 const cors = require('cors');
 
@@ -8,7 +9,9 @@ const _ = require('lodash');
 
 const app1 = express();
 
-app1.use(bodyParser.json());
+// app1.use(bodyParser.json());
+app1.use(bodyParser.json({limit: '50mb'}));
+app1.use(bodyParser.urlencoded({limit: '50mb', extended: true}));
 
 app1.use(logger('dev'));
 
@@ -52,8 +55,7 @@ app1.get('/', function (req, res) {
     res.send('Hello from server(1) ');
 })
 
-//======================  =======================
+//=============================================
 app1.listen(PORT1, function () {
     console.log('Server running on localhost:' + PORT1 );
 });
-

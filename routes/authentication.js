@@ -1,6 +1,7 @@
 const express = require('express')
 const jwt = require('jsonwebtoken')
 const router = express.Router();
+const fs = require('fs');
 
 const {poolPromise} = require('../helpers/mssql-server-connection');
 const {sql} = require('../helpers/mssql-server-connection');
@@ -8,15 +9,68 @@ const {sql} = require('../helpers/mssql-server-connection');
 const {verifyToken} = require("../helpers/verifyToken");
 const {verifyAdmin} = require('../helpers/verifyToken');
 
+const {Auth} = require('two-step-auth');
+const nodemailer = require('nodemailer');
+
+const otpGenerator = require('otp-generator');
+
+const transporter = nodemailer.createTransport({
+    service: 'gmail',
+    auth: {
+        user: 'vishwagamage808@gmail.com',
+        pass: 'Sanju@1223'
+    }
+});
+
+let generatedOTP;
+
+async function sendOtp(receiverEmail) {
+    // You can follow the above approach, But we recommend you to follow the one below, as the mails will be treated as important
+    generatedOTP = otpGenerator.generate(8, {digits: true, alphabets: false, upperCase: false, specialChars: false});
+    const mailOptions = {
+        from: 'vishwagamage808@gmail.com',
+        to: receiverEmail,
+        subject: 'Sending Email using Node.js',
+        text: generatedOTP
+    };
+
+    try {
+        transporter.sendMail(mailOptions, function (error, info) {
+            if (error) {
+                console.log(error);
+            } else {
+                console.log('Email sent: ' + info.response);
+            }
+        }).then(r => console.log('then section'))
+    } catch (e) {
+
+    }
+
+}
+
 
 router.get('/', (req, res) => {
     res.send('From authentication route');
 });
 
+router.post('/sendOtpToEmail', verifyToken, verifyAdmin, async (request, response) => {
+
+    console.log(request.body);
+    const data = request.body;
+    try {
+        sendOtp('vishwadinupriya@gmail.com').then(r => console.log('success! otp send and stored'));
+    } catch (e) {
+        console.log(e);
+    }
+
+});
+
 router.post('/register', verifyToken, verifyAdmin, async (request, response) => {
 
-    const data = request.body;
-    console.log(request.body);
+    console.log(request.body.otp);
+    console.log(generatedOTP);
+    const data = request.body.userData;
+    const image = request.body.profilePicture;
     const adminEmail = request.payload.username;
 
     try {
@@ -53,13 +107,43 @@ router.post('/register', verifyToken, verifyAdmin, async (request, response) => 
                         });
                     }
                 } else {
-                    console.log(result);
+
                     if (result.returnValue === 0) {
-                        console.log('Data Successfully Entered!');
-                        response.status(200).send({
-                            status: true,
-                            message: 'Data Successfully Entered!'
-                        });
+                        try {
+                            if (!image) {
+                                response.status(200).send({
+                                    status: false,
+                                    message: 'Data Successfully Entered! Image not found!!',
+                                    image: null
+                                });
+                            } else {
+                                console.log('Data Successfully Entered!');
+
+                                //encoding and save the picture to the local memory
+                                const path = './pictures/profile-pictures/' + request.body.email + '.png';
+                                const base64Data = image.replace(/^data:([A-Za-z-+/]+);base64,/, '');
+                                fs.writeFileSync(path, base64Data, {encoding: 'base64'});
+
+                                //get the picture to 'img' from local memory
+                                let img;
+                                try {
+                                    img = fs.readFileSync('./pictures/profile-pictures/' + request.body.email + '.png', {encoding: 'base64'});
+                                } catch (error) {
+                                    img = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
+                                }
+                                response.status(200).send({
+                                    status: true,
+                                    message: 'Data Successfully Entered!',
+                                    image: img
+                                });
+                            }
+                        } catch (error) {
+                            console.log(error);
+                            response.status(500).send({
+                                status: false,
+                                message: 'Server Error!'
+                            });
+                        }
                     } else {//vishwa brogen ahanna
                         response.status(500).send({message: 'from error handler'});
                     }
@@ -112,7 +196,7 @@ router.post('/login', async (request, response) => {
                             token: token,
                             defaultRole: result.recordsets[0][0].roleName, // default role compo. ekat navigate kranne meken
                             firstname: result.recordsets[1][0].firstName,
-                            userEmail : result.recordsets[1][0].username
+                            userEmail: result.recordsets[1][0].username
                         })
                     } else {
                         console.log('Invalid username or password');
