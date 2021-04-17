@@ -34,11 +34,27 @@ function verifyAdmin(req, res, next) {
     }
 }
 
+
+
+function verifyProjectManager(req, res, next) {
+    try {
+        let role = req.payload.role;
+        console.log('this is the role: '+ role);
+        if (role!='project-manager') {
+          return res.status(401).send('Unauthorized request');
+        }
+        next();
+    } catch (exception) {
+        return res.status(401).send('Unauthorized request');
+    }
+}
+
 function verifyCustomer(req, res, next) {
     try {
         let role = req.payload.role;
         console.log('this is the role: '+ role);
         if (role!='customer') {
+
             return res.status(401).send('Unauthorized request');
         }
         next();
@@ -46,6 +62,7 @@ function verifyCustomer(req, res, next) {
         return res.status(401).send('Unauthorized request');
     }
 }
+
 
 function verifyAccountCoordinator(req, res, next) {
     try {
@@ -73,11 +90,16 @@ function verifyDeveloper(req, res, next) {
     }
 }
 
+
 module.exports = {
     verifyToken,
     verifyAdmin,
     verifyCustomer,
+
     verifyDeveloper,
    verifyAccountCoordinator,
+
+    verifyProjectManager
+
 
 }

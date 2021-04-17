@@ -74,7 +74,8 @@ as
               from USERS
               where userEmail = @_username)
         begin
-            DECLARE cursor_email CURSOR FOR SELECT userEmail, roleID FROM USER_ROLE WHERE userEmail = @_username
+
+            DECLARE cursor_email CURSOR LOCAL FOR SELECT userEmail, roleID FROM USER_ROLE WHERE userEmail = @_username
 
             declare @username varchar(50), @roleID int
 
@@ -88,6 +89,7 @@ as
                 end
 
             DELETE FROM USERS WHERE userEmail = @username;
+            CLOSE cursor_email
         end
     else
         begin
@@ -178,6 +180,8 @@ as
                                     select *
                                     from COMPLAINT C
                                              JOIN PRODUCT P ON C.productID = P.productID
+
+
                                     where C.subComplaintID = 0
                                       and P.customerEmail = @_customerEmail
                                       and C.status = 3
@@ -205,34 +209,40 @@ as
                 and subComplaintID = @_subComplaintID)
         begin
             select * from COMPLAINT where complaintID = @_complaintID and subComplaintID = @_subComplaintID
+
             select statusName
             from COMPLAINT_STATUS C_S
                      JOIN COMPLAINT C on C_S.statusID = C.status
             where c.complaintID = @_complaintID
               and c.subComplaintID = @_subComplaintID
+
             select productName
             from PRODUCT P
                      JOIN COMPLAINT C2 on P.productID = C2.productID
             where C2.complaintID = @_complaintID
               and C2.subComplaintID = @_subComplaintID
+
             select userEmail, firstName, lastName
             from USERS USR
                      JOIN PRODUCT P2 on USR.userEmail = P2.projectManagerEmail
-            where P2.productID = (
-                select P.productID
-                from PRODUCT P
-                         JOIN COMPLAINT C2 on P.productID = C2.productID
-                where C2.complaintID = @_complaintID
-                  and C2.subComplaintID = @_subComplaintID)
+            where P2.productID = (select P.productID
+                                  from PRODUCT P
+                                           JOIN COMPLAINT C2 on P.productID = C2.productID
+                                  where C2.complaintID = @_complaintID
+                                    and C2.subComplaintID = @_subComplaintID)
+
             select userEmail, firstName, lastName
             from USERS USR
                      JOIN PRODUCT P2 on USR.userEmail = P2.accountCoordinatorEmail
-            where P2.productID = (
-                select P.productID
-                from PRODUCT P
-                         JOIN COMPLAINT C2 on P.productID = C2.productID
-                where C2.complaintID = @_complaintID
-                  and C2.subComplaintID = @_subComplaintID)
+            where P2.productID = (select P.productID
+                                  from PRODUCT P
+                                           JOIN COMPLAINT C2 on P.productID = C2.productID
+                                  where C2.complaintID = @_complaintID
+                                    and C2.subComplaintID = @_subComplaintID)
+
+            select *
+            from COMPLAINT_ATTACHMENT_DETAILS
+            where complaintID = @_complaintID and subComplaintID = @_subComplaintID
 
             return 0;
         end
@@ -246,6 +256,59 @@ as
     errorHandler:
     ROLLBACK TRANSACTION
     RETURN -1
+go
+
+CREATE procedure getSelectedComplaintDetailsCustomer @_customerEmail VARCHAR(50),
+                                                     @_complaintID int,
+                                                     @_subComplaintID int
+as
+    if (@_customerEmail = (select customerEmail
+                           from PRODUCT P
+                                    join COMPLAINT C3 on P.productID = C3.productID
+                           where C3.complaintID = @_complaintID
+                             and c3.subComplaintID = @_subComplaintID))
+        begin
+            select * from COMPLAINT where complaintID = @_complaintID and subComplaintID = @_subComplaintID
+            select statusName
+            from COMPLAINT_STATUS CS
+                     JOIN COMPLAINT C on CS.statusID = C.status
+            where C.complaintID = @_complaintID
+              and C.subComplaintID = @_subComplaintID
+            select productName
+            from PRODUCT P
+                     join COMPLAINT C2 on P.productID = C2.productID
+            where C2.complaintID = @_complaintID
+              and C2.subComplaintID = @_subComplaintID
+            select userEmail, firstName, lastName
+            from USERS U
+            where userEmail = (select projectManagerEmail
+                               from PRODUCT P
+                                        join COMPLAINT C2 on P.productID = C2.productID
+                               where C2.complaintID = @_complaintID
+                                 and C2.subComplaintID = @_subComplaintID)
+            select userEmail, firstName, lastName
+            from USERS U
+            where userEmail = (select accountCoordinatorEmail
+                               from PRODUCT P
+                                        join COMPLAINT C2 on P.productID = C2.productID
+                               where C2.complaintID = @_complaintID
+                                 and C2.subComplaintID = @_subComplaintID)
+            select *
+            from COMPLAINT_ATTACHMENT_DETAILS
+            where complaintID = @_complaintID and subComplaintID = @_subComplaintID
+            RETURN 0;
+        end
+    else
+        begin
+            --             GOTO errorHandler;
+            RETURN 1;
+        end
+    COMMIT TRANSACTION;
+    RETURN 0;
+
+    errorHandler:
+    ROLLBACK TRANSACTION
+    RETURN -1;
 go
 
 CREATE procedure getSelectedProductDetails(@_productID int)
@@ -312,10 +375,10 @@ CREATE procedure getSubComplaintsOfSelectedComplain @_complainId VARCHAR(10)
 as
     if exists(select 1
               from COMPLAINT c
-              where c.complainID = @_complainId
+              where c.complaintID = @_complainId
                 and c.subComplaintID != 0)
         begin
-            select * from COMPLAINT where subComplaintID != 0 and complainID = @_complainId
+            select * from COMPLAINT where subComplaintID != 0 and complaintID = @_complainId
             RETURN 0;
         end
     else
@@ -333,12 +396,19 @@ go
 
 CREATE PROCEDURE lodgeComplaint @_customerEmail varchar(50),
                                 @_productID int,
-                                @_description varchar(5000)
+                                @_description varchar(5000),
+                                @_noOfImages int
 AS
     BEGIN TRANSACTION
 
+DECLARE @currentMaxComplaintID int;
+DECLARE @complaintID int;
+    SET @currentMaxComplaintID = (SELECT MAX(complaintID)
+                                  from COMPLAINT) ;
+    SET @complaintID = iif(@currentMaxComplaintID is null, 1, @currentMaxComplaintID + 1);
+
 INSERT INTO COMPLAINT
-VALUES ((SELECT MAX(complaintID) from COMPLAINT) + 1,
+VALUES (@complaintID,
         0,
         @_description,
         0,
@@ -348,6 +418,21 @@ VALUES ((SELECT MAX(complaintID) from COMPLAINT) + 1,
         null,
         @_productID)
     IF @@ROWCOUNT = 0 GOTO errorHandler;
+
+DECLARE @i int;
+    SET @i = 0;
+    WHILE @i < @_noOfImages
+        BEGIN
+            SET @i = @i + 1
+            /* your code*/
+            INSERT INTO COMPLAINT_ATTACHMENT_DETAILS
+            VALUES (@complaintID, 0, @i, TRIM(STR(@complaintID)) + '-' + '0' + '-' + TRIM(STR(@i)) + '.png')
+        END
+
+SELECT *
+FROM COMPLAINT_ATTACHMENT_DETAILS
+WHERE complaintID = @complaintID
+  and subComplaintID = 0;
 
     COMMIT TRANSACTION;
     RETURN 0;
@@ -360,11 +445,16 @@ go
 CREATE PROCEDURE lodgeSubComplaint @_complaintID int,
                                    @_subComplaintDesc varchar(5000)
 AS
+DECLARE
+    @subComplaintID int;
+    SET @subComplaintID = ((SELECT MAX(@subComplaintID)
+                            from COMPLAIN
+                            where complaintID = @_complaintID) + 1);
     BEGIN TRANSACTION
 
 INSERT INTO COMPLAINT
 VALUES (@_complaintID,
-        (SELECT MAX(subComplaintID) from COMPLAINT where complaintID = @_complaintID) + 1,
+        iif(@subComplaintID is null, 1, @subComplaintID),
         @_subComplaintDesc,
         0,
         GETDATE(),
@@ -415,9 +505,13 @@ CREATE PROCEDURE registerProduct @_productName varchar(40),
                                  @_accountCoordinatorEmail varchar(50),
                                  @_createdAdmin varchar(50)
 AS
+DECLARE
+    @productID int;
+    SET @productID = ((SELECT MAX(productID)
+                       from PRODUCT) + 1);
     BEGIN TRANSACTION
 INSERT INTO PRODUCT
-VALUES ((Select MAX(productID) FROM PRODUCT) + 1,
+VALUES (iif(@productID is null, 1, @productID),
         @_productName,
         @_category,
         @_customerEmail,
@@ -501,6 +595,56 @@ as
         begin
             return -1;
         end
+go
+
+CREATE PROCEDURE saveComment @_senderEmail varchar(50),
+                             @_complaintID int,
+                             @_text varchar(MAX),
+                             @_noOfImages int
+AS
+    BEGIN TRANSACTION
+
+DECLARE @currentMaxCommentID int;
+DECLARE @commentID int;
+    SET @currentMaxCommentID = (SELECT MAX(commentID)
+                                from COMMENT
+                                where complaintID = @_complaintID) ;
+    SET @commentID = iif(@currentMaxCommentID is null, 1, @currentMaxCommentID + 1);
+    IF (@_text is not null)
+        BEGIN
+            INSERT INTO COMMENT
+            VALUES (@_complaintID,
+                    @commentID,
+                    0,
+                    @_text,
+                    @_senderEmail,
+                    GETDATE(),
+                    0)
+            IF @@ROWCOUNT = 0 GOTO errorHandler;
+        end
+    SET @currentMaxCommentID = (SELECT MAX(commentID)
+                                from COMMENT
+                                where complaintID = @_complaintID) ;
+    SET @commentID = iif(@currentMaxCommentID is null, 1, @currentMaxCommentID + 1);
+DECLARE @i int;
+    SET @i = 0;
+    WHILE @i < @_noOfImages
+        BEGIN
+            SET @i = @i + 1
+            /* your code*/
+            INSERT INTO COMMENT
+            VALUES (@_complaintID, @commentID, 1, TRIM(STR(@_complaintID)) + '-' + TRIM(STR(@i)) + '.png',
+                    @_senderEmail, GETDATE(), 0)
+            SELECT * FROM COMMENT where complaintID = @_complaintID and commentID = @commentID
+            SET @commentID = @commentID + 1
+        END
+
+    COMMIT TRANSACTION;
+    RETURN 0;
+
+    errorHandler:
+    ROLLBACK TRANSACTION
+    RETURN -1;
 go
 
 CREATE procedure updateSelectedUserDetails @_oldEmail VARCHAR(50),

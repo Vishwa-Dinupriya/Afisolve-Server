@@ -66,6 +66,7 @@ create table ADMIN
             primary key nonclustered
         constraint ADMIN_USERS_userEmail_fk
             references USERS
+            on update cascade
 )
 go
 
@@ -76,6 +77,7 @@ create table CEO
             primary key nonclustered
         constraint CEO_USERS_userEmail_fk
             references USERS
+            on update cascade
 )
 go
 
@@ -97,7 +99,8 @@ create table DEVELOPER
         constraint DEVELOPER_pk
             primary key nonclustered
         constraint DEVELOPER_USER_userEmail_fk
-            references USERS,
+            references USERS
+            on update cascade,
     developerLevel varchar(20)
 )
 go
@@ -166,6 +169,37 @@ create table COMPLAINT
             references PRODUCT,
     constraint COMPLAINT_pk
         primary key nonclustered (complaintID, subComplaintID)
+)
+go
+
+create table COMMENT
+(
+    complaintID     int not null,
+    commentID       int not null,
+    isImage         bit,
+    textOrImageName varchar(max),
+    senderEmail     varchar(50)
+        constraint COMMENT_USERS_userEmail_fk
+            references USERS,
+    submittedTime   datetime,
+    subComplaintID  int not null,
+    constraint COMMENT_pk
+        primary key nonclustered (complaintID, commentID),
+    constraint COMMENT_COMPLAINT_complaintID_subComplaintID_fk
+        foreign key (complaintID, subComplaintID) references COMPLAINT
+)
+go
+
+create table COMPLAINT_ATTACHMENT_DETAILS
+(
+    complaintID    int not null,
+    subComplaintID int not null,
+    imageIndex     int not null,
+    imageName      varchar(max),
+    constraint COMPLAINT_ATTACHMENT_DETAILS_pk
+        primary key nonclustered (complaintID, subComplaintID, imageIndex),
+    constraint COMPLAINT_ATTACHMENT_DETAILS_COMPLAINT_complaintID_subComplaintID_fk
+        foreign key (complaintID, subComplaintID) references COMPLAINT
 )
 go
 

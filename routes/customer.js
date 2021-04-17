@@ -1,5 +1,6 @@
 const express = require('express')
 const jwt = require('jsonwebtoken')
+const fs = require("fs");
 const router = express.Router();
 
 const {poolPromise} = require('../helpers/mssql-server-connection');
@@ -15,26 +16,38 @@ router.get('/', (req, res) => {
 //------------------------------------------------customer-complaint-----------------------------------------------------------------------------------
 router.post('/lodge-complaint', verifyToken, verifyCustomer, async (request, response) => {
 
+    const images = request.body.Images;
     const pool = await poolPromise;
-    console.log(request.body)
     try {
         pool.request()
             .input('_customerEmail', sql.VarChar(50), request.payload.username)
             .input('_productID', sql.Int, request.body.productID)
             .input('_description', sql.VarChar(5000), request.body.description)
+            .input('_noOfImages', sql.Int, request.body.Images.length)
             .execute('lodgeComplaint', (error, result) => {
                 if (error) {
+                    console.log(error);
                     response.status(500).send({
                         status: false
                     });
                 } else {
+                    if (result.recordsets[0].length !== 0) {
+                        for (let i = 0; i < result.recordsets[0].length; i++) {
+                            //encoding and save the picture to the local memory
+                            const path = './pictures/complaint-pictures/' + result.recordsets[0][i].imageName;
+                            const base64Data = images[i].replace(/^data:([A-Za-z-+/]+);base64,/, '');
+                            fs.writeFileSync(path, base64Data, {encoding: 'base64'});
+                        }
+                    }
                     console.log(JSON.stringify(result) + ' 75 admin.js');
                     response.status(200).send({
-                        status: true
+                        status: true,
+                        message: ' ',
                     });
                 }
             });
     } catch (e) {
+        console.log(e);
         response.status(500).send({status: false});
     }
 });
@@ -86,11 +99,78 @@ router.post('/get-complaints-by-statusID', verifyToken, verifyCustomer, async (r
     }
 });
 
+router.post('/get-selected-complaint-details', verifyToken, verifyCustomer, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .input('_customerEmail', sql.VarChar(50), request.payload.username)
+            .input('_complaintID', sql.Int, request.body.complaintID)
+            .input('_subComplaintID', sql.Int, request.body.subComplaintID)
+            .execute('getSelectedComplaintDetailsCustomer', (error, result) => {
+                if (error) {
+                    console.log('cannot run getSelectedComplaintDetailsCustomer');
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    if (result.returnValue === 0) {
+                        console.log(JSON.stringify(result) + ' 118 customer.js');
+                        let images = [];
+                        const nImages = result.recordsets[5].length;
+                        for (let i = 0; i < nImages; i++) {
+                            let img;
+                            try {//get the picture to 'img' from local memory
+                                img = fs.readFileSync('./pictures/complaint-pictures/' + result.recordsets[5][i].imageName, {encoding: 'base64'})
+                            } catch (error) {
+                                img = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
+                            }
+                            images.push(img);
+                        }
+                        response.status(200).send({
+                            status: true,
+                            data: {
+                                complaintID: result.recordsets[0][0].complaintID,
+                                subComplaintID: result.recordsets[0][0].subComplaintID,
+                                description: result.recordsets[0][0].description,
+                                statusID: result.recordsets[0][0].status,
+                                submittedDate: result.recordsets[0][0].submittedDate,
+                                lastDateOfPending: result.recordsets[0][0].lastDateOfPending,
+                                wipStartDate: result.recordsets[0][0].wipStartDate,
+                                finishedDate: result.recordsets[0][0].finishedDate,
+                                productID: result.recordsets[0][0].productID,
+                                statusName: result.recordsets[1][0].statusName,
+                                productName: result.recordsets[2][0].productName,
+                                projectManagerEmail: result.recordsets[3][0].userEmail,
+                                projectManagerFirstName: result.recordsets[3][0].firstName,
+                                projectManagerLastName: result.recordsets[3][0].lastName,
+                                accountCoordinatorEmail: result.recordsets[4][0].userEmail,
+                                accountCoordinatorFirstName: result.recordsets[4][0].firstName,
+                                accountCoordinatorLastName: result.recordsets[4][0].lastName
+                            },
+                            images: images
+                        })
+                    } else {
+                        console.log('getSelectedUserDetails return -1');
+                        response.status(500).send({message: 'return value = -1'});
+                    }
+                }
+            })
+        ;
+    } catch (e) {
+        response.status(500).send(
+            {
+                status: false
+            }
+        )
+    }
+});
+
 router.post('/lodge-sub-complaint', verifyToken, verifyCustomer, async (request, response) => {
 
     const pool = await poolPromise;
     try {
-        console.log(request.body);
+
         pool.request()
             .input('_complaintID', sql.Int, request.body.complaintID_)
             .input('_subComplaintDesc', sql.VarChar(5000), request.body.subComplaint)
@@ -266,7 +346,8 @@ router.put('/save-comment_', verifyToken, verifyCustomer, async (request, respon
         response.status(500).send({status: false});
     }
 
-})
 
+
+})
 
 module.exports = router;

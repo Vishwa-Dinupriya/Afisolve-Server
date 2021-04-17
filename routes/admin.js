@@ -1,5 +1,6 @@
 const express = require('express')
 const jwt = require('jsonwebtoken')
+const fs = require("fs");
 const router = express.Router();
 
 const {poolPromise} = require('../helpers/mssql-server-connection');
@@ -18,7 +19,8 @@ router.post('/get-users-details', verifyToken, verifyAdmin, async (request, resp
     const pool = await poolPromise;
     try {
         pool.request()
-            .query('select * from USERS', (error, result) => {
+            .input('_username', sql.VarChar(50), request.payload.username)
+            .query('select * from USERS where userEmail!= @_username', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -40,7 +42,7 @@ router.post('/get-users-details-brief', verifyToken, verifyAdmin, async (request
     const pool = await poolPromise;
     try {
         pool.request()
-            .query('select TOP 5 * from USERS', (error, result) => {
+            .query('select * from USERS where USERS.activeStatus = \'true\'', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -71,10 +73,14 @@ router.post('/get-selected-user-profile-details', verifyToken, verifyAdmin, asyn
                     });
                 } else {
                     if (result.returnValue === 0) {
-                        console.log(result.recordsets[0][0].firstName + ' 74 admin.js')
                         console.log(JSON.stringify(result) + ' 75 admin.js');
-                        // console.log(result.recordsets[0][0].firstName);
-                        // console.log(JSON.stringify(result.recordsets[1]));
+                        let img;
+                        try {//get the picture to 'img' from local memory
+                            img = fs.readFileSync('./pictures/profile-pictures/' + request.body.selectedUserEmail + '.png', {encoding: 'base64'})
+                        } catch (error) {
+                            img = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
+                        }
+
                         response.status(200).send({
                             status: true,
                             firstname: result.recordsets[0][0].firstName,
@@ -83,10 +89,12 @@ router.post('/get-selected-user-profile-details', verifyToken, verifyAdmin, asyn
                             password: result.recordsets[0][0].password,
                             contactNumber: result.recordsets[0][0].contactNumber,
                             activeStatus: result.recordsets[0][0].ativeStatus,
-                            generalData:result.recordsets[0],
+                            generalData: result.recordsets[0],
                             roles: result.recordsets[1],
-                            defaultRoleID: result.recordsets[2][0].roleID
+                            defaultRoleID: result.recordsets[2][0].roleID,
+                            profilePhoto: img
                         })
+
                     } else {
                         console.log('getSelectedUserDetails return -1');
                         response.status(500).send({message: 'return value = -1'});
@@ -108,8 +116,7 @@ router.post('/update-selected-user-profile-details', verifyToken, verifyAdmin, a
     const oldEmail = request.body.emailOld;
     const data = request.body.userNewData;
     const adminEmail = request.payload.username;
-    console.log(request.body.emailOld + ' admin.js 113');
-    console.log(request.body.userNewData.passwordGroup.password + ' password admin.js 114');
+    const newProfilePhoto = request.body.newProfilePhoto_;
 
     try {
 
@@ -133,7 +140,6 @@ router.post('/update-selected-user-profile-details', verifyToken, verifyAdmin, a
             .input('_modifiedAdmin', sql.VarChar(50), adminEmail)
             .execute('updateSelectedUserDetails', (error, result) => {
                 if (error) {
-                    console.log('1');
                     console.log(error);
                     response.status(500).send({
                         status: false,
@@ -142,11 +148,41 @@ router.post('/update-selected-user-profile-details', verifyToken, verifyAdmin, a
                 } else {
                     console.log(result);
                     if (result.returnValue === 0) {
-                        console.log('Data Successfully Updated!');
-                        response.status(200).send({
-                            status: true,
-                            message: 'Data Successfully Updated!'
-                        });
+                        try {
+                           if(!newProfilePhoto) {
+                               response.status(200).send({
+                                   status: true,
+                                   message: 'Data Successfully Updated! Image not found!!'
+                               });
+                           }else{
+                               console.log('Data Successfully Entered!!');
+
+                               //encoding and save the picture to the local memory
+                               const path = './pictures/profile-pictures/' + data.email + '.png';
+                               const base64Data = newProfilePhoto.replace(/^data:([A-Za-z-+/]+);base64,/, '');
+                               fs.writeFileSync(path, base64Data, {encoding: 'base64'});
+
+                               //get the picture to 'img' from local memory
+                               let img;
+                               try {
+                                   img = fs.readFileSync('./pictures/profile-pictures/' + request.body.email + '.png', {encoding: 'base64'});
+                               } catch (error) {
+                                   img = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
+                               }
+                               response.status(200).send({
+                                   status: true,
+                                   message: 'Data Successfully Entered!',
+                                   image: img
+                               });
+                           }
+                        }catch (error){
+                            console.log(error);
+                            response.status(500).send({
+                                status: false,
+                                message: 'Server Error!'
+                            });
+                        }
+
                     } else {
                         console.log('2');
                         response.status(500).send({message: 'from error handler'});
@@ -198,7 +234,6 @@ router.post('/delete-selected-user', verifyToken, verifyAdmin, async (request, r
 });
 
 
-
 //----------------------------------------complaints--------------------------------------------
 
 router.post('/get-complaints-details-brief', verifyToken, verifyAdmin, async (request, response) => {
@@ -229,7 +264,7 @@ router.post('/get-all-complaints', verifyToken, verifyAdmin, async (request, res
     try {
         pool.request()
             .query(' select * from COMPLAINT C  where C.subComplaintID != 0 \n' +
-                   ' select * from COMPLAINT C  where C.subComplaintID = 0 \n', (error, result) => {
+                ' select * from COMPLAINT C  where C.subComplaintID = 0 \n', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -275,29 +310,29 @@ router.post('/get-subComplaints', verifyToken, verifyAdmin, async (request, resp
         pool.request()
             .input('_complainId', sql.VarChar(10), request.body.selectedComplaintID)
             .execute('getSubComplaintsOfSelectedComplain', (error, result) => {
-                    if (error) {
-                        console.log('cannot run getSubComplaintsOfSelectedComplain');
+                if (error) {
+                    console.log('cannot run getSubComplaintsOfSelectedComplain');
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    if (result.returnValue === 0) {
+                        console.log(JSON.stringify(result) + ' 74 admin.js');
+                        response.status(200).send({
+                            status: true,
+                            data: result.recordset
+                        })
+                    } else if (result.returnValue === 1) {
+                        console.log(JSON.stringify(result));
                         response.status(500).send({
-                            status: false
-                        });
+                            status: false,
+                            message: 'no sub-complaints',
+                        })
                     } else {
-                        if (result.returnValue === 0) {
-                            console.log(JSON.stringify(result) + ' 74 admin.js');
-                            response.status(200).send({
-                                status: true,
-                                data: result.recordset
-                            })
-                        } else if (result.returnValue === 1) {
-                            console.log(JSON.stringify(result));
-                            response.status(500).send({
-                                status: false,
-                                message: 'no sub-complaints',
-                            })
-                        } else {
-                            console.log('getSubComplaintsOfSelectedComplain return -1');
-                            response.status(500).send({message: 'return value = -1'});
-                        }
+                        console.log('getSubComplaintsOfSelectedComplain return -1');
+                        response.status(500).send({message: 'return value = -1'});
                     }
+                }
             });
     } catch (e) {
         response.status(500).send({status: false});
@@ -305,8 +340,9 @@ router.post('/get-subComplaints', verifyToken, verifyAdmin, async (request, resp
 });
 
 router.post('/get-selected-complaint-details', verifyToken, verifyAdmin, async (request, response) => {
-console.log(' complaintID: '+ request.body.complaintID);
-    console.log(' subComplaintID: '+ request.body.subComplaintID);
+    console.log(' complaintID: ' + request.body.complaintID);
+    console.log(' subComplaintID: ' + request.body.subComplaintID);
+
     const pool = await poolPromise;
     try {
         pool.request()
@@ -321,6 +357,17 @@ console.log(' complaintID: '+ request.body.complaintID);
                 } else {
                     if (result.returnValue === 0) {
                         console.log(JSON.stringify(result) + ' 322 admin.js');
+                        let images = [ ];
+                        const nImages = result.recordsets[5].length;
+                        for(let i=0; i<nImages; i++){
+                            let img;
+                            try {//get the picture to 'img' from local memory
+                                img = fs.readFileSync('./pictures/complaint-pictures/' + result.recordsets[5][i].imageName, {encoding: 'base64'})
+                            } catch (error) {
+                                img = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
+                            }
+                            images.push(img);
+                        }
                         response.status(200).send({
                             status: true,
                             data: {
@@ -341,7 +388,8 @@ console.log(' complaintID: '+ request.body.complaintID);
                                 accountCoordinatorEmail: result.recordsets[4][0].userEmail,
                                 accountCoordinatorFirstName: result.recordsets[4][0].firstName,
                                 accountCoordinatorLastName: result.recordsets[4][0].lastName
-                            }
+                            },
+                            images: images
                         })
                     } else {
                         console.log('getSelectedUserDetails return -1');
@@ -360,7 +408,6 @@ console.log(' complaintID: '+ request.body.complaintID);
 });
 
 
-
 //------------------------------------------products--------------------------------------------
 router.post('/register-product', verifyToken, verifyAdmin, async (request, response) => {
 
@@ -375,7 +422,7 @@ router.post('/register-product', verifyToken, verifyAdmin, async (request, respo
             .input('_projectManagerEmail', sql.VarChar(50), data.projectManagerEmail)
             .input('_accountCoordinatorEmail', sql.VarChar(50), data.accountCoordinatorEmail)
             .input('_createdAdmin', sql.VarChar(50), requestedAdminEmail)
-            .execute('registerProduct',(error, result)=>{
+            .execute('registerProduct', (error, result) => {
                 if (error) {
                     console.log(error);
                     response.status(500).send({
@@ -417,7 +464,7 @@ router.post('/get-all-products', verifyToken, verifyAdmin, async (request, respo
 });
 
 router.post('/get-selected-product-details', verifyToken, verifyAdmin, async (request, response) => {
-    console.log(' productID: '+ request.body.productID);
+    console.log(' productID: ' + request.body.productID);
     const pool = await poolPromise;
     try {
         pool.request()
@@ -440,7 +487,7 @@ router.post('/get-selected-product-details', verifyToken, verifyAdmin, async (re
                                 category: result.recordsets[0][0].category,
                                 createdAt: result.recordsets[0][0].createdAt,
                                 createdBy: result.recordsets[0][0].createdBy,
-                                customerEmail:  result.recordsets[0][0].customerEmail,
+                                customerEmail: result.recordsets[0][0].customerEmail,
                                 customerFirstName: result.recordsets[1][0].firstName,
                                 customerLastName: result.recordsets[1][0].lastName,
                                 modifiedAt: result.recordsets[0][0].modifiedAt,
