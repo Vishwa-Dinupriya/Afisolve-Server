@@ -12,43 +12,43 @@ router.get('/', (req, res) => {
     res.send('From users route');
 });
 
-router.post('/user-toolbar-display-details', verifyToken, async (request, response) => {
-    console.log('request.payload.role: ' + request.payload.role);
-    console.log('request.payload.role: ' + request.payload.username);
+ router.post('/user-toolbar-display-details', verifyToken, async (request, response) => {
+  console.log('request.payload.role: ' + request.payload.role);
+   console.log('request.payload.role: ' + request.payload.username);
 
-    const pool = await poolPromise;
-    try {
-        pool.request()
-            .input('_username', sql.VarChar(50), request.payload.username)
-            .execute('userToolbarDetails', (error, result) => {
-                if (error) {
-                    console.log(error);
-                    response.status(500).send({
-                        status: false
-                    });
-                } else {
-                    console.log(JSON.stringify(result));
-                    let img;
+   const pool = await poolPromise;
+   try {
+      pool.request()
+          .input('_username', sql.VarChar(50), request.payload.username)
+          .execute('userToolbarDetails', (error, result) => {
+               if (error) {
+                 console.log(error);
+                 response.status(500).send({
+                     status: false
+                  });
+               } else {
+                  console.log(JSON.stringify(result));
+                  let img;
                     try {//get the picture to 'img' from local memory
                         img = fs.readFileSync('./pictures/profile-pictures/' + request.payload.username + '.png', {encoding: 'base64'})
-                    } catch (error) {
-                        img = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
+                   } catch (error) {
+                     img = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
                     }
-                    response.status(200).send({
-                        status: true,
-                        firstname: result.recordsets[0][0].firstName,
+                   response.status(200).send({
+                       status: true,
+                       firstname: result.recordsets[0][0].firstName,
                         roles: result.recordsets[1],
-                        selectedRole: request.payload.role,
-                        profilePhoto: img
-                    })
-                }
-            });
-    } catch (e) {
+                       selectedRole: request.payload.role,
+                       profilePhoto: img
+                   })
+               }
+         });
+   } catch (e) {
         response.status(500).send(
             {
-                status: false
-            }
-        )
+               status: false
+           }
+       )
     }
 });
 

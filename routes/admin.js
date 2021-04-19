@@ -37,12 +37,12 @@ router.post('/get-users-details', verifyToken, verifyAdmin, async (request, resp
     }
 });
 
-router.post('/get-users-details-brief', verifyToken, verifyAdmin, async (request, response) => {
+router.post('/get-active-users', verifyToken, verifyAdmin, async (request, response) => {
 
     const pool = await poolPromise;
     try {
         pool.request()
-            .query('select * from USERS where USERS.activeStatus = \'true\'', (error, result) => {
+            .query('select  firstName from USERS where USERS.activeStatus = \'true\'', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -259,7 +259,7 @@ router.post('/get-complaints-details-brief', verifyToken, verifyAdmin, async (re
 });
 
 router.post('/get-all-complaints', verifyToken, verifyAdmin, async (request, response) => {
-
+    console.log('fjjfjfffffffffffffffffffffffffffffff');
     const pool = await poolPromise;
     try {
         pool.request()
@@ -571,5 +571,99 @@ router.post('/get-feedbacks-details', verifyToken, verifyAdmin, async (request, 
         response.status(500).send({status: false});
     }
 });
+
+
+//........................................... dashboard....................
+
+router.post('/get-all-user-count', verifyToken, verifyAdmin, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query('SELECT count(*) as count1 FROM USERS', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+router.post('/get-active-user-count', verifyToken, verifyAdmin, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query('select  count(*) as count2 from USERS where USERS.activeStatus =\'true\'', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+router.post('/get-all-complaints-count', verifyToken, verifyAdmin, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query('SELECT count(*) as count3 FROM COMPLAINTS', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+
+router.post('/get-closed-complaints-count', verifyToken, verifyAdmin, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query('SELECT count(*) as count3 FROM COMPLAINTS', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+
 
 module.exports = router;
