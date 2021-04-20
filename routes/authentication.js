@@ -54,11 +54,10 @@ router.get('/', (req, res) => {
 });
 
 router.post('/sendOtpToEmail', verifyToken, verifyAdmin, async (request, response) => {
-
     console.log(request.body);
     const data = request.body;
     try {
-        sendOtp('vishwadinupriya@gmail.com').then(r => console.log('success! otp send and stored'));
+        sendOtp(request.body.userEnteredEmail).then(r => console.log('success! otp send and stored'));
     } catch (e) {
         console.log(e);
     }
@@ -66,97 +65,106 @@ router.post('/sendOtpToEmail', verifyToken, verifyAdmin, async (request, respons
 });
 
 router.post('/register', verifyToken, verifyAdmin, async (request, response) => {
+    // console.log(request.body);
 
-    console.log(request.body.otp);
     console.log(generatedOTP);
+    const otpClient = request.body.otp;
     const data = request.body.userData;
     const image = request.body.profilePicture;
     const adminEmail = request.payload.username;
+    console.log(otpClient-generatedOTP);
+    if (generatedOTP == otpClient) {
+        console.log('otp equal')
+        try {
+            const roles = new sql.Table('roles');
+            roles.columns.add('role', sql.Int);
 
-    try {
+            for (const role of data.roles) {
+                roles.rows.add(role);
+            }
 
-        const roles = new sql.Table('roles');
-        roles.columns.add('role', sql.Int);
-
-        for (const role of data.roles) {
-            roles.rows.add(role);
-        }
-
-        const pool = await poolPromise;
-        await pool.request()
-            .input('_firstname', sql.VarChar(40), data.firstName)
-            .input('_lastname', sql.VarChar(40), data.lastName)
-            .input('_email', sql.VarChar(50), data.email)
-            .input('_password', sql.VarChar(20), data.passwordGroup.password)
-            .input('_roles', roles)
-            .input('_defaultRole', sql.Int, data.defaultRole)
-            .input('_contactNumber', sql.VarChar(20), data.contactNumber)
-            .input('_createdAdmin', sql.VarChar(50), adminEmail)
-            .execute('registerUser', (error, result) => {
-                if (error) {
-                    console.log(error);
-                    if (error.number === 2627) {
-                        response.status(500).send({
-                            status: false,
-                            message: 'Existing User'
-                        });
-                    } else {//vishwa brogen ahanna
-                        response.status(500).send({
-                            status: false,
-                            message: 'query Error..!'
-                        });
-                    }
-                } else {
-
-                    if (result.returnValue === 0) {
-                        try {
-                            if (!image) {
-                                response.status(200).send({
-                                    status: false,
-                                    message: 'Data Successfully Entered! Image not found!!',
-                                    image: null
-                                });
-                            } else {
-                                console.log('Data Successfully Entered!');
-
-                                //encoding and save the picture to the local memory
-                                const path = './pictures/profile-pictures/' + request.body.email + '.png';
-                                const base64Data = image.replace(/^data:([A-Za-z-+/]+);base64,/, '');
-                                fs.writeFileSync(path, base64Data, {encoding: 'base64'});
-
-                                //get the picture to 'img' from local memory
-                                let img;
-                                try {
-                                    img = fs.readFileSync('./pictures/profile-pictures/' + request.body.email + '.png', {encoding: 'base64'});
-                                } catch (error) {
-                                    img = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
-                                }
-                                response.status(200).send({
-                                    status: true,
-                                    message: 'Data Successfully Entered!',
-                                    image: img
-                                });
-                            }
-                        } catch (error) {
-                            console.log(error);
+            const pool = await poolPromise;
+            await pool.request()
+                .input('_firstname', sql.VarChar(40), data.firstName)
+                .input('_lastname', sql.VarChar(40), data.lastName)
+                .input('_email', sql.VarChar(50), data.email)
+                .input('_password', sql.VarChar(20), data.passwordGroup.password)
+                .input('_roles', roles)
+                .input('_defaultRole', sql.Int, data.defaultRole)
+                .input('_contactNumber', sql.VarChar(20), data.contactNumber)
+                .input('_createdAdmin', sql.VarChar(50), adminEmail)
+                .execute('registerUser', (error, result) => {
+                    if (error) {
+                        console.log(error);
+                        if (error.number === 2627) {
                             response.status(500).send({
                                 status: false,
-                                message: 'Server Error!'
+                                message: 'Existing User'
+                            });
+                        } else {//vishwa brogen ahanna
+                            response.status(500).send({
+                                status: false,
+                                message: 'query Error..!'
                             });
                         }
-                    } else {//vishwa brogen ahanna
-                        response.status(500).send({message: 'from error handler'});
+                    } else {
+
+                        if (result.returnValue === 0) {
+                            try {
+                                if (!image) {
+                                    response.status(200).send({
+                                        status: false,
+                                        message: 'Data Successfully Entered! Image not found!!',
+                                        image: null
+                                    });
+                                } else {
+                                    console.log('Data Successfully Entered!');
+
+                                    //encoding and save the picture to the local memory
+                                    const path = './pictures/profile-pictures/' + request.body.email + '.png';
+                                    const base64Data = image.replace(/^data:([A-Za-z-+/]+);base64,/, '');
+                                    fs.writeFileSync(path, base64Data, {encoding: 'base64'});
+
+                                    //get the picture to 'img' from local memory
+                                    let img;
+                                    try {
+                                        img = fs.readFileSync('./pictures/profile-pictures/' + request.body.email + '.png', {encoding: 'base64'});
+                                    } catch (error) {
+                                        img = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
+                                    }
+                                    response.status(200).send({
+                                        status: true,
+                                        message: 'Data Successfully Entered!',
+                                        image: img
+                                    });
+                                }
+                            } catch (error) {
+                                console.log(error);
+                                response.status(500).send({
+                                    status: false,
+                                    message: 'Server Error!'
+                                });
+                            }
+                        } else {//vishwa brogen ahanna
+                            response.status(500).send({message: 'from error handler'});
+                        }
                     }
-                }
+                });
+        } catch (error) {
+            console.log(error);
+            response.status(500).send({
+                status: false,
+                message: 'DB connection Error..!'
             });
-    } catch (error) {
-        console.log(error);
+        }
+    }
+    else {
+   console.log('otp not equal')
         response.status(500).send({
             status: false,
-            message: 'DB connection Error..!'
+            message: 'invalid OTP!'
         });
     }
-
 });
 
 router.post('/login', async (request, response) => {
