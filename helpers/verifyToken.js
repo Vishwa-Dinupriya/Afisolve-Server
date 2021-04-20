@@ -25,7 +25,7 @@ function verifyAdmin(req, res, next) {
     try {
         let role = req.payload.role;
         console.log('this is the role: '+ role);
-        if (role!='Admin') {
+        if (role!='admin') {
             return res.status(401).send('Unauthorized request');
         }
         next();

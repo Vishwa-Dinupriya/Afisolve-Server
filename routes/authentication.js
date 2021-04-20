@@ -179,7 +179,7 @@ router.post('/login', async (request, response) => {
                     if (result.returnValue === 0) {
                         console.log('login successful..!');
                         // console.log(JSON.stringify(result, null, 2));
-                        // console.log(JSON.stringify(result));
+                        console.log(JSON.stringify(result));
                         // console.log(result.recordsets[1]);
                         // console.log( result.recordsets[0][0]);
 

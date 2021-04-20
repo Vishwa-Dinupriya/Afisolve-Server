@@ -201,7 +201,7 @@ router.post('/get-all-products', verifyToken, verifyCustomer, async (request, re
     try {
         pool.request()
             .input('_customerEmail', sql.VarChar(50), request.payload.username)
-            .query('select * from PRODUCT where customerEmail=@_customerEmail', (error, result) => {
+            .query('select * from PRODUCT where customerID= (select userID from USERS where userEmail = @_customerEmail)', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -257,7 +257,8 @@ router.get('/get-comments', verifyToken, verifyCustomer, async (request, respons
     try {
         pool.request()
             .input('_complaintID', sql.Int, request.query.complaintID)
-            .query('SELECT * FROM COMMENT C WHERE complaintID=@_complaintID ORDER BY C.submittedTime ', (error, result) => {
+            .query('SELECT * FROM COMMENT C WHERE complaintID=@_complaintID ORDER BY C.submittedTime \n'+
+                ' select senderID from COMMENT WHERE complaintID=@_complaintID', (error, result) => {
                 if (error) {
                     console.log(error);
                     response.status(500).send({
@@ -291,7 +292,7 @@ router.get('/get-comments', verifyToken, verifyCustomer, async (request, respons
                         comments[i] = {
                             IsImage: result.recordsets[0][i].isImage,
                             content: textOrImage,
-                            senderEmail: result.recordsets[0][i].senderEmail,
+                            senderEmail: result.recordsets[1][i].senderID,
                             senderAvatarPicture: avatarPicture
                         }
                     }
@@ -345,8 +346,6 @@ router.put('/save-comment_', verifyToken, verifyCustomer, async (request, respon
     } catch (e) {
         response.status(500).send({status: false});
     }
-
-
 
 })
 
