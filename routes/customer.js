@@ -348,4 +348,31 @@ router.put('/save-comment_', verifyToken, verifyCustomer, async (request, respon
 
 })
 
+
+router.get('/get-feedback-countcus', verifyToken, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query('SELECT  count(*) as num, satisfaction\n' +
+                '                FROM FEEDBACK\n' +
+                '                GROUP BY satisfaction\n' +
+                '                order by 2 DESC', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+
 module.exports = router;

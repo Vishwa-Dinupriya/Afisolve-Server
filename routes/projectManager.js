@@ -18,24 +18,24 @@ router.get('/', (req, res) => {
 //------------------------------------------view reports-------------------------------------------
 
 router.get('/get-complaint-details1', verifyToken,verifyProjectManager, async (request, response) => {
-
+    console.log('fg dvdc dascdw qdwdw qqdwdwd');
+    console.log(request.payload.username);
     const pool = await poolPromise;
     try {
-        // pool.request()
-        //     .input('_pmEmail', sql.VarChar(50), request.payload.username)
-        //     .query('select c.complainID, c.subComplaintID, p.productID, c.description, c.status, c.submittedDate, a.accountCoordinatorName  from  COMPLAINT c, PRODUCT p, ACCOUNT_COORDINATOR a\n' +
-        //         'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail and p.projectManagerEmail=@_pmEmail', (error, result) => {
-        //         if (error) {
-        //             response.status(500).send({
-        //                 status: false
-        //             });
-        //         } else {
-        //             response.status(200).send({
-        //                 status: true,
-        //                 data: result.recordset
-        //             });
-        //         }
-        //     });
+        pool.request()
+            .input('_pmEmail', sql.VarChar(50), request.payload.username)
+            .query('select c.complaintID, c.subComplaintID, c.description, s.statusName, c.submittedDate, u.firstName from  COMPLAINT c, PRODUCT p , COMPLAINT_STATUS s, USERS u where c.productID=p.productID and c.status=s.statusID and u.userID=p.accountCoordinatorID and p.projectManagerID= (select userID from USERS where userEmail= \'request.payload.username\')', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
     } catch (e) {
         response.status(500).send({status: false});
     }
@@ -50,21 +50,35 @@ router.get('/get-complaint-details', verifyToken, verifyProjectManager,  async (
 
     const pool = await poolPromise;
     try {
-        // pool.request()
-        //     .input('_pmEmail', sql.VarChar(50), request.payload.username)
-        //     .query('select c.complainID, p.productID, c.description, c.submittedDate, c.lastDateOfPending, a.accountCoordinatorName, a.accountCoordinatorEmail  from  COMPLAINT c, PRODUCT p, ACCOUNT_COORDINATOR a\n' +
-        //         'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail and c.lastDateOfPending < GETDATE() and c.status != \'finish\' and p.projectManagerEmail=@_pmEmail', (error, result) => {
-        //         if (error) {
-        //             response.status(500).send({
-        //                 status: false
-        //             });
-        //         } else {
-        //             response.status(200).send({
-        //                 status: true,
-        //                 data: result.recordset
-        //             });
-        //         }
-        //     });
+         pool.request()
+            .input('_pmEmail', sql.VarChar(50), request.payload.username)
+            .query('select c.complaintID, p.productID\n' +
+                '                       ,c.description\n' +
+                '                       ,c.submittedDate\n' +
+                '                      , c.lastDateOfPending\n' +
+                '                      ,u.firstName\n' +
+                '                     , u.userEmail\n' +
+                '                      , p.accountCoordinatorID\n' +
+                '                from COMPLAINT c\n' +
+                '                     ,PRODUCT p\n' +
+                '                     ,COMPLAINT_STATUS s\n' +
+                '                     ,USERS u\n' +
+                '                where c.productID = p.productID\n' +
+                '                  and c.status = s.statusID\n' +
+                '                  and u.userID = p.accountCoordinatorID\n' +
+                '                  and c.status = \'0\'\n' +
+                '                  and c.lastDateOfPending < GETDATE() and p.projectManagerID= (select userID from USERS where userEmail= \'@_pmEmail\')', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                 } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
     } catch (e) {
         response.status(500).send({status: false});
     }
@@ -78,21 +92,20 @@ router.get('/get-complaint-det', verifyToken,verifyProjectManager, async (reques
 
     const pool = await poolPromise;
     try {
-        // pool.request()
-        //     .input('_pmEmail', sql.VarChar(50), request.payload.username)
-        //     .query('select c.complainID, c.subComplaintID, p.productID, c.description, c.status, c.submittedDate, a.accountCoordinatorName  from  COMPLAINT c, PRODUCT p, ACCOUNT_COORDINATOR a\n' +
-        //         'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail and c.status = \'working\' and p.projectManagerEmail=@_pmEmail', (error, result) => {
-        //         if (error) {
-        //             response.status(500).send({
-        //                 status: false
-        //             });
-        //         } else {
-        //             response.status(200).send({
-        //                 status: true,
-        //                 data: result.recordset
-        //             });
-        //         }
-        //     });
+        pool.request()
+            .input('_pmEmail', sql.VarChar(50), request.payload.username)
+            .query('select c.complaintID, c.subComplaintID, c.description, s.statusName, c.submittedDate, u.firstName from  COMPLAINT c, PRODUCT p , COMPLAINT_STATUS s, USERS u where c.productID=p.productID and c.status=s.statusID and u.userID=p.accountCoordinatorID  and c.status = \'1\' and p.projectManagerID= (select userID from USERS where userEmail= \'_pmEmail\')', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
     } catch (e) {
         response.status(500).send({status: false});
     }
@@ -103,21 +116,20 @@ router.get('/get-complaint-de', verifyToken, verifyProjectManager,  async (reque
 
     const pool = await poolPromise;
     try {
-        // pool.request()
-        //     .input('_pmEmail', sql.VarChar(50), request.payload.username)
-        //     .query('select c.complainID, c.subComplaintID, p.productID, c.description, c.status, c.submittedDate, a.accountCoordinatorName  from  COMPLAINT c, PRODUCT p, ACCOUNT_COORDINATOR a\n' +
-        //         'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail and c.status = \'finish\' and p.projectManagerEmail=@_pmEmail', (error, result) => {
-        //         if (error) {
-        //             response.status(500).send({
-        //                 status: false
-        //             });
-        //         } else {
-        //             response.status(200).send({
-        //                 status: true,
-        //                 data: result.recordset
-        //             });
-        //         }
-        //     });
+        pool.request()
+            .input('_pmEmail', sql.VarChar(50), request.payload.username)
+            .query('select c.complaintID, c.subComplaintID, c.description, s.statusName, c.submittedDate, u.firstName from  COMPLAINT c, PRODUCT p , COMPLAINT_STATUS s, USERS u where c.productID=p.productID and c.status=s.statusID and u.userID=p.accountCoordinatorID  and c.status = \'2\' and p.projectManagerID= (select userID from USERS where userEmail= \'_pmEmail\')', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
     } catch (e) {
         response.status(500).send({status: false});
     }
@@ -128,21 +140,20 @@ router.get('/get-complaint-detai', verifyToken, verifyProjectManager, async (req
 
     const pool = await poolPromise;
     try {
-        // pool.request()
-        //     .input('_pmEmail', sql.VarChar(50), request.payload.username)
-        //     .query('select c.complainID, c.subComplaintID, p.productID, c.description, c.status, c.submittedDate, a.accountCoordinatorName  from  COMPLAINT c, PRODUCT p, ACCOUNT_COORDINATOR a\n' +
-        //         'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail and c.status = \'pending\' and p.projectManagerEmail=@_pmEmail', (error, result) => {
-        //         if (error) {
-        //             response.status(500).send({
-        //                 status: false
-        //             });
-        //         } else {
-        //             response.status(200).send({
-        //                 status: true,
-        //                 data: result.recordset
-        //             });
-        //         }
-        //     });
+        pool.request()
+            .input('_pmEmail', sql.VarChar(50), request.payload.username)
+            .query('select c.complaintID, c.subComplaintID, c.description, s.statusName, c.submittedDate, u.firstName from  COMPLAINT c, PRODUCT p , COMPLAINT_STATUS s, USERS u where c.productID=p.productID and c.status=s.statusID and u.userID=p.accountCoordinatorID  and c.status = \'0\' and p.projectManagerID= (select userID from USERS where userEmail= \'_pmEmail\')', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
     } catch (e) {
         response.status(500).send({status: false});
     }
@@ -156,19 +167,19 @@ router.get('/get-account-coordinaters-details', verifyToken, async (request, res
 
     const pool = await poolPromise;
     try {
-        // pool.request()
-        //     .query('select * from ACCOUNT_COORDINATOR ', (error, result) => {
-        //         if (error) {
-        //             response.status(500).send({
-        //                 status: false
-        //             });
-        //         } else {
-        //             response.status(200).send({
-        //                 status: true,
-        //                 data: result.recordset
-        //             });
-        //         }
-        //     });
+        pool.request()
+            .query('select * from view_ac ', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
     } catch (e) {
         response.status(500).send({status: false});
     }
@@ -179,72 +190,37 @@ router.get('/get-account-coordinaters-details', verifyToken, async (request, res
 
 
 //------------------------------------------------ aluth namak enter kirima................
-router.put('/update-name', verifyToken, async (request, response)=> {
-    const data = request.body.accountCoordinatorEmail;
-    try {
-        const pool = await poolPromise;
-        pool.request()
-            .input('_cbc', sql.VarChar(50), data)
-            .execute('newupdte', (error, result) => {
-                if (error) {
-                    response.status(500).send({
-                        status: false
-                    });
-
-                } else {
-                    response.status(200).send({
-                        status: true,
-                        data: result.recordset
-                    });
-                }
-            });
-    } catch (e) {
-        response.status(500).send({status: false});
-    }
-
-})
-
-// ................................. old acc. coordiwa ayin kirima -------------------------
-
-router.put('/old-name', verifyToken, async (request, response)=>{
+router.post('/update-name', verifyToken, async (request, response)=> {
     const data = request.body;
-    const maile = data.accountCoordinatorEmail;
-    const pdr = data.productID;
-
-
+    console.log(data.a.productID);
+    console.log(data.b.userID);
 
     async function main() {
-        // Generate test SMTP service account from ethereal.email
-        // Only needed if you don't have a real mail account for testing
-        let testAccount = await nodemailer.createTestAccount();
-
-        // create reusable transporter object using the default SMTP transport
         let transporter = nodemailer.createTransport({
-            host: "smtp.ethereal.email",
-            // service: "gmail",
-            port: 587,
-            secure: false, // true for 465, false for other ports
+            service: "gmail",
             auth: {
-                user: testAccount.user, // generated ethereal user
-                pass: testAccount.pass, // generated ethereal password
+                user: 'testafisolve@gmail.com', // generated ethereal user
+                pass: 'BuddhiRavihansa' // generated ethereal password
             },
         });
 
-        // send mail with defined transport object
         let info = await transporter.sendMail({
-            from: '"Admin: Complaint Management System" <foo@example.com>', // sender address
-            to: maile, // list of receivers
+            from: 'testafisolve@gmail.com', // sender address
+            to: data.a.userEmail, // list of receivers
             subject: "Remove Account Coordinator", // Subject line
-            text: "You have not complete providing solution for "  + pdr +" product complaint. so, You have been remove from Account Coordinator of the " + pdr + "product ID product", // plain text body
-            html: "You have not complete providing solution for "  + pdr +" product complaint. so, You have been remove from Account Coordinator of the " + pdr + "product ID product", // html body
+            text: "You have not complete providing solution for product Id"  + data.a.productID +" product's complaint. so, You have been remove from Account Coordinator of the " + data.a.productID + "product ID product", // plain text body
+            html: "You have not complete providing solution for product Id"  + data.a.productID +" product's complaint. so, You have been remove from Account Coordinator of the " + data.a.productID + "product ID product", // html body
         });
 
-        console.log("Message sent: %s", info.messageId);
-        // Message sent: <b658f8ca-6296-ccf4-8306-87d57a0b4321@example.com>
+        let info1 = await transporter.sendMail({
+            from: 'testafisolve@gmail.com', // sender address
+            to: data.b.userEmail, // list of receivers
+            subject: "Remove Account Coordinator", // Subject line
+            text: "You are the new Account Coordinator of the product Id" + data.a.productID +" product. so, You have to find the solution for product Id "  +data.a.productID +" product's complaints.", // plain text body
+            html: "You are the new Account Coordinator of the product Id" + data.a.productID +" product. so, You have to find the solution for product Id "  +data.a.productID +" product's complaints.", // html body
+        });
 
-        // Preview only available when sending through an Ethereal account
-        console.log("Preview URL: %s", nodemailer.getTestMessageUrl(info));
-        // Preview URL: https://ethereal.email/message/WaQKMgKddxQDoou...
+
     }
 
     main().catch(console.error);
@@ -252,8 +228,9 @@ router.put('/old-name', verifyToken, async (request, response)=>{
     try {
         const pool = await poolPromise;
         pool.request()
-            .input('_mbc', sql.VarChar(10), data.productID)
-            .execute('updte', (error, result) => {
+            .input('_cbc', sql.Int, data.b.userID)
+            .input('_pdi', sql.Int, data.a.productID )
+            .execute('updateAccountCoordinator', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -269,10 +246,8 @@ router.put('/old-name', verifyToken, async (request, response)=>{
     } catch (e) {
         response.status(500).send({status: false});
     }
-    console.log(n);
+
 })
-
-
 
 // reminder seen eka methana idn..............................................................
 
@@ -484,20 +459,23 @@ router.get('/get-full-count', verifyToken, verifyProjectManager, async (request,
 
     const pool = await poolPromise;
     try {
-        // pool.request()
-        //     .input('_pmEmail', sql.VarChar(50), request.payload.username)
-        //     .query('select COUNT(*) as count from COMPLAINT c , PRODUCT p where c.productID=p.productID and p.projectManagerEmail=@_pmEmail', (error, result) => {
-        //         if (error) {
-        //             response.status(500).send({
-        //                 status: false
-        //             });
-        //         } else {
-        //             response.status(200).send({
-        //                 status: true,
-        //                 data: result.recordset
-        //             });
-        //         }
-        //     });
+        pool.request()
+            .input('_pmEmail', sql.VarChar(50), request.payload.username)
+            .query('\n' +
+                'select COUNT(*) as count from COMPLAINT c , PRODUCT p \n' +
+                'where p.productID = c.productID and p.projectManagerID= (select userID from USERS where userEmail= \'p1@gmail.com\')', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+
     } catch (e) {
         response.status(500).send({status: false});
     }
@@ -507,20 +485,22 @@ router.get('/get-pending-count', verifyToken, verifyProjectManager, async (reque
 
     const pool = await poolPromise;
     try {
-        // pool.request()
-        //     .input('_pmEmail', sql.VarChar(50), request.payload.username)
-        //     .query('select COUNT(*) as count from COMPLAINT c , PRODUCT p where c.productID=p.productID and p.projectManagerEmail=@_pmEmail and c.status=\'pending\'', (error, result) => {
-        //         if (error) {
-        //             response.status(500).send({
-        //                 status: false
-        //             });
-        //         } else {
-        //             response.status(200).send({
-        //                 status: true,
-        //                 data: result.recordset
-        //             });
-        //         }
-        //     });
+        pool.request()
+            .input('_pmEmail', sql.VarChar(50), request.payload.username)
+            .query('\n' +
+                'select COUNT(*) as count from COMPLAINT c , PRODUCT p \n' +
+                'where p.productID = c.productID and p.projectManagerID= (select userID from USERS where userEmail= \'p1@gmail.com\') and c.status=\'0\' ', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
     } catch (e) {
         response.status(500).send({status: false});
     }
@@ -530,20 +510,22 @@ router.get('/get-working-count', verifyToken, verifyProjectManager, async (reque
 
     const pool = await poolPromise;
     try {
-        // pool.request()
-        //     .input('_pmEmail', sql.VarChar(50), request.payload.username)
-        //     .query('select COUNT(*) as count from COMPLAINT c , PRODUCT p where c.productID=p.productID and p.projectManagerEmail=@_pmEmail and  c.status=\'working\'', (error, result) => {
-        //         if (error) {
-        //             response.status(500).send({
-        //                 status: false
-        //             });
-        //         } else {
-        //             response.status(200).send({
-        //                 status: true,
-        //                 data: result.recordset
-        //             });
-        //         }
-        //     });
+        pool.request()
+            .input('_pmEmail', sql.VarChar(50), request.payload.username)
+            .query('\n' +
+                'select COUNT(*) as count from COMPLAINT c , PRODUCT p \n' +
+                'where p.productID = c.productID and p.projectManagerID= (select userID from USERS where userEmail= \'p1@gmail.com\') and c.status=\'1\' ', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
     } catch (e) {
         response.status(500).send({status: false});
     }
@@ -553,20 +535,22 @@ router.get('/get-finish-count', verifyToken, verifyProjectManager, async (reques
 
     const pool = await poolPromise;
     try {
-        // pool.request()
-        //     .input('_pmEmail', sql.VarChar(50), request.payload.username)
-        //     .query('select COUNT(*) as count from COMPLAINT c , PRODUCT p where c.productID=p.productID and p.projectManagerEmail=@_pmEmail and c.status=\'finish\'', (error, result) => {
-        //         if (error) {
-        //             response.status(500).send({
-        //                 status: false
-        //             });
-        //         } else {
-        //             response.status(200).send({
-        //                 status: true,
-        //                 data: result.recordset
-        //             });
-        //         }
-        //     });
+        pool.request()
+            .input('_pmEmail', sql.VarChar(50), request.payload.username)
+            .query('\n' +
+                'select COUNT(*) as count from COMPLAINT c , PRODUCT p \n' +
+                'where p.productID = c.productID and p.projectManagerID= (select userID from USERS where userEmail= \'p1@gmail.com\') and c.status=\'2\' ', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
     } catch (e) {
         response.status(500).send({status: false});
     }
@@ -576,20 +560,22 @@ router.get('/get-late-count', verifyToken, verifyProjectManager, async (request,
 
     const pool = await poolPromise;
     try {
-        // pool.request()
-        //     .input('_pmEmail', sql.VarChar(50), request.payload.username)
-        //     .query('select COUNT(*) as count from COMPLAINT c , PRODUCT p where c.productID=p.productID and p.projectManagerEmail=@_pmEmail and  c.lastDateOfPending < GETDATE() AND c.status != \'finish\' \n', (error, result) => {
-        //         if (error) {
-        //             response.status(500).send({
-        //                 status: false
-        //             });
-        //         } else {
-        //             response.status(200).send({
-        //                 status: true,
-        //                 data: result.recordset
-        //             });
-        //         }
-        //     });
+        pool.request()
+            .input('_pmEmail', sql.VarChar(50), request.payload.username)
+            .query('\n' +
+                'select COUNT(*) as count from COMPLAINT c , PRODUCT p \n' +
+                'where p.productID = c.productID and p.projectManagerID= (select userID from USERS where userEmail= \'p1@gmail.com\') and c.status=\'0\' and c.lastDateOfPending < GETDATE()', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
     } catch (e) {
         response.status(500).send({status: false});
     }
@@ -632,121 +618,13 @@ router.get('/get-complaint-pf', verifyToken, verifyProjectManager, async (reques
 
     const pool = await poolPromise;
     try {
-        // pool.request()
-        //     .input('_pmEmail', sql.VarChar(50), request.payload.username)
-        //     .query('select c.complainID, c.subComplaintID, p.productID, c.description, c.status, c.submittedDate, a.accountCoordinatorName  from  COMPLAINT c, PRODUCT p, ACCOUNT_COORDINATOR a\n' +
-        //         'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail and p.projectManagerEmail=@_pmEmail and  (c.status = \'finish\' or c.status = \'pending\')', (error, result) => {
-        //         if (error) {
-        //             response.status(500).send({
-        //                 status: false
-        //             });
-        //         } else {
-        //             response.status(200).send({
-        //                 status: true,
-        //                 data: result.recordset
-        //             });
-        //         }
-        //     });
-    } catch (e) {
-        response.status(500).send({status: false});
-    }
-});
-
-//working and pending complaint
-router.get('/get-complaint-wp', verifyToken, verifyProjectManager, async (request, response) => {
-
-    const pool = await poolPromise;
-    try {
-        // pool.request()
-        //     .input('_pmEmail', sql.VarChar(50), request.payload.username)
-        //     .query('select c.complainID, c.subComplaintID, p.productID, c.description, c.status, c.submittedDate, a.accountCoordinatorName  from  COMPLAINT c, PRODUCT p, ACCOUNT_COORDINATOR a\n' +
-        //         'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail and p.projectManagerEmail=@_pmEmail and (c.status = \'working\' or c.status = \'pending\')', (error, result) => {
-        //         if (error) {
-        //             response.status(500).send({
-        //                 status: false
-        //             });
-        //         } else {
-        //             response.status(200).send({
-        //                 status: true,
-        //                 data: result.recordset
-        //             });
-        //         }
-        //     });
-    } catch (e) {
-        response.status(500).send({status: false});
-    }
-});
-
-///finish and working complaint
-router.get('/get-complaint-fw', verifyToken, verifyProjectManager, async (request, response) => {
-
-    const pool = await poolPromise;
-    try {
-        // pool.request()
-        //     .input('_pmEmail', sql.VarChar(50), request.payload.username)
-        //     .query('select c.complainID, c.subComplaintID, p.productID, c.description, c.status, c.submittedDate, a.accountCoordinatorName  from  COMPLAINT c, PRODUCT p, ACCOUNT_COORDINATOR a\n' +
-        //         'where c.productID=p.productID and p.accountCoordinatorEmail=a.accountCoordinatorEmail and p.projectManagerEmail=@_pmEmail and (c.status = \'working\' or c.status = \'finish\')', (error, result) => {
-        //         if (error) {
-        //             response.status(500).send({
-        //                 status: false
-        //             });
-        //         } else {
-        //             response.status(200).send({
-        //                 status: true,
-        //                 data: result.recordset
-        //             });
-        //         }
-        //     });
-    } catch (e) {
-        response.status(500).send({status: false});
-    }
-});
-
-
-
-/// .....................................get message
-
-router.get('/get-message', verifyToken, async (request, response) => {
-
-    const pool = await poolPromise;
-    try {
-        // pool.request()
-        //     .query('SELECT * FROM MESSAGE m\n' +
-        //         'ORDER BY m.sendtime', (error, result) => {
-        //         if (error) {
-        //             response.status(500).send({
-        //                 status: false
-        //             });
-        //         } else {
-        //             response.status(200).send({
-        //                 status: true,
-        //                 data: result.recordset
-        //             });
-        //         }
-        //     });
-    } catch (e) {
-        response.status(500).send({status: false});
-    }
-});
-
-
-
-////----------------------------------type msg---------------------------------
-router.put('/send-msg', verifyToken, async (request, response)=> {
-    const data = request.body.massege;
-    const sen= 'projectManager';
-    console.log(data)
-    try {
-        const pool = await poolPromise;
         pool.request()
-            .input('_rem', sql.VarChar(200), data)
-            .input('_senn', sql.VarChar(20), sen)
-            .execute('newmsg', (error, result) => {
+            .input('_pmEmail', sql.VarChar(50), request.payload.username)
+            .query('select c.complaintID, c.subComplaintID, c.description, s.statusName, c.submittedDate, u.firstName from  COMPLAINT c, PRODUCT p , COMPLAINT_STATUS s, USERS u where c.productID=p.productID and c.status=s.statusID and u.userID=p.accountCoordinatorID  and (c.status = \'0\' or c.status = \'2\') and p.projectManagerID= (select userID from USERS where userEmail= \'_pmEmail\')', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
                     });
-
                 } else {
                     response.status(200).send({
                         status: true,
@@ -757,9 +635,104 @@ router.put('/send-msg', verifyToken, async (request, response)=> {
     } catch (e) {
         response.status(500).send({status: false});
     }
+});
 
-})
+//working and pending complaint
+router.get('/get-complaint-wp', verifyToken, verifyProjectManager, async (request, response) => {
 
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .input('_pmEmail', sql.VarChar(50), request.payload.username)
+            .query('select c.complaintID, c.subComplaintID, c.description, s.statusName, c.submittedDate, u.firstName from  COMPLAINT c, PRODUCT p , COMPLAINT_STATUS s, USERS u where c.productID=p.productID and c.status=s.statusID and u.userID=p.accountCoordinatorID  and (c.status = \'0\' or c.status = \'1\') and p.projectManagerID= (select userID from USERS where userEmail= \'_pmEmail\')', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
 
+///finish and working complaint
+router.get('/get-complaint-fw', verifyToken, verifyProjectManager, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+           .input('_pmEmail', sql.VarChar(50), request.payload.username)
+           .query('select c.complaintID, c.subComplaintID, c.description, s.statusName, c.submittedDate, u.firstName from  COMPLAINT c, PRODUCT p , COMPLAINT_STATUS s, USERS u where c.productID=p.productID and c.status=s.statusID and u.userID=p.accountCoordinatorID  and (c.status = \'1\' or c.status = \'2\') and p.projectManagerID= (select userID from USERS where userEmail= \'_pmEmail\')', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+router.post('/get-closed-complaints-countceo', verifyToken, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query('select COUNT(*) as count from COMPLAINT c , PRODUCT p \n' +
+                'where p.productID = c.productID and p.projectManagerID= (select userID from USERS where userEmail= \'p1@gmail.com\') and c.status=\'3\' ', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+//....................................... TIME EKT ANUWA COMPLAINT
+router.get('/get-month-count', verifyToken, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query('\n' +
+                'SELECT TOP 5 count(*) as num, format(submittedDate, \'yyyy-MM\') as month\n' +
+                'FROM COMPLAINT\n' +
+                'GROUP BY format(submittedDate, \'yyyy-MM\')\n' +
+                'order by 2 DESC', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
 
 module.exports = router;

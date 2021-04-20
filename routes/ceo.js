@@ -24,8 +24,7 @@ router.get('/get-complaint-details1', verifyToken, async (request, response) => 
     const pool = await poolPromise;
     try {
         pool.request()
-          .query('select c.complaintID, c.subComplaintID, c.description, s.statusName, c.submittedDate, a.firstName  from  COMPLAINT c, PRODUCT p, view_ac a , view_status s\n' +
-              'where c.productID=p.productID and p.accountCoordinatorEmail= a.userEmail and c.status=s.statusID ', (error, result) => {
+          .query('select c.complaintID, c.subComplaintID, c.description, s.statusName, c.submittedDate, u.firstName from  COMPLAINT c, PRODUCT p , COMPLAINT_STATUS s, USERS u where c.productID=p.productID and c.status=s.statusID and u.userID=p.accountCoordinatorID', (error, result) => {
                 if (error) {
                      response.status(500).send({
                         status: false
@@ -71,8 +70,7 @@ router.get('/get-complaint-det', verifyToken, async (request, response) => {
     const pool = await poolPromise;
     try {
          pool.request()
-            .query('select c.complaintID, c.subComplaintID, c.description, s.statusName, c.submittedDate, a.firstName  from  COMPLAINT c, PRODUCT p, view_ac a , view_status s\n' +
-                'where c.productID=p.productID and p.accountCoordinatorEmail= a.userEmail and c.status=s.statusID  and c.status = \'1\'', (error, result) => {
+            .query('select c.complaintID, c.subComplaintID, c.description, s.statusName, c.submittedDate, u.firstName from  COMPLAINT c, PRODUCT p , COMPLAINT_STATUS s, USERS u where c.productID=p.productID and c.status=s.statusID and u.userID=p.accountCoordinatorID  and c.status = \'1\'', (error, result) => {
                 if (error) {
                     response.status(500).send({
                          status: false
@@ -95,8 +93,7 @@ router.get('/get-complaint-de', verifyToken, async (request, response) => {
     const pool = await poolPromise;
     try {
          pool.request()
-            .query('select c.complaintID, c.subComplaintID, c.description, s.statusName, c.submittedDate, a.firstName  from  COMPLAINT c, PRODUCT p, view_ac a , view_status s\n' +
-                'where c.productID=p.productID and p.accountCoordinatorEmail= a.userEmail and c.status=s.statusID  and c.status = \'2\'', (error, result) => {
+            .query('select c.complaintID, c.subComplaintID, c.description, s.statusName, c.submittedDate, u.firstName from  COMPLAINT c, PRODUCT p , COMPLAINT_STATUS s, USERS u where c.productID=p.productID and c.status=s.statusID and u.userID=p.accountCoordinatorID  and c.status = \'2\'', (error, result) => {
                  if (error) {
                     response.status(500).send({
                         status: false
@@ -119,8 +116,7 @@ router.get('/get-complaint-detai', verifyToken, async (request, response) => {
     const pool = await poolPromise;
     try {
          pool.request()
-            .query('select c.complaintID, c.subComplaintID, c.description, s.statusName, c.submittedDate, a.firstName  from  COMPLAINT c, PRODUCT p, view_ac a , view_status s\n' +
-                'where c.productID=p.productID and p.accountCoordinatorEmail= a.userEmail and c.status=s.statusID  and c.status = \'0\'', (error, result) => {
+            .query('select c.complaintID, c.subComplaintID, c.description, s.statusName, c.submittedDate, u.firstName from  COMPLAINT c, PRODUCT p , COMPLAINT_STATUS s, USERS u where c.productID=p.productID and c.status=s.statusID and u.userID=p.accountCoordinatorID  and c.status = \'0\'', (error, result) => {
                 if (error) {
                    response.status(500).send({
                       status: false
@@ -167,64 +163,10 @@ router.get('/get-account-coordinaters-details', verifyToken, async (request, res
 
 //---------------------------------------------- new acc co-------------------------
 
-router.put('/update-name', verifyToken, async (request, response)=> {
-    const data = request.body.userEmail;
-
-    async function main() {
-
-        let transporter = nodemailer.createTransport({
-            service: "gmail",
-            auth: {
-                user: 'testafisolve@gmail.com', // generated ethereal user
-                pass: 'BuddhiRavihansa', // generated ethereal password
-            },
-        });
-
-        // send mail with defined transport object
-        let info = await transporter.sendMail({
-            from: 'testafisolve@gmail.com', // sender address
-            to: data, // list of receivers
-            subject: "New Appoinment", // Subject line
-            text: "You are appointed as a new account coordinator of the product(Refer Complaint Management System). You have to solve few complaints of this product", // plain text body
-            html: "You are appointed as a new account coordinator of the product(Refer Complaint Management System). You have to solve few complaints of this product", // html body
-        });
-
-        console.log("Message sent: %s", info.messageId);
-
-    }
-
-    main().catch(console.error);
-    try {
-         const pool = await poolPromise;
-        pool.request()
-            .input('_cbc', sql.VarChar(50), data)
-            .execute('newupdte', (error, result) => {
-                if (error) {
-                    response.status(500).send({
-                        status: false
-                    });
-
-                } else {
-                   response.status(200).send({
-                        status: true,
-                       data: result.recordset
-                   });
-                }
-            });
-    } catch (e) {
-        response.status(500).send({status: false});
-    }
-
-})
-
-// remove krana acc.name----------------
-
-router.put('/old-name', verifyToken, async (request, response)=>{
+router.post('/update-name', verifyToken, async (request, response)=> {
     const data = request.body;
-    const maile = data.userEmail;
-    const pdr = data.productID;
-
-
+    console.log(data.a.productID);
+    console.log(data.b.userID);
 
     async function main() {
         let transporter = nodemailer.createTransport({
@@ -237,13 +179,21 @@ router.put('/old-name', verifyToken, async (request, response)=>{
 
         let info = await transporter.sendMail({
             from: 'testafisolve@gmail.com', // sender address
-            to: maile, // list of receivers
+            to: data.a.userEmail, // list of receivers
             subject: "Remove Account Coordinator", // Subject line
-            text: "You have not complete providing solution for "  + pdr +" product complaint. so, You have been remove from Account Coordinator of the " + pdr + "product ID product", // plain text body
-            html: "You have not complete providing solution for "  + pdr +" product complaint. so, You have been remove from Account Coordinator of the " + pdr + "product ID product", // html body
+            text: "You have not complete providing solution for product Id"  + data.a.productID +" product's complaint. so, You have been remove from Account Coordinator of the " + data.a.productID + "product ID product", // plain text body
+            html: "You have not complete providing solution for product Id"  + data.a.productID +" product's complaint. so, You have been remove from Account Coordinator of the " + data.a.productID + "product ID product", // html body
         });
 
-        console.log("Message sent: %s", info.messageId);
+        let info1 = await transporter.sendMail({
+            from: 'testafisolve@gmail.com', // sender address
+            to: data.b.userEmail, // list of receivers
+            subject: "Remove Account Coordinator", // Subject line
+            text: "You are the new Account Coordinator of the product Id" + data.a.productID +" product. so, You have to find the solution for product Id "  +data.a.productID +" product's complaints.", // plain text body
+            html: "You are the new Account Coordinator of the product Id" + data.a.productID +" product. so, You have to find the solution for product Id "  +data.a.productID +" product's complaints.", // html body
+        });
+
+
     }
 
     main().catch(console.error);
@@ -251,8 +201,9 @@ router.put('/old-name', verifyToken, async (request, response)=>{
     try {
         const pool = await poolPromise;
         pool.request()
-            .input('_mbc', sql.VarChar(10), data.productID)
-            .execute('updte', (error, result) => {
+            .input('_cbc', sql.Int, data.b.userID)
+            .input('_pdi', sql.Int, data.a.productID )
+            .execute('updateAccountCoordinator', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -268,9 +219,8 @@ router.put('/old-name', verifyToken, async (request, response)=>{
     } catch (e) {
         response.status(500).send({status: false});
     }
-    console.log(n);
-})
 
+})
 
 
 // reminder seen eka methana idn..............................................................
@@ -587,7 +537,7 @@ router.get('/get-late-count', verifyToken, async (request, response) => {
     const pool = await poolPromise;
     try {
          pool.request()
-            .query('select COUNT(*) as count from COMPLAINT  where COMPLAINT.lastDateOfPending < GETDATE() AND COMPLAINT.status != \'0\' \n', (error, result) => {
+            .query('select COUNT(*) as count from COMPLAINT  where COMPLAINT.lastDateOfPending < GETDATE() AND COMPLAINT.status = \'0\' \n', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -611,8 +561,7 @@ router.get('/get-complaint-pf', verifyToken, async (request, response) => {
     const pool = await poolPromise;
     try {
         pool.request()
-            .query('select c.complaintID, c.subComplaintID, c.description, s.statusName, c.submittedDate, a.firstName  from  COMPLAINT c, PRODUCT p, view_ac a , view_status s\n' +
-                'where c.productID=p.productID and p.accountCoordinatorEmail= a.userEmail and c.status=s.statusID  and (c.status = \'0\' or c.status=\'2\')', (error, result) => {
+            .query('select c.complaintID, c.subComplaintID, c.description, s.statusName, c.submittedDate, u.firstName from  COMPLAINT c, PRODUCT p , COMPLAINT_STATUS s, USERS u where c.productID=p.productID and c.status=s.statusID and u.userID=p.accountCoordinatorID  and (c.status = \'0\' or c.status=\'2\')', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -635,8 +584,7 @@ router.get('/get-complaint-wp', verifyToken, async (request, response) => {
     const pool = await poolPromise;
     try {
          pool.request()
-            .query('select c.complaintID, c.subComplaintID, c.description, s.statusName, c.submittedDate, a.firstName  from  COMPLAINT c, PRODUCT p, view_ac a , view_status s\n' +
-                'where c.productID=p.productID and p.accountCoordinatorEmail= a.userEmail and c.status=s.statusID  and (c.status = \'0\' or c.status=\'1\')', (error, result) => {
+            .query('select c.complaintID, c.subComplaintID, c.description, s.statusName, c.submittedDate, u.firstName from  COMPLAINT c, PRODUCT p , COMPLAINT_STATUS s, USERS u where c.productID=p.productID and c.status=s.statusID and u.userID=p.accountCoordinatorID  and (c.status = \'0\' or c.status=\'1\')', (error, result) => {
                 if (error) {
                     response.status(500).send({
                          status: false
@@ -659,8 +607,8 @@ router.get('/get-complaint-fw', verifyToken, async (request, response) => {
     const pool = await poolPromise;
     try {
          pool.request()
-            .query('select c.complaintID, c.subComplaintID, c.description, s.statusName, c.submittedDate, a.firstName  from  COMPLAINT c, PRODUCT p, view_ac a , view_status s\n' +
-                'where c.productID=p.productID and p.accountCoordinatorEmail= a.userEmail and c.status=s.statusID  and (c.status = \'1\' or c.status=\'2\')', (error, result) => {
+            .query('select c.complaintID, c.subComplaintID, c.description, s.statusName, c.submittedDate, u.firstName from  COMPLAINT c, PRODUCT p , COMPLAINT_STATUS s, USERS u where c.productID=p.productID and c.status=s.statusID and u.userID=p.accountCoordinatorID' +
+                ' and (c.status = \'1\' or c.status=\'2\')', (error, result) => {
                  if (error) {
                     response.status(500).send({
                         status: false
@@ -690,6 +638,28 @@ router.get('/get-month-count', verifyToken, async (request, response) => {
                 'FROM COMPLAINT\n' +
                 'GROUP BY format(submittedDate, \'yyyy-MM\')\n' +
                 'order by 2 DESC', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+router.post('/get-closed-complaints-countceo', verifyToken, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query('select count(*) as count from COMPLAINT where status= \'3\'', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
