@@ -1,4 +1,3 @@
 # Project exclude paths
 /node_modules/
-/pictures/complaint-pictures/
-/pictures/profile-pictures/
+/pictures
