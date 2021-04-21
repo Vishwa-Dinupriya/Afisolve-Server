@@ -30,7 +30,7 @@ async function sendOtp(receiverEmail) {
     const mailOptions = {
         from: 'vishwagamage808@gmail.com',
         to: receiverEmail,
-        subject: 'Sending Email using Node.js',
+        subject: 'Use this OTP to verify this email with Afisolve',
         text: generatedOTP
     };
 
@@ -61,18 +61,16 @@ router.post('/sendOtpToEmail', verifyToken, verifyAdmin, async (request, respons
     } catch (e) {
         console.log(e);
     }
-
 });
 
 router.post('/register', verifyToken, verifyAdmin, async (request, response) => {
-    // console.log(request.body);
-
+    console.log(request.body);
     console.log(generatedOTP);
+
     const otpClient = request.body.otp;
     const data = request.body.userData;
-    const image = request.body.profilePicture;
+    const image = request.body.userData.profilePicture;
     const adminEmail = request.payload.username;
-    console.log(otpClient-generatedOTP);
     if (generatedOTP == otpClient) {
         console.log('otp equal')
         try {
@@ -99,7 +97,7 @@ router.post('/register', verifyToken, verifyAdmin, async (request, response) => 
                         if (error.number === 2627) {
                             response.status(500).send({
                                 status: false,
-                                message: 'this user already exist(entered email)'
+                                message: 'Entered email already exists'
                             });
                         } else {//query Error..!
                             response.status(500).send({
@@ -112,23 +110,24 @@ router.post('/register', verifyToken, verifyAdmin, async (request, response) => 
                         if (result.returnValue === 0) {
                             try {
                                 if (!image) {
+                                    console.log('Data Successfully Entered! Image not found!!');
                                     response.status(200).send({
                                         status: false,
                                         message: 'Data Successfully Entered! Image not found!!',
-                                        image: null
+                                        image: fs.readFileSync('./pictures/default-pictures/default-profile-picture.png', {encoding: 'base64'})
                                     });
                                 } else {
                                     console.log('Data Successfully Entered!');
 
                                     //encoding and save the picture to the local memory
-                                    const path = './pictures/profile-pictures/' + request.body.email + '.png';
+                                    const path = './pictures/profile-pictures/' + request.body.userData.email + '.png';
                                     const base64Data = image.replace(/^data:([A-Za-z-+/]+);base64,/, '');
                                     fs.writeFileSync(path, base64Data, {encoding: 'base64'});
 
                                     //get the picture to 'img' from local memory
                                     let img;
                                     try {
-                                        img = fs.readFileSync('./pictures/profile-pictures/' + request.body.email + '.png', {encoding: 'base64'});
+                                        img = fs.readFileSync('./pictures/profile-pictures/' + request.body.userData.email + '.png', {encoding: 'base64'});
                                     } catch (error) {
                                         img = fs.readFileSync('./pictures/default-pictures/default-profile-picture.png', {encoding: 'base64'});
                                     }
