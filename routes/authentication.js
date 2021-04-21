@@ -99,12 +99,12 @@ router.post('/register', verifyToken, verifyAdmin, async (request, response) => 
                         if (error.number === 2627) {
                             response.status(500).send({
                                 status: false,
-                                message: 'Existing User'
+                                message: 'this user already exist(entered email)'
                             });
-                        } else {//vishwa brogen ahanna
+                        } else {//query Error..!
                             response.status(500).send({
                                 status: false,
-                                message: 'query Error..!'
+                                message: 'something might went wrong..!'
                             });
                         }
                     } else {
@@ -130,7 +130,7 @@ router.post('/register', verifyToken, verifyAdmin, async (request, response) => 
                                     try {
                                         img = fs.readFileSync('./pictures/profile-pictures/' + request.body.email + '.png', {encoding: 'base64'});
                                     } catch (error) {
-                                        img = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
+                                        img = fs.readFileSync('./pictures/default-pictures/default-profile-picture.png', {encoding: 'base64'});
                                     }
                                     response.status(200).send({
                                         status: true,
@@ -162,7 +162,7 @@ router.post('/register', verifyToken, verifyAdmin, async (request, response) => 
    console.log('otp not equal')
         response.status(500).send({
             status: false,
-            message: 'invalid OTP!'
+            message: 'invalid OTP(one-time-password) code!'
         });
     }
 });

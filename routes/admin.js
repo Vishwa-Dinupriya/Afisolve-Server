@@ -78,7 +78,7 @@ router.post('/get-selected-user-profile-details', verifyToken, verifyAdmin, asyn
                         try {//get the picture to 'img' from local memory
                             img = fs.readFileSync('./pictures/profile-pictures/' + request.body.selectedUserEmail + '.png', {encoding: 'base64'})
                         } catch (error) {
-                            img = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
+                            img = fs.readFileSync('./pictures/default-pictures/default-profile-picture.png', {encoding: 'base64'});
                         }
 
                         response.status(200).send({
