@@ -2,5 +2,5 @@
 /node_modules/
 pictures/complaint-pictures/**
 pictures/profile-pictures/**
-pictures/comment-pictures/**
+#pictures/comment-pictures/**
 
