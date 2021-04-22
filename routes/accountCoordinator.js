@@ -122,7 +122,7 @@ router.post('/get-accoorcomplaints-details', verifyToken, async (request, respon
     try {
         pool.request()
             .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
-            .query('select c.complaintID,c.subComplaintID,c.finishedDate,c.lastDateOfPending,c.submittedDate,c.wipStartDate,s.statusName,p.productName, p.category, c.productID from COMPLAINT c,COMPLAINT_STATUS s, PRODUCT p where c.status=s.statusID AND c.productID= p.productID AND p.accountCoordinatorEmail = @_accountCoordinatorEmail order by c.complaintID',
+            .query('select c.complaintID,c.subComplaintID,c.finishedDate,c.lastDateOfPending,c.submittedDate,c.wipStartDate,s.statusName,p.productName, p.category, c.productID from COMPLAINT c,COMPLAINT_STATUS s, PRODUCT p, Ayoma_AccountCoordinators aa where c.status=s.statusID AND c.productID= p.productID AND aa.userID=p.accountCoordinatorID AND aa.userEmail = @_accountCoordinatorEmail order by c.complaintID',
                 (error, result) => {
                 if (error) {
                     response.status(500).send({
@@ -146,7 +146,7 @@ router.post('/get-pending-accoorcomplaints-details', verifyToken, async (request
     try {
         pool.request()
             .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
-            .query("select c.complaintID,c.subComplaintID,c.finishedDate,c.lastDateOfPending,c.submittedDate,c.wipStartDate,s.statusName,p.productName, p.category , c.productID from COMPLAINT c,COMPLAINT_STATUS s, PRODUCT p where c.status=s.statusID AND c.productID= p.productID AND s.statusName = 'Pending' AND p.accountCoordinatorEmail = @_accountCoordinatorEmail order by c.complaintID", (error, result) => {
+            .query("select c.complaintID,c.subComplaintID,c.finishedDate,c.lastDateOfPending,c.submittedDate,c.wipStartDate,s.statusName,p.productName, p.category , c.productID from COMPLAINT c,COMPLAINT_STATUS s, PRODUCT p, Ayoma_AccountCoordinators aa where c.status=s.statusID AND c.productID= p.productID AND aa.userID=p.accountCoordinatorID AND aa.userEmail = @_accountCoordinatorEmail AND s.statusName = 'Pending' order by c.complaintID", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -169,7 +169,7 @@ router.post('/get-InProgress-accoorcomplaints-details', verifyToken, async (requ
     try {
         pool.request()
             .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
-            .query("select c.complaintID,c.subComplaintID,c.finishedDate,c.lastDateOfPending,c.submittedDate,c.wipStartDate,s.statusName,p.productName, p.category, c.productID from COMPLAINT c,COMPLAINT_STATUS s, PRODUCT p where c.status=s.statusID AND c.productID= p.productID AND s.statusName = 'InProgress' AND p.accountCoordinatorEmail = @_accountCoordinatorEmail order by c.complaintID", (error, result) => {
+            .query("select c.complaintID,c.subComplaintID,c.finishedDate,c.lastDateOfPending,c.submittedDate,c.wipStartDate,s.statusName,p.productName, p.category, c.productID from COMPLAINT c,COMPLAINT_STATUS s, PRODUCT p, Ayoma_AccountCoordinators aa where c.status=s.statusID AND c.productID= p.productID AND aa.userID=p.accountCoordinatorID AND aa.userEmail = @_accountCoordinatorEmail AND s.statusName = 'InProgress' order by c.complaintID", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -192,7 +192,7 @@ router.post('/get-Solved-accoorcomplaints-details', verifyToken, async (request,
     try {
         pool.request()
             .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
-            .query("select c.complaintID,c.subComplaintID,c.finishedDate,c.lastDateOfPending,c.submittedDate,c.wipStartDate,s.statusName,p.productName, p.category, c.productID from COMPLAINT c,COMPLAINT_STATUS s, PRODUCT p where c.status=s.statusID AND c.productID= p.productID AND s.statusName = 'Completed' AND p.accountCoordinatorEmail = @_accountCoordinatorEmail order by c.complaintID", (error, result) => {
+            .query("select c.complaintID,c.subComplaintID,c.finishedDate,c.lastDateOfPending,c.submittedDate,c.wipStartDate,s.statusName,p.productName, p.category, c.productID from COMPLAINT c,COMPLAINT_STATUS s, PRODUCT p, Ayoma_AccountCoordinators aa where c.status=s.statusID AND c.productID= p.productID AND aa.userID=p.accountCoordinatorID AND aa.userEmail = @_accountCoordinatorEmail AND s.statusName = 'Completed'order by c.complaintID", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -215,7 +215,7 @@ router.post('/get-Closed-accoorcomplaints-details', verifyToken, async (request,
     try {
         pool.request()
             .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
-            .query("select c.complaintID,c.subComplaintID,c.finishedDate,c.lastDateOfPending,c.submittedDate,c.wipStartDate,s.statusName,p.productName, p.category, c.productID from COMPLAINT c,COMPLAINT_STATUS s, PRODUCT p where c.status=s.statusID AND c.productID= p.productID AND s.statusName = 'Closed' AND p.accountCoordinatorEmail = @_accountCoordinatorEmail order by c.complaintID", (error, result) => {
+            .query("select c.complaintID,c.subComplaintID,c.finishedDate,c.lastDateOfPending,c.submittedDate,c.wipStartDate,s.statusName,p.productName, p.category, c.productID from COMPLAINT c,COMPLAINT_STATUS s, PRODUCT p, Ayoma_AccountCoordinators aa where c.status=s.statusID AND c.productID= p.productID AND aa.userID=p.accountCoordinatorID AND aa.userEmail = @_accountCoordinatorEmail AND s.statusName = 'Closed' order by c.complaintID", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -268,7 +268,7 @@ router.post('/get-Task-All-details', verifyToken, async (request, response) => {
     try {
         pool.request()
             .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
-            .query("select t.taskID,t.complaintID,t.subComplaintID,t.assignDate,t.deadline,t.task_status,t.developerEmail,u.firstName+\' \'+u.lastName as DevName from TASK t,USERS u where t.developerEmail=u.userEmail AND t.accountCoordinatorEmail = @_accountCoordinatorEmail order by t.complaintID", (error, result) => {
+            .query("select t.taskID,t.complaintID,t.subComplaintID,t.assignDate,t.deadline,t.task_status,ad.userEmail as developerEmail,ad.firstName+\' \'+ad.lastName as DevName from TASK t,Ayoma_AccountCoordinators aa, Ayoma_Developers ad where t.developerID=ad.userID AND t.accountCoordinatorID = aa.userID AND aa.userEmail = @_accountCoordinatorEmail order by t.complaintID", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -291,7 +291,7 @@ router.post('/get-Task-New-details', verifyToken, async (request, response) => {
     try {
         pool.request()
             .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
-            .query("select t.taskID,t.complaintID,t.subComplaintID,t.assignDate,t.deadline,t.developerEmail,u.firstName+\' \'+u.lastName as DevName from TASK t,USERS u where t.developerEmail=u.userEmail AND t.task_status='Pending' AND t.accountCoordinatorEmail = @_accountCoordinatorEmail", (error, result) => {
+            .query("select t.taskID,t.complaintID,t.subComplaintID,t.assignDate,t.deadline,ad.userEmail as developerEmail,ad.firstName+\' \'+ad.lastName as DevName from TASK t,Ayoma_AccountCoordinators aa, Ayoma_Developers ad where t.developerID=ad.userID AND t.accountCoordinatorID = aa.userID AND aa.userEmail = @_accountCoordinatorEmail AND t.task_status='Pending'", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -314,7 +314,7 @@ router.post('/get-Task-IP-details', verifyToken, verifyAccountCoordinator, async
     try {
         pool.request()
             .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
-            .query("select t.taskID,t.complaintID,t.subComplaintID,t.assignDate,t.deadline,t.developerEmail,u.firstName+\' \'+u.lastName as DevName from TASK t,USERS u where t.developerEmail=u.userEmail AND t.task_status='InProgress' AND t.accountCoordinatorEmail = @_accountCoordinatorEmail", (error, result) => {
+            .query("select t.taskID,t.complaintID,t.subComplaintID,t.assignDate,t.deadline,ad.userEmail as developerEmail,ad.firstName+\' \'+ad.lastName as DevName from TASK t,Ayoma_AccountCoordinators aa, Ayoma_Developers ad where t.developerID=ad.userID AND t.accountCoordinatorID = aa.userID AND aa.userEmail = @_accountCoordinatorEmail AND t.task_status='InProgress'", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -337,7 +337,7 @@ router.post('/get-Task-Comple-details', verifyToken, async (request, response) =
     try {
         pool.request()
             .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
-            .query("select t.taskID,t.complaintID,t.subComplaintID,t.developerEmail,u.firstName+\' \'+u.lastName as DevName from TASK t,USERS u where t.developerEmail=u.userEmail AND t.task_status='Completed' AND t.accountCoordinatorEmail = @_accountCoordinatorEmail", (error, result) => {
+            .query("select t.taskID,t.complaintID,t.subComplaintID,ad.userEmail as developerEmail,ad.firstName+\' \'+ad.lastName as DevName from TASK t,Ayoma_AccountCoordinators aa, Ayoma_Developers ad where t.developerID=ad.userID AND t.accountCoordinatorID = aa.userID AND aa.userEmail = @_accountCoordinatorEmail AND t.task_status='Completed'", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -399,7 +399,7 @@ router.post('/get-allocation-details', verifyToken, verifyAccountCoordinator, as
     const pool = await poolPromise;
     try {
         pool.request()
-            .query("select a.productID, p.productName,u.firstName+' '+u.lastName as DevName, a.developerEmail, u.contactNumber from ALLOCATION a,USERS u,PRODUCT p where a.developerEmail=u.userEmail AND a.productID = p.productID order by a.productID", (error, result) => {
+            .query("select a.productID, p.productName,u.firstName+' '+u.lastName as DevName, u.userEmail as developerEmail, u.contactNumber from ALLOCATION a,Ayoma_Developers u,PRODUCT p where a.developerID=u.userID AND a.productID = p.productID order by a.productID", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -423,7 +423,7 @@ router.post('/get-product-details', verifyToken, verifyAccountCoordinator, async
     const pool = await poolPromise;
     try {
         pool.request()
-            .query("select p.productID,p.productName,p.category,u.firstName+' '+u.lastName as CusName,u.userEmail,u.contactNumber from PRODUCT p,USERS u where p.customerEmail=u.userEmail", (error, result) => {
+            .query("select p.productID,p.productName,p.category,u.firstName+' '+u.lastName as CusName,u.userEmail,u.contactNumber from PRODUCT p,USERS u where p.customerID=u.userID", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false

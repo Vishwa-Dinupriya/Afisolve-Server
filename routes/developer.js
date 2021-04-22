@@ -18,7 +18,7 @@ router.post('/get-Task-All-details', verifyToken, verifyDeveloper, async (reques
     try {
         pool.request()
            .input('_developerEmail', sql.VarChar(50), request.payload.username)
-            .query("select t.taskID, p.productName, c.complaintID, c.subComplaintID, t.assignDate, t.deadline,t.task_status from TASK t,PRODUCT p,COMPLAINT c where t.complaintID=c.complaintID AND t.subComplaintID=c.subComplaintID AND c.productID=p.productID AND t.developerEmail=@_developerEmail", (error, result) => {
+            .query("select t.taskID, p.productName, c.complaintID, c.subComplaintID, t.assignDate, t.deadline,t.task_status from TASK t,PRODUCT p,COMPLAINT c, USERS u where t.complaintID=c.complaintID AND t.subComplaintID=c.subComplaintID AND c.productID=p.productID AND t.developerID = u.userID AND u.userEmail=@_developerEmail", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -41,7 +41,7 @@ router.post('/get-Task-Pending-details', verifyToken,verifyDeveloper, async (req
     try {
         pool.request()
             .input('_developerEmail', sql.VarChar(50), request.payload.username)
-            .query("select t.taskID, p.productName, c.complaintID, c.subComplaintID, t.assignDate, t.deadline,t.task_status from TASK t,PRODUCT p,COMPLAINT c where t.complaintID=c.complaintID AND t.subComplaintID=c.subComplaintID AND c.productID=p.productID AND t.developerEmail=@_developerEmail AND t.task_status = 'Pending'", (error, result) => {
+            .query("select t.taskID, p.productName, c.complaintID, c.subComplaintID, t.assignDate, t.deadline,t.task_status from TASK t,PRODUCT p,COMPLAINT c, USERS u where t.complaintID=c.complaintID AND t.subComplaintID=c.subComplaintID AND c.productID=p.productID AND t.developerID = u.userID AND u.userEmail=@_developerEmail AND t.task_status = 'Pending'", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -65,7 +65,7 @@ router.post('/get-Task-InProgress-details', verifyToken,verifyDeveloper, async (
     try {
         pool.request()
             .input('_developerEmail', sql.VarChar(50), request.payload.username)
-            .query("select t.taskID, p.productName, c.complaintID, c.subComplaintID, t.assignDate, t.deadline,t.task_status from TASK t,PRODUCT p,COMPLAINT c where t.complaintID=c.complaintID AND t.subComplaintID=c.subComplaintID AND c.productID=p.productID AND t.developerEmail=@_developerEmail AND t.task_status = 'InProgress'", (error, result) => {
+            .query("select t.taskID, p.productName, c.complaintID, c.subComplaintID, t.assignDate, t.deadline,t.task_status from TASK t,PRODUCT p,COMPLAINT c, USERS u where t.complaintID=c.complaintID AND t.subComplaintID=c.subComplaintID AND c.productID=p.productID AND t.developerID = u.userID AND u.userEmail=@_developerEmail AND t.task_status = 'InProgress'", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -89,7 +89,7 @@ router.post('/get-Task-Completed-details', verifyToken,verifyDeveloper, async (r
     try {
         pool.request()
             .input('_developerEmail', sql.VarChar(50), request.payload.username)
-            .query("select t.taskID, p.productName, c.complaintID, c.subComplaintID, t.assignDate, t.deadline,t.task_status from TASK t,PRODUCT p,COMPLAINT c where t.complaintID=c.complaintID AND t.subComplaintID=c.subComplaintID AND c.productID=p.productID AND t.developerEmail=@_developerEmail AND t.task_status = 'Completed'", (error, result) => {
+            .query("select t.taskID, p.productName, c.complaintID, c.subComplaintID, t.assignDate, t.deadline,t.task_status from TASK t,PRODUCT p,COMPLAINT c, USERS u where t.complaintID=c.complaintID AND t.subComplaintID=c.subComplaintID AND c.productID=p.productID AND t.developerID = u.userID AND u.userEmail=@_developerEmail AND t.task_status = 'Completed'", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -204,7 +204,7 @@ router.post('/get-devProducts-details', verifyToken,verifyDeveloper, async (requ
     const pool = await poolPromise;
     try {
         pool.request()
-            .query('select * from PRODUCT', (error, result) => {
+            .query('select p.productID, p.productName, p.category, ap.userEmail as projectManagerEmail, aa.userEmail as accountCoordinatorEmail from PRODUCT p, Ayoma_ProjectManagers ap, Ayoma_AccountCoordinators aa where p.projectManagerID = ap.userID AND p.accountCoordinatorID = aa.userID ', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
