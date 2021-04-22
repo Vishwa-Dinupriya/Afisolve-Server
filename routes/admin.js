@@ -115,13 +115,13 @@ router.post('/get-selected-user-profile-details', verifyToken, verifyAdmin, asyn
 });
 
 router.post('/update-selected-user-profile-details', verifyToken, verifyAdmin, async (request, response) => {
-console.log(request.body);
     const oldEmail = request.body.emailOld;
     const data = request.body.userNewData;
     const adminEmail = request.payload.username;
     const newProfilePhoto = request.body.newProfilePhoto_;
     const clientOtp = request.body.clientOtp;
     const generatedOtpID = request.body.generatedOtpID;
+
     try {
 
         const roles = new sql.Table('roles');

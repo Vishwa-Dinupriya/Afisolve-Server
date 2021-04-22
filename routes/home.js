@@ -108,11 +108,12 @@ router.post('/get-my-profile-details', verifyToken, async (request, response) =>
 });
 
 router.post('/update-my-profile-details', verifyToken, async (request, response) => {
-
     const oldEmail = request.body.emailOld;
     const data = request.body.userNewData;
     const adminEmail = request.payload.username;
     const newProfilePhoto = request.body.newProfilePhoto_;
+    const clientOtp = request.body.clientOtp;
+    const generatedOtpID = request.body.generatedOtpID;
 
     try {
 
@@ -134,12 +135,14 @@ router.post('/update-my-profile-details', verifyToken, async (request, response)
             .input('_defaultRole', sql.Int, data.defaultRole)
             .input('_contactNumber', sql.VarChar(20), data.contactNumber)
             .input('_modifiedAdmin', sql.VarChar(50), adminEmail)
+            .input('_clientOtp', sql.Int, clientOtp)
+            .input('_generatedOtpID', sql.Int, generatedOtpID)
             .execute('updateSelectedUserDetails', (error, result) => {
                 if (error) {
                     console.log(error);
                     response.status(500).send({
                         status: false,
-                        message: error
+                        message: 'something might went wrong..!'
                     });
                 } else {
                     console.log(result);
@@ -178,6 +181,16 @@ router.post('/update-my-profile-details', verifyToken, async (request, response)
                                 message: 'Server Error!'
                             });
                         }
+                    }else if (result.returnValue === -2) {
+                        console.log('stored procedure returned -2');
+                        response.status(500).send({message: 'Entered OTP mismatched'});
+                    }
+                    else if(result.returnValue===-3) {
+                        console.log('existing user')
+                        response.status(500).send({
+                            status: false,
+                            message: 'Entered email already exists!'
+                        });
                     } else {
                         console.log('2');
                         response.status(500).send({message: 'from error handler'});

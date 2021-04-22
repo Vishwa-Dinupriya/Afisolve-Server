@@ -1,208 +1,35 @@
-create database afisolve
-use afisolve
+CREATE function SelectRole(@role_input varchar)
+    Returns int
+AS
+BEGIN
 
-create table COMPLAINT_STATUS
-(
-    statusName varchar(10),
-    statusID   int not null
-        constraint COMPLAINT_STATUS_pk
-            primary key nonclustered
-)
+    if (@role_input = 'Admin')
+        begin
+            return 5
+        end
+    if (@role_input = 'Customer')
+        begin
+            return 0
+        end
+    if (@role_input = 'Account Coordinator')
+        begin
+            return 1
+        end
+    if (@role_input = 'Developer')
+        begin
+            return 2
+        end
+    if (@role_input = 'Project Manager')
+        begin
+            return 3
+        end
+    if (@role_input = 'CEO')
+        begin
+            return 4
+        end
+    return -1
+END
 go
-
-create table OTP
-(
-    otpID   int not null
-        constraint OTP_pk
-            primary key nonclustered,
-    otpCode int
-)
-go
-
-create table ROLE
-(
-    roleID   int not null
-        constraint ROLE_pk
-            primary key nonclustered,
-    roleName varchar(25)
-)
-go
-
-create unique index ROLE_roleID_uindex
-    on ROLE (roleID)
-go
-
-create table USERS
-(
-    userID        int         not null
-        constraint USERS_pk
-            primary key nonclustered,
-    userEmail     varchar(50) not null,
-    password      varchar(20),
-    firstName     varchar(40),
-    lastName      varchar(40),
-    contactNumber varchar(20),
-    activeStatus  bit,
-    lastLogin     datetime,
-    createdBy     varchar(50),
-    createdAt     datetime,
-    modifiedBy    varchar(50),
-    modifiedAt    datetime
-)
-go
-
-create table PRODUCT
-(
-    productID            int not null
-        constraint PRODUCT_pk
-            primary key nonclustered,
-    productName          varchar(40),
-    category             varchar(20),
-    customerID           int
-        constraint PRODUCT_USERS_userID_fk_2
-            references USERS,
-    projectManagerID     int
-        constraint PRODUCT_USERS_userID_fk_3
-            references USERS,
-    accountCoordinatorID int
-        constraint PRODUCT_USERS_userID_fk
-            references USERS,
-    createdAt            datetime,
-    createdBy            int,
-    modifiedAt           datetime,
-    modifiedBy           int
-)
-go
-
-create table ALLOCATION
-(
-    developerID int not null
-        constraint ALLOCATION_USERS_userID_fk
-            references USERS,
-    productID   int not null
-        constraint ALLOCATION_PRODUCT_productID_fk
-            references PRODUCT,
-    constraint ALLOCATION_pk
-        primary key nonclustered (developerID, productID)
-)
-go
-
-create table COMPLAINT
-(
-    complaintID       int not null,
-    subComplaintID    int not null,
-    description       varchar(5000),
-    status            int
-        constraint COMPLAINT_COMPLAINT_STATUS_statusID_fk
-            references COMPLAINT_STATUS,
-    submittedDate     datetime,
-    lastDateOfPending datetime,
-    wipStartDate      datetime,
-    finishedDate      datetime,
-    productID         int
-        constraint COMPLAINT_PRODUCT_productID_fk
-            references PRODUCT
-            on update cascade,
-    constraint COMPLAINT_pk
-        primary key nonclustered (complaintID, subComplaintID)
-)
-go
-
-create table COMMENT
-(
-    complaintID     int not null,
-    commentID       int not null,
-    isImage         bit,
-    textOrImageName varchar(max),
-    senderID        int
-        constraint COMMENT_USERS_userID_fk
-            references USERS,
-    submittedTime   datetime,
-    subComplaintID  int not null,
-    constraint COMMENT_pk
-        primary key nonclustered (complaintID, commentID),
-    constraint COMMENT_COMPLAINT_complaintID_subComplaintID_fk
-        foreign key (complaintID, subComplaintID) references COMPLAINT
-)
-go
-
-create table COMPLAINT_ATTACHMENT_DETAILS
-(
-    complaintID    int not null,
-    subComplaintID int not null,
-    imageIndex     int not null,
-    imageName      varchar(max),
-    constraint COMPLAINT_ATTACHMENT_DETAILS_pk
-        primary key nonclustered (complaintID, subComplaintID, imageIndex),
-    constraint COMPLAINT_ATTACHMENT_DETAILS_COMPLAINT_complaintID_subComplaintID_fk
-        foreign key (complaintID, subComplaintID) references COMPLAINT
-            on update cascade on delete cascade
-)
-go
-
-create table FEEDBACK
-(
-    complaintID    int not null
-        constraint FEEDBACK_pk
-            primary key nonclustered,
-    satisfaction   int,
-    description    varchar(1000),
-    subComplaintID int not null,
-    constraint FEEDBACK_COMPLAINT_complaintID_subComplaintID_fk
-        foreign key (complaintID, subComplaintID) references COMPLAINT
-            on update cascade
-)
-go
-
-create table TASK
-(
-    taskID               varchar(10) not null
-        constraint TASK_pk
-            primary key nonclustered,
-    complaintID          int,
-    subComplaintID       int,
-    assignDate           datetime,
-    deadline             datetime,
-    completed            bit,
-    accountCoordinatorID int
-        constraint TASK_USERS_userID_fk
-            references USERS,
-    developerID          int
-        constraint TASK_USERS_userID_fk_2
-            references USERS,
-    constraint TASK_COMPLAINT_complainID_subComplaintID_fk
-        foreign key (complaintID, subComplaintID) references COMPLAINT
-)
-go
-
-create unique index USERS_userEmail_uindex
-    on USERS (userEmail)
-go
-
-create table USER_ROLE
-(
-    userID    int not null
-        constraint USER_ROLE_USERS_userID_fk
-            references USERS,
-    roleID    int not null
-        constraint USER_ROLE_ROLE_roleID_fk
-            references ROLE,
-    [default] bit not null,
-    constraint USER_ROLE_pk
-        primary key nonclustered (roleID, userID)
-)
-go
-
--------------------------------------------------------------------------------------------------------------------------------------------------------
-create type roles as table
-(
-    role int
-)
-go
-
--------------------------------------------------------------------------------------------------------------------------------------------------------
-
-
 
 CREATE PROCEDURE createFeedback @_complaintID int,
                                 @_feedback varchar(5000),
@@ -245,7 +72,9 @@ go
 CREATE procedure deleteSelectedUser @_username VARCHAR(50)
 as
 DECLARE @userID int;
-SELECT @userID = userID FROM USERS where userEmail = @_username;
+SELECT @userID = userID
+FROM USERS
+where userEmail = @_username;
     if exists(select 1
               from USERS
               where userEmail = @_username)
@@ -277,7 +106,9 @@ CREATE procedure getCustomerComplaintsByStatusID @_customerEmail VARCHAR(50),
                                                  @_reqComplaintsStatus int
 as
 DECLARE @customerID int;
-SELECT @customerID = userID FROM USERS where userEmail = @_customerEmail;
+SELECT @customerID = userID
+FROM USERS
+where userEmail = @_customerEmail;
     if exists(select 1
               from COMPLAINT c)
         begin
@@ -390,17 +221,39 @@ as
         begin
             select * from COMPLAINT where complaintID = @_complaintID and subComplaintID = @_subComplaintID
 
-            select statusName from COMPLAINT_STATUS C_S JOIN COMPLAINT C on C_S.statusID = C.status where c.complaintID = @_complaintID and c.subComplaintID = @_subComplaintID
+            select statusName
+            from COMPLAINT_STATUS C_S
+                     JOIN COMPLAINT C on C_S.statusID = C.status
+            where c.complaintID = @_complaintID
+              and c.subComplaintID = @_subComplaintID
 
-            select productName from PRODUCT P JOIN COMPLAINT C2 on P.productID = C2.productID where C2.complaintID = @_complaintID and C2.subComplaintID = @_subComplaintID
+            select productName
+            from PRODUCT P
+                     JOIN COMPLAINT C2 on P.productID = C2.productID
+            where C2.complaintID = @_complaintID
+              and C2.subComplaintID = @_subComplaintID
 
-            select userEmail, firstName, lastName from USERS USR JOIN PRODUCT P2 on USR.userID = P2.projectManagerID
-            where P2.productID = ( select P.productID from PRODUCT P  JOIN COMPLAINT C2 on P.productID = C2.productID where C2.complaintID = @_complaintID and C2.subComplaintID = @_subComplaintID)
+            select userEmail, firstName, lastName
+            from USERS USR
+                     JOIN PRODUCT P2 on USR.userID = P2.projectManagerID
+            where P2.productID = (select P.productID
+                                  from PRODUCT P
+                                           JOIN COMPLAINT C2 on P.productID = C2.productID
+                                  where C2.complaintID = @_complaintID
+                                    and C2.subComplaintID = @_subComplaintID)
 
-            select userEmail, firstName, lastName from USERS USR JOIN PRODUCT P2 on USR.userID = P2.accountCoordinatorID
-            where P2.productID = ( select P.productID from PRODUCT P JOIN COMPLAINT C2 on P.productID = C2.productID where C2.complaintID = @_complaintID and C2.subComplaintID = @_subComplaintID)
+            select userEmail, firstName, lastName
+            from USERS USR
+                     JOIN PRODUCT P2 on USR.userID = P2.accountCoordinatorID
+            where P2.productID = (select P.productID
+                                  from PRODUCT P
+                                           JOIN COMPLAINT C2 on P.productID = C2.productID
+                                  where C2.complaintID = @_complaintID
+                                    and C2.subComplaintID = @_subComplaintID)
 
-            select * from COMPLAINT_ATTACHMENT_DETAILS where complaintID=@_complaintID and subComplaintID=@_subComplaintID
+            select *
+            from COMPLAINT_ATTACHMENT_DETAILS
+            where complaintID = @_complaintID and subComplaintID = @_subComplaintID
 
             return 0;
         end
@@ -416,20 +269,48 @@ as
     RETURN -1
 go
 
-CREATE procedure  getSelectedComplaintDetailsCustomer @_customerEmail VARCHAR(50),
-                                                      @_complaintID int,
-                                                      @_subComplaintID int
+CREATE procedure getSelectedComplaintDetailsCustomer @_customerEmail VARCHAR(50),
+                                                     @_complaintID int,
+                                                     @_subComplaintID int
 as
 DECLARE @customerID int;
-SELECT @customerID = userID FROM USERS where userEmail=@_customerEmail;
-    if(@customerID = (select customerID from PRODUCT P join COMPLAINT C3 on P.productID = C3.productID where C3.complaintID=@_complaintID and c3.subComplaintID=@_subComplaintID) )
+SELECT @customerID = userID
+FROM USERS
+where userEmail = @_customerEmail;
+    if (@customerID = (select customerID
+                       from PRODUCT P
+                                join COMPLAINT C3 on P.productID = C3.productID
+                       where C3.complaintID = @_complaintID
+                         and c3.subComplaintID = @_subComplaintID))
         begin
-            select * from COMPLAINT where complaintID=@_complaintID and subComplaintID=@_subComplaintID
-            select statusName from COMPLAINT_STATUS CS JOIN COMPLAINT C on CS.statusID = C.status where C.complaintID=@_complaintID and C.subComplaintID=@_subComplaintID
-            select productName from PRODUCT P join COMPLAINT C2 on P.productID = C2.productID where C2.complaintID=@_complaintID and C2.subComplaintID=@_subComplaintID
-            select userEmail, firstName, lastName  from USERS U where userID=( select projectManagerID from PRODUCT P join COMPLAINT C2 on P.productID = C2.productID where C2.complaintID=@_complaintID and C2.subComplaintID=@_subComplaintID)
-            select userEmail, firstName, lastName  from USERS U where userID=( select accountCoordinatorID from PRODUCT P join COMPLAINT C2 on P.productID = C2.productID where C2.complaintID=@_complaintID and C2.subComplaintID=@_subComplaintID)
-            select * from COMPLAINT_ATTACHMENT_DETAILS where complaintID=@_complaintID and subComplaintID=@_subComplaintID
+            select * from COMPLAINT where complaintID = @_complaintID and subComplaintID = @_subComplaintID
+            select statusName
+            from COMPLAINT_STATUS CS
+                     JOIN COMPLAINT C on CS.statusID = C.status
+            where C.complaintID = @_complaintID
+              and C.subComplaintID = @_subComplaintID
+            select productName
+            from PRODUCT P
+                     join COMPLAINT C2 on P.productID = C2.productID
+            where C2.complaintID = @_complaintID
+              and C2.subComplaintID = @_subComplaintID
+            select userEmail, firstName, lastName
+            from USERS U
+            where userID = (select projectManagerID
+                            from PRODUCT P
+                                     join COMPLAINT C2 on P.productID = C2.productID
+                            where C2.complaintID = @_complaintID
+                              and C2.subComplaintID = @_subComplaintID)
+            select userEmail, firstName, lastName
+            from USERS U
+            where userID = (select accountCoordinatorID
+                            from PRODUCT P
+                                     join COMPLAINT C2 on P.productID = C2.productID
+                            where C2.complaintID = @_complaintID
+                              and C2.subComplaintID = @_subComplaintID)
+            select *
+            from COMPLAINT_ATTACHMENT_DETAILS
+            where complaintID = @_complaintID and subComplaintID = @_subComplaintID
             RETURN 0;
         end
     else
@@ -482,10 +363,17 @@ go
 CREATE procedure getSelectedUserDetails @_username VARCHAR(50)
 as
 DECLARE @userID int;
-SELECT @userID = userID FROM USERS where userEmail=@_username;
+SELECT @userID = userID
+FROM USERS
+where userEmail = @_username;
 
-    if exists(select 1 from USERS where userEmail = @_username) and
-       exists(select 1 from USER_ROLE ur where ur.userID = @userID and ur.[default] = 'true')
+    if exists(select 1
+              from USERS
+              where userEmail = @_username) and
+       exists(select 1
+              from USER_ROLE ur
+              where ur.userID = @userID
+                and ur.[default] = 'true')
         begin
             select * from USERS where userEmail = @_username
             select ur.roleID from USER_ROLE ur where ur.userID = @userID;
@@ -527,17 +415,18 @@ as
     RETURN -1;
 go
 
-CREATE PROCEDURE lodgeComplaint  @_customerEmail varchar(50),
-                                 @_productID int,
-                                 @_description varchar(5000),
-                                 @_noOfImages int
+CREATE PROCEDURE lodgeComplaint @_customerEmail varchar(50),
+                                @_productID int,
+                                @_description varchar(5000),
+                                @_noOfImages int
 AS
     BEGIN TRANSACTION
 
 DECLARE @currentMaxComplaintID int;
 DECLARE @complaintID int;
-    SET @currentMaxComplaintID = (SELECT MAX(complaintID) from COMPLAINT) ;
-    SET @complaintID = iif(@currentMaxComplaintID is null , 1 , @currentMaxComplaintID+1);
+    SET @currentMaxComplaintID = (SELECT MAX(complaintID)
+                                  from COMPLAINT) ;
+    SET @complaintID = iif(@currentMaxComplaintID is null, 1, @currentMaxComplaintID + 1);
 
 INSERT INTO COMPLAINT
 VALUES (@complaintID,
@@ -580,12 +469,13 @@ AS
 DECLARE
     @subComplaintID int;
     SET @subComplaintID = ((SELECT MAX(@subComplaintID)
-                            from COMPLAIN where complaintID = @_complaintID) + 1);
+                            from COMPLAIN
+                            where complaintID = @_complaintID) + 1);
     BEGIN TRANSACTION
 
 INSERT INTO COMPLAINT
 VALUES (@_complaintID,
-        iif(@subComplaintID is null, 1 ,@subComplaintID),
+        iif(@subComplaintID is null, 1, @subComplaintID),
         @_subComplaintDesc,
         0,
         GETDATE(),
@@ -610,7 +500,9 @@ CREATE procedure login @_email VARCHAR(50),
                        @_password VARCHAR(20)
 as
 DECLARE @userID int;
-SELECT @userID = userID FROM USERS where userEmail = @_email;
+SELECT @userID = userID
+FROM USERS
+where userEmail = @_email;
     if exists(select 1
               from USERS
               where userEmail = @_email
@@ -639,16 +531,24 @@ CREATE PROCEDURE registerProduct @_productName varchar(40),
                                  @_createdAdmin varchar(50)
 AS
 DECLARE @customerID int;
-SELECT @customerID = userID FROM USERS where userEmail = @_customerEmail;
+SELECT @customerID = userID
+FROM USERS
+where userEmail = @_customerEmail;
 
 DECLARE @projectManagerID int;
-SELECT @projectManagerID = userID FROM USERS where userEmail = @_projectManagerEmail;
+SELECT @projectManagerID = userID
+FROM USERS
+where userEmail = @_projectManagerEmail;
 
 DECLARE @accountCoordinatorID int;
-SELECT @accountCoordinatorID = userID FROM USERS where userEmail = @_accountCoordinatorEmail;
+SELECT @accountCoordinatorID = userID
+FROM USERS
+where userEmail = @_accountCoordinatorEmail;
 
 DECLARE @createdAdminID int;
-SELECT @createdAdminID = userID FROM USERS where userEmail = @_createdAdmin;
+SELECT @createdAdminID = userID
+FROM USERS
+where userEmail = @_createdAdmin;
 
 
 DECLARE
@@ -657,7 +557,7 @@ DECLARE
                        from PRODUCT) + 1);
     BEGIN TRANSACTION
 INSERT INTO PRODUCT
-VALUES (iif(@productID is null, 1 ,@productID),
+VALUES (iif(@productID is null, 1, @productID),
         @_productName,
         @_category,
         @customerID,
@@ -686,35 +586,42 @@ CREATE PROCEDURE registerUser @_firstname VARCHAR(40),
                               @_clientOtp INT,
                               @_generatedOtpID INT
 AS
-DECLARE @userID int,@role INT, @generatedOTPValue int;
-DECLARE role_cursor CURSOR LOCAL FOR SELECT * FROM @_roles
+DECLARE @userID int, @role INT, @generatedOTPValue int;
 
-SET @userID = ((SELECT MAX(userID) from USERS) + 1);
-SELECT @generatedOTPValue = otpCode FROM OTP where otpID = @_generatedOtpID;
+    SET @userID = ((SELECT MAX(userID)
+                    from USERS) + 1);
+SELECT @generatedOTPValue = otpCode
+FROM OTP
+where otpID = @_generatedOtpID;
 
-BEGIN TRANSACTION
-    if(@_clientOtp!=@generatedOTPValue)
+    BEGIN TRANSACTION
+DECLARE
+    role_cursor CURSOR LOCAL FOR SELECT *
+                                 FROM @_roles
+    if (@_clientOtp != @generatedOTPValue)
         begin
             ROLLBACK TRANSACTION
             return -2;
         end
-    else if exists(select 1 from USERS where userEmail = @_email)
-        begin
-            ROLLBACK TRANSACTION
-            return -3;
-        end
-    INSERT INTO USERS VALUES (iif(@userID is null, 1, @userID),
-                              @_email,
-                              @_password,
-                              @_firstname,
-                              @_lastname,
-                              @_contactNumber,
-                              1 ,
-                              null,
-                              @_createdAdmin,
-                              GETDATE(),
-                              null,
-                              null);
+    else
+        if exists(select 1 from USERS where userEmail = @_email)
+            begin
+                ROLLBACK TRANSACTION
+                return -3;
+            end
+INSERT INTO USERS
+VALUES (iif(@userID is null, 1, @userID),
+        @_email,
+        @_password,
+        @_firstname,
+        @_lastname,
+        @_contactNumber,
+        1,
+        null,
+        @_createdAdmin,
+        GETDATE(),
+        null,
+        null);
     IF @@ROWCOUNT = 0 GOTO errorHandler;
 
     OPEN role_cursor
@@ -746,7 +653,9 @@ CREATE procedure roleChange @_username VARCHAR(50),
                             @_requestedRole VARCHAR(25)
 as
 DECLARE @userID int;
-SELECT @userID = userID FROM USERS where userEmail = @_username;
+SELECT @userID = userID
+FROM USERS
+where userEmail = @_username;
     if exists(select 1
               from USER_ROLE ur
                        join ROLE r on r.roleID = ur.roleID
@@ -772,14 +681,17 @@ AS
     BEGIN TRANSACTION
 DECLARE
     @maxOtpID int,
-    @otpID int;
-    SET @maxOtpID = ((SELECT MAX(otpID)  from OTP) + 1);
-    SET @otpID = iif(@maxOtpID is null, 1 ,@maxOtpID)
+    @otpID    int;
+    SET @maxOtpID = ((SELECT MAX(otpID)
+                      from OTP) + 1);
+    SET @otpID = iif(@maxOtpID is null, 1, @maxOtpID)
 INSERT INTO OTP
 VALUES (@otpID,
         @_generatedOTP)
     IF @@ROWCOUNT = 0 GOTO errorHandler;
-SELECT otpID FROM OTP where otpID = @otpID
+SELECT otpID
+FROM OTP
+where otpID = @otpID
     COMMIT TRANSACTION
     RETURN 0;
 
@@ -788,21 +700,25 @@ SELECT otpID FROM OTP where otpID = @otpID
     RETURN -1;
 go
 
-CREATE PROCEDURE saveComment   @_senderEmail varchar(50),
-                               @_complaintID int,
-                               @_text varchar(MAX),
-                               @_noOfImages int
+CREATE PROCEDURE saveComment @_senderEmail varchar(50),
+                             @_complaintID int,
+                             @_text varchar(MAX),
+                             @_noOfImages int
 AS
 DECLARE @senderID int;
-SELECT @senderID = userID FROM USERS where userEmail = @_senderEmail;
+SELECT @senderID = userID
+FROM USERS
+where userEmail = @_senderEmail;
     BEGIN TRANSACTION
 
 
 DECLARE @currentMaxCommentID int;
 DECLARE @commentID int;
-    SET @currentMaxCommentID = (SELECT MAX(commentID) from COMMENT where complaintID=@_complaintID) ;
-    SET @commentID = iif(@currentMaxCommentID is null , 1 , @currentMaxCommentID+1);
-    IF(@_text is not null )
+    SET @currentMaxCommentID = (SELECT MAX(commentID)
+                                from COMMENT
+                                where complaintID = @_complaintID) ;
+    SET @commentID = iif(@currentMaxCommentID is null, 1, @currentMaxCommentID + 1);
+    IF (@_text is not null)
         BEGIN
             INSERT INTO COMMENT
             VALUES (@_complaintID,
@@ -814,8 +730,10 @@ DECLARE @commentID int;
                     0)
             IF @@ROWCOUNT = 0 GOTO errorHandler;
         end
-    SET @currentMaxCommentID = (SELECT MAX(commentID) from COMMENT where complaintID=@_complaintID) ;
-    SET @commentID = iif(@currentMaxCommentID is null , 1 , @currentMaxCommentID+1);
+    SET @currentMaxCommentID = (SELECT MAX(commentID)
+                                from COMMENT
+                                where complaintID = @_complaintID) ;
+    SET @commentID = iif(@currentMaxCommentID is null, 1, @currentMaxCommentID + 1);
 DECLARE @i int;
     SET @i = 0;
     WHILE @i < @_noOfImages
@@ -823,8 +741,9 @@ DECLARE @i int;
             SET @i = @i + 1
             /* your code*/
             INSERT INTO COMMENT
-            VALUES (@_complaintID,@commentID, 1, TRIM(STR(@_complaintID)) + '-' + TRIM(STR(@i)) + '.png',@senderID,GETDATE(),0)
-            SELECT * FROM COMMENT where complaintID= @_complaintID and commentID = @commentID
+            VALUES (@_complaintID, @commentID, 1, TRIM(STR(@_complaintID)) + '-' + TRIM(STR(@i)) + '.png', @senderID,
+                    GETDATE(), 0)
+            SELECT * FROM COMMENT where complaintID = @_complaintID and commentID = @commentID
             SET @commentID = @commentID + 1
         END
 
@@ -834,39 +753,6 @@ DECLARE @i int;
     errorHandler:
     ROLLBACK TRANSACTION
     RETURN -1;
-go
-
-CREATE function SelectRole(@role_input varchar)
-    Returns int
-AS
-BEGIN
-
-    if (@role_input = 'Admin')
-        begin
-            return 5
-        end
-    if (@role_input = 'Customer')
-        begin
-            return 0
-        end
-    if (@role_input = 'Account Coordinator')
-        begin
-            return 1
-        end
-    if (@role_input = 'Developer')
-        begin
-            return 2
-        end
-    if (@role_input = 'Project Manager')
-        begin
-            return 3
-        end
-    if (@role_input = 'CEO')
-        begin
-            return 4
-        end
-    return -1
-END
 go
 
 CREATE procedure updateSelectedUserDetails @_oldEmail VARCHAR(50),
@@ -881,24 +767,34 @@ CREATE procedure updateSelectedUserDetails @_oldEmail VARCHAR(50),
                                            @_clientOtp INT,
                                            @_generatedOtpID INT
 AS
-DECLARE @userID int, @userIDTemp int, @roleID int,@role INT, @generatedOTPValue int;
-DECLARE cursor_email CURSOR LOCAL FOR SELECT userID, roleID FROM USER_ROLE WHERE userID = @userID
-DECLARE role_cursor CURSOR LOCAL FOR SELECT * FROM @_roles
+DECLARE @userID int, @userIDTemp int, @roleID int, @role INT, @generatedOTPValue int;
 
-SELECT @userID = userID FROM USERS where userEmail = @_oldEmail;
-SELECT @generatedOTPValue = otpCode FROM OTP where otpID = @_generatedOtpID;
+SELECT @userID = userID
+FROM USERS
+where userEmail = @_oldEmail;
+SELECT @generatedOTPValue = otpCode
+FROM OTP
+where otpID = @_generatedOtpID;
 
-BEGIN TRANSACTION
-    if(@_oldEmail!=@_newEmail and @_clientOtp!=@generatedOTPValue)
+    BEGIN TRANSACTION
+DECLARE
+    cursor_email CURSOR LOCAL FOR SELECT userID, roleID
+                                  FROM USER_ROLE
+                                  WHERE userID = @userID
+DECLARE
+    role_cursor CURSOR LOCAL FOR SELECT *
+                                 FROM @_roles
+    if (@_oldEmail != @_newEmail and @_clientOtp != @generatedOTPValue)
         begin
             ROLLBACK TRANSACTION
             return -2;
         end
-    else if exists(select 1 from USERS where userEmail = @_newEmail)
-        begin
-            ROLLBACK TRANSACTION
-            return -3;
-        end
+    else
+        if (@_oldEmail != @_newEmail and exists(select 1 from USERS where userEmail = @_newEmail))
+            begin
+                ROLLBACK TRANSACTION
+                return -3;
+            end
 
     OPEN cursor_email
     fetch next from cursor_email into @userIDTemp, @roleID
@@ -907,7 +803,7 @@ BEGIN TRANSACTION
             delete from USER_ROLE where userID = @userIDTemp AND roleID = @roleID
             fetch next from cursor_email into @userIDTemp, @roleID
         end
-     CLOSE cursor_email
+    CLOSE cursor_email
 UPDATE USERS
 SET userEmail    = @_newEmail,
     firstName    = @_firstname,
@@ -950,7 +846,9 @@ go
 CREATE procedure userToolbarDetails @_username VARCHAR(50)
 as
 DECLARE @userID int;
-SELECT @userID = userID FROM USERS where userEmail = @_username;
+SELECT @userID = userID
+FROM USERS
+where userEmail = @_username;
     if exists(select 1
               from USERS
               where userEmail = @_username)
