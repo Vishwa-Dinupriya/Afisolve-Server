@@ -593,6 +593,10 @@ DECLARE @userID int, @role INT, @generatedOTPValue int;
 SELECT @generatedOTPValue = otpCode
 FROM OTP
 where otpID = @_generatedOtpID;
+-- delete otp record from the OTP table
+Delete
+from OTP
+where otpID = @_generatedOtpID
 
     BEGIN TRANSACTION
 DECLARE
@@ -775,6 +779,10 @@ where userEmail = @_oldEmail;
 SELECT @generatedOTPValue = otpCode
 FROM OTP
 where otpID = @_generatedOtpID;
+    -- delete otp record from the OTP table
+Delete
+from OTP
+where otpID = @_generatedOtpID
 
     BEGIN TRANSACTION
 DECLARE
