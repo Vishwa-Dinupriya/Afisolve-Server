@@ -9,6 +9,11 @@ const {sql} = require('../helpers/mssql-server-connection');
 const {verifyToken} = require('../helpers/verifyToken');
 const {verifyAdmin} = require('../helpers/verifyToken');
 
+var otpService = require('../helpers/otpService');
+const {generatedOTP}=require("../helpers/otpService");
+const {sendOtp}=require("../helpers/otpService");
+const {getGeneratedOTP}=require("../helpers/otpService");
+
 //------------------------------------------users-----------------------------------------------
 router.get('/', (req, res, next) => {
     res.send('From admin route');
@@ -117,7 +122,174 @@ router.post('/update-selected-user-profile-details', verifyToken, verifyAdmin, a
     const data = request.body.userNewData;
     const adminEmail = request.payload.username;
     const newProfilePhoto = request.body.newProfilePhoto_;
+  if(oldEmail==data.email){
+      try {
 
+          const roles = new sql.Table('roles');
+          roles.columns.add('role', sql.Int);
+
+          for (const role of data.roles) {
+              roles.rows.add(role);
+          }
+
+          const pool = await poolPromise;
+          await pool.request()
+              .input('_oldEmail', sql.VarChar(50), oldEmail)
+              .input('_firstname', sql.VarChar(40), data.firstName)
+              .input('_lastname', sql.VarChar(40), data.lastName)
+              .input('_newEmail', sql.VarChar(50), data.email)
+              .input('_password', sql.VarChar(20), data.passwordGroup.password)
+              .input('_roles', roles)
+              .input('_defaultRole', sql.Int, data.defaultRole)
+              .input('_contactNumber', sql.VarChar(20), data.contactNumber)
+              .input('_modifiedAdmin', sql.VarChar(50), adminEmail)
+              .execute('updateSelectedUserDetails', (error, result) => {
+                  if (error) {
+                      console.log(error);
+                      response.status(500).send({
+                          status: false,
+                          message: error
+                      });
+                  } else {
+                      console.log(result);
+                      if (result.returnValue === 0) {
+                          try {
+                              if(!newProfilePhoto) {
+                                  response.status(200).send({
+                                      status: true,
+                                      message: 'Data Successfully Updated! Image not found!!'
+                                  });
+                              }else{
+                                  console.log('Data Successfully Entered!!');
+
+                                  //encoding and save the picture to the local memory
+                                  const path = './pictures/profile-pictures/' + data.email + '.png';
+                                  const base64Data = newProfilePhoto.replace(/^data:([A-Za-z-+/]+);base64,/, '');
+                                  fs.writeFileSync(path, base64Data, {encoding: 'base64'});
+
+                                  //get the picture to 'img' from local memory
+                                  let img;
+                                  try {
+                                      img = fs.readFileSync('./pictures/profile-pictures/' + request.body.email + '.png', {encoding: 'base64'});
+                                  } catch (error) {
+                                      img = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
+                                  }
+                                  response.status(200).send({
+                                      status: true,
+                                      message: 'Data Successfully Entered!',
+                                      image: img
+                                  });
+                              }
+                          }catch (error){
+                              console.log(error);
+                              response.status(500).send({
+                                  status: false,
+                                  message: 'Server Error!'
+                              });
+                          }
+
+                      } else {
+                          console.log('2');
+                          response.status(500).send({message: 'from error handler'});
+                      }
+                  }
+              });
+      } catch (error) {
+          console.log(error);
+          response.status(500).send({
+              status: false,
+              message: 'DB connection Error..!'
+          });
+      }
+  }else{
+      console.log(request.body.otp);
+      console.log(getGeneratedOTP());
+      if(request.body.otp == generatedOTP){
+          try {
+              const roles = new sql.Table('roles');
+              roles.columns.add('role', sql.Int);
+
+              for (const role of data.roles) {
+                  roles.rows.add(role);
+              }
+
+              const pool = await poolPromise;
+              await pool.request()
+                  .input('_oldEmail', sql.VarChar(50), oldEmail)
+                  .input('_firstname', sql.VarChar(40), data.firstName)
+                  .input('_lastname', sql.VarChar(40), data.lastName)
+                  .input('_newEmail', sql.VarChar(50), data.email)
+                  .input('_password', sql.VarChar(20), data.passwordGroup.password)
+                  .input('_roles', roles)
+                  .input('_defaultRole', sql.Int, data.defaultRole)
+                  .input('_contactNumber', sql.VarChar(20), data.contactNumber)
+                  .input('_modifiedAdmin', sql.VarChar(50), adminEmail)
+                  .execute('updateSelectedUserDetails', (error, result) => {
+                      if (error) {
+                          console.log(error);
+                          response.status(500).send({
+                              status: false,
+                              message: error
+                          });
+                      } else {
+                          console.log(result);
+                          if (result.returnValue === 0) {
+                              try {
+                                  if(!newProfilePhoto) {
+                                      response.status(200).send({
+                                          status: true,
+                                          message: 'Data Successfully Updated! Image not found!!'
+                                      });
+                                  }else{
+                                      console.log('Data Successfully Entered!!');
+
+                                      //encoding and save the picture to the local memory
+                                      const path = './pictures/profile-pictures/' + data.email + '.png';
+                                      const base64Data = newProfilePhoto.replace(/^data:([A-Za-z-+/]+);base64,/, '');
+                                      fs.writeFileSync(path, base64Data, {encoding: 'base64'});
+
+                                      //get the picture to 'img' from local memory
+                                      let img;
+                                      try {
+                                          img = fs.readFileSync('./pictures/profile-pictures/' + request.body.email + '.png', {encoding: 'base64'});
+                                      } catch (error) {
+                                          img = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
+                                      }
+                                      response.status(200).send({
+                                          status: true,
+                                          message: 'Data Successfully Entered!',
+                                          image: img
+                                      });
+                                  }
+                              }catch (error){
+                                  console.log(error);
+                                  response.status(500).send({
+                                      status: false,
+                                      message: 'Server Error!'
+                                  });
+                              }
+
+                          } else {
+                              console.log('2');
+                              response.status(500).send({message: 'from error handler'});
+                          }
+                      }
+                  });
+          } catch (error) {
+              console.log(error);
+              response.status(500).send({
+                  status: false,
+                  message: 'DB connection Error..!'
+              });
+          }
+      }else {
+          console.log('otp not equal')
+          response.status(500).send({
+              status: false,
+              message: 'invalid OTP(one-time-password) !'
+          });
+      }
+  }
     try {
 
         const roles = new sql.Table('roles');
