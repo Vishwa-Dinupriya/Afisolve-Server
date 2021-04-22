@@ -9,18 +9,30 @@ const {sql} = require('../helpers/mssql-server-connection');
 const {verifyToken} = require("../helpers/verifyToken");
 const {verifyAdmin} = require('../helpers/verifyToken');
 
-const {generatedOTP}=require("../helpers/otpService");
-const {sendOtp}=require("../helpers/otpService");
+const {generatedOTP} = require("../helpers/otpService");
+const {sendOtp} = require("../helpers/otpService");
 
 router.get('/', (req, res) => {
     res.send('From authentication route');
 });
 
-router.post('/sendOtpToEmail', verifyToken, verifyAdmin, async (request, response) => {
+router.post('/sendOtpToEmail', verifyToken, async (request, response) => {
     console.log(request.body);
     const data = request.body;
+    let otpID;
     try {
-        sendOtp(request.body.userEnteredEmail).then(r => console.log('success! otp send and stored'));
+        await sendOtp(request.body.userEnteredEmail, (error, value) => {
+            if (error) {
+                console.log(error);
+            } else {
+                console.log('success! otp send and stored! otp ID:'+value);
+                response.status(200).send({
+                    status: true,
+                    message: 'success! otp send and stored!',
+                    otpID: value
+                });
+            }
+        });
     } catch (e) {
         console.log(e);
     }
@@ -28,14 +40,13 @@ router.post('/sendOtpToEmail', verifyToken, verifyAdmin, async (request, respons
 
 router.post('/register', verifyToken, verifyAdmin, async (request, response) => {
     console.log(request.body);
-    console.log(generatedOTP);
 
-    const otpClient = request.body.otp;
     const data = request.body.userData;
     const image = request.body.userData.profilePicture;
     const adminEmail = request.payload.username;
-    if (generatedOTP == otpClient) {
-        console.log('otp equal')
+    const otpClient = request.body.otp;
+    const generatedOtpID = request.body.otpID;
+
         try {
             const roles = new sql.Table('roles');
             roles.columns.add('role', sql.Int);
@@ -54,6 +65,8 @@ router.post('/register', verifyToken, verifyAdmin, async (request, response) => 
                 .input('_defaultRole', sql.Int, data.defaultRole)
                 .input('_contactNumber', sql.VarChar(20), data.contactNumber)
                 .input('_createdAdmin', sql.VarChar(50), adminEmail)
+                .input('_clientOtp', sql.Int, otpClient)
+                .input('_generatedOtpID', sql.Int, generatedOtpID)
                 .execute('registerUser', (error, result) => {
                     if (error) {
                         console.log(error);
@@ -92,7 +105,7 @@ router.post('/register', verifyToken, verifyAdmin, async (request, response) => 
                                     try {
                                         img = fs.readFileSync('./pictures/profile-pictures/' + request.body.userData.email + '.png', {encoding: 'base64'});
                                     } catch (error) {
-                                        img = fs.readFileSync('./pictures/default-pictures/default-profile-picture.png', {encoding: 'base64'});
+                                        img = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
                                     }
                                     response.status(200).send({
                                         status: true,
@@ -107,7 +120,22 @@ router.post('/register', verifyToken, verifyAdmin, async (request, response) => 
                                     message: 'Server Error!'
                                 });
                             }
-                        } else {//vishwa brogen ahanna
+                        }else if(result.returnValue===-2) {//vishwa brogen ahanna
+                            console.log('otp not equal')
+                            response.status(500).send({
+                                status: false,
+                                message: 'invalid OTP(one-time-password) code!'
+                            });
+                        }
+                        else if(result.returnValue===-3) {//vishwa brogen ahanna
+                            console.log('existing user')
+                            response.status(500).send({
+                                status: false,
+                                message: 'Entered email already exists!'
+                            });
+                        }
+
+                        else {//vishwa brogen ahanna
                             response.status(500).send({message: 'from error handler'});
                         }
                     }
@@ -119,14 +147,6 @@ router.post('/register', verifyToken, verifyAdmin, async (request, response) => 
                 message: 'DB connection Error..!'
             });
         }
-    }
-    else {
-   console.log('otp not equal')
-        response.status(500).send({
-            status: false,
-            message: 'invalid OTP(one-time-password) code!'
-        });
-    }
 });
 
 router.post('/login', async (request, response) => {
