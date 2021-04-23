@@ -83,6 +83,18 @@ router.post('/get-selected-accoorcomplaint-details-current', verifyToken, verify
                 } else {
                     if (result.returnValue === 0) {
                         console.log(JSON.stringify(result));
+                        let images = [ ];
+                        const nImages = result.recordsets[2].length;
+                        for(let i=0; i<nImages; i++){
+                            let img;
+                            try {//get the picture to 'img' from local memory
+                                img = fs.readFileSync('./pictures/complaint-pictures/' + result.recordsets[5][i].imageName, {encoding: 'base64'})
+                            } catch (error) {
+                                img = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
+                            }
+                            images.push(img);
+                        }
+
                         response.status(200).send({
                             status: true,
                             data: {

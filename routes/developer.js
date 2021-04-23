@@ -154,7 +154,7 @@ router.post('/get-selected-task-details', verifyToken, verifyDeveloper, async (r
                                 contactNumber: result.recordsets[1][0].contactNumber,
                                 task_description: result.recordsets[0][0].task_description,
                                 accoorName: result.recordsets[1][0].accoorName,
-                                accountCoordinatorEmail: result.recordsets[0][0].accountCoordinatorEmail,
+                                accountCoordinatorEmail: result.recordsets[1][0].accountCoordinatorEmail,
                             }
                         })
                     } else {
