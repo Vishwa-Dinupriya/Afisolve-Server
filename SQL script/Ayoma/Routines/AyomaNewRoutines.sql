@@ -32,7 +32,9 @@ as
         begin
            select * from COMPLAINT where complaintID = @_complaintID AND subComplaintID = @_subComplaintID
            select * from Ayoma_ProjectManagers ap,PRODUCT p where ap.userID = p.projectManagerID
-            return 0;
+           select * from COMPLAINT_ATTACHMENT_DETAILS where complaintID=@_complaintID and subComplaintID=@_subComplaintID
+
+           return 0;
         end
     else
         begin
