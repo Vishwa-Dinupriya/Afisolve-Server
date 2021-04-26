@@ -10,7 +10,7 @@ const {verifyToken} = require('../helpers/verifyToken');
 const {verifyAdmin} = require('../helpers/verifyToken');
 
 const otpService = require('../helpers/otpService');
-const {sendOtp}=require("../helpers/otpService");
+const {sendOtp} = require("../helpers/otpService");
 
 //------------------------------------------users-----------------------------------------------
 router.get('/', (req, res, next) => {
@@ -23,19 +23,45 @@ router.post('/get-users-details', verifyToken, verifyAdmin, async (request, resp
     try {
         pool.request()
             .input('_username', sql.VarChar(50), request.payload.username)
-            .query('select * from USERS where userEmail!= @_username', (error, result) => {
+            .query('select U.userEmail, UR.roleID from USERS U, USER_ROLE UR where U.userEmail != @_username AND U.userID = UR.userID' +
+                ' select * from  USERS  where userEmail != @_username \n', (error, result) => {
                 if (error) {
+                    console.log(error);
                     response.status(500).send({
                         status: false
                     });
                 } else {
+                    // console.log(JSON.stringify(result));
+                    let userElements = [];
+                    for (let i = 0; i < result.recordsets[1].length; i++) {
+                        let roleDetails = result.recordsets[0].filter(function (element) {
+                            return element.userEmail === result.recordsets[1][i].userEmail
+                        });
+                        let roleIDs = [];
+                        // console.log(roleDetails);
+                        for (let k = 0; k < roleDetails.length; k++) {
+                            roleIDs[k] = roleDetails[k].roleID
+                        }
+                        // console.log(JSON.stringify(roleIDs));
+                        userElements[i] = {
+                            details: result.recordsets[1][i],
+                            userEmail: result.recordsets[1][i].userEmail,
+                            password: result.recordsets[1][i].password,
+                            firstName: result.recordsets[1][i].firstName,
+                            lastName: result.recordsets[1][i].lastName,
+                            contactNumber: result.recordsets[1][i].contactNumber,
+                            roleIDs: roleIDs
+                        }
+                    }
+                    console.log(JSON.stringify(userElements));
                     response.status(200).send({
                         status: true,
-                        data: result.recordset
+                        data: userElements,
                     });
                 }
             });
     } catch (e) {
+        consoel.log(error);
         response.status(500).send({status: false});
     }
 });
@@ -155,12 +181,12 @@ router.post('/update-selected-user-profile-details', verifyToken, verifyAdmin, a
                     console.log(result);
                     if (result.returnValue === 0) {
                         try {
-                            if(!newProfilePhoto) {
+                            if (!newProfilePhoto) {
                                 response.status(200).send({
                                     status: true,
                                     message: 'Data Successfully Updated! Image not found!!'
                                 });
-                            }else{
+                            } else {
                                 console.log('Data Successfully Entered!!');
 
                                 //encoding and save the picture to the local memory
@@ -181,7 +207,7 @@ router.post('/update-selected-user-profile-details', verifyToken, verifyAdmin, a
                                     image: img
                                 });
                             }
-                        }catch (error){
+                        } catch (error) {
                             console.log(error);
                             response.status(500).send({
                                 status: false,
@@ -192,14 +218,13 @@ router.post('/update-selected-user-profile-details', verifyToken, verifyAdmin, a
                     } else if (result.returnValue === -2) {
                         console.log('stored procedure returned -2');
                         response.status(500).send({message: 'Entered OTP mismatched'});
-                    }
-                    else if(result.returnValue===-3) {
+                    } else if (result.returnValue === -3) {
                         console.log('existing user')
                         response.status(500).send({
                             status: false,
                             message: 'Entered email already exists!'
                         });
-                    }else {
+                    } else {
                         console.log('2');
                         response.status(500).send({message: 'from error handler'});
                     }
@@ -319,41 +344,41 @@ router.post('/get-all-complaints', verifyToken, verifyAdmin, async (request, res
     }
 });
 
-router.post('/get-subComplaints', verifyToken, verifyAdmin, async (request, response) => {
-
-    const pool = await poolPromise;
-    try {
-        pool.request()
-            .input('_complainId', sql.VarChar(10), request.body.selectedComplaintID)
-            .execute('getSubComplaintsOfSelectedComplain', (error, result) => {
-                if (error) {
-                    console.log('cannot run getSubComplaintsOfSelectedComplain');
-                    response.status(500).send({
-                        status: false
-                    });
-                } else {
-                    if (result.returnValue === 0) {
-                        console.log(JSON.stringify(result) + ' 74 admin.js');
-                        response.status(200).send({
-                            status: true,
-                            data: result.recordset
-                        })
-                    } else if (result.returnValue === 1) {
-                        console.log(JSON.stringify(result));
-                        response.status(500).send({
-                            status: false,
-                            message: 'no sub-complaints',
-                        })
-                    } else {
-                        console.log('getSubComplaintsOfSelectedComplain return -1');
-                        response.status(500).send({message: 'return value = -1'});
-                    }
-                }
-            });
-    } catch (e) {
-        response.status(500).send({status: false});
-    }
-});
+// router.post('/get-subComplaints', verifyToken, verifyAdmin, async (request, response) => {
+//
+//     const pool = await poolPromise;
+//     try {
+//         pool.request()
+//             .input('_complainId', sql.VarChar(10), request.body.selectedComplaintID)
+//             .execute('getSubComplaintsOfSelectedComplain', (error, result) => {
+//                 if (error) {
+//                     console.log('cannot run getSubComplaintsOfSelectedComplain');
+//                     response.status(500).send({
+//                         status: false
+//                     });
+//                 } else {
+//                     if (result.returnValue === 0) {
+//                         console.log(JSON.stringify(result) + ' 74 admin.js');
+//                         response.status(200).send({
+//                             status: true,
+//                             data: result.recordset
+//                         })
+//                     } else if (result.returnValue === 1) {
+//                         console.log(JSON.stringify(result));
+//                         response.status(500).send({
+//                             status: false,
+//                             message: 'no sub-complaints',
+//                         })
+//                     } else {
+//                         console.log('getSubComplaintsOfSelectedComplain return -1');
+//                         response.status(500).send({message: 'return value = -1'});
+//                     }
+//                 }
+//             });
+//     } catch (e) {
+//         response.status(500).send({status: false});
+//     }
+// });
 
 router.post('/get-selected-complaint-details', verifyToken, verifyAdmin, async (request, response) => {
     console.log(' complaintID: ' + request.body.complaintID);
@@ -366,16 +391,16 @@ router.post('/get-selected-complaint-details', verifyToken, verifyAdmin, async (
             .input('_subComplaintID', sql.Int, request.body.subComplaintID)
             .execute('getSelectedComplaintDetails', (error, result) => {
                 if (error) {
-                    console.log('cannot run getSelectedUserDetails');
+                    console.log('cannot run getSelectedComplaintDetails');
                     response.status(500).send({
                         status: false
                     });
                 } else {
                     if (result.returnValue === 0) {
                         console.log(JSON.stringify(result) + ' 322 admin.js');
-                        let images = [ ];
+                        let images = [];
                         const nImages = result.recordsets[5].length;
-                        for(let i=0; i<nImages; i++){
+                        for (let i = 0; i < nImages; i++) {
                             let img;
                             try {//get the picture to 'img' from local memory
                                 img = fs.readFileSync('./pictures/complaint-pictures/' + result.recordsets[5][i].imageName, {encoding: 'base64'})

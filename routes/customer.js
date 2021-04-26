@@ -66,7 +66,7 @@ router.post('/get-complaints-by-statusID', verifyToken, verifyCustomer, async (r
                         status: false
                     });
                 } else {
-                    console.log(JSON.stringify(result) + ' 56 customer.js');
+                    // console.log(JSON.stringify(result) + ' 56 customer.js');
                     let complaintElements = [];
                     for (let i = 0; i < result.recordsets[1].length; i++) {
                         complaintElements[i] = {
