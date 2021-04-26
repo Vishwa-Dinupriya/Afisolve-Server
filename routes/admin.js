@@ -23,7 +23,7 @@ router.post('/get-users-details', verifyToken, verifyAdmin, async (request, resp
     try {
         pool.request()
             .input('_username', sql.VarChar(50), request.payload.username)
-            .query('select U.userEmail, UR.roleID from USERS U, USER_ROLE UR where U.userEmail != @_username AND U.userID = UR.userID' +
+            .query('select userID, roleID from USER_ROLE' +
                 ' select * from  USERS  where userEmail != @_username \n', (error, result) => {
                 if (error) {
                     console.log(error);
@@ -32,32 +32,19 @@ router.post('/get-users-details', verifyToken, verifyAdmin, async (request, resp
                     });
                 } else {
                     // console.log(JSON.stringify(result));
-                    let userElements = [];
-                    for (let i = 0; i < result.recordsets[1].length; i++) {
-                        let roleDetails = result.recordsets[0].filter(function (element) {
-                            return element.userEmail === result.recordsets[1][i].userEmail
-                        });
-                        let roleIDs = [];
-                        // console.log(roleDetails);
-                        for (let k = 0; k < roleDetails.length; k++) {
-                            roleIDs[k] = roleDetails[k].roleID
-                        }
-                        // console.log(JSON.stringify(roleIDs));
-                        userElements[i] = {
-                            details: result.recordsets[1][i],
-                            userEmail: result.recordsets[1][i].userEmail,
-                            password: result.recordsets[1][i].password,
-                            firstName: result.recordsets[1][i].firstName,
-                            lastName: result.recordsets[1][i].lastName,
-                            contactNumber: result.recordsets[1][i].contactNumber,
-                            roleIDs: roleIDs
-                        }
+                    const users = result.recordsets[1];
+                    const userRoles = result.recordsets[0];
+
+                    for (let user of users) {
+                        user.roleIDs = userRoles.filter(role => role.userID === user.userID).map(r => r.roleID);
                     }
-                    console.log(JSON.stringify(userElements));
+
+                    console.log(users);
                     response.status(200).send({
                         status: true,
-                        data: userElements,
+                        data: users,
                     });
+
                 }
             });
     } catch (e) {
