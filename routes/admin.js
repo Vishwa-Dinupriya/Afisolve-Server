@@ -17,7 +17,7 @@ router.get('/', (req, res, next) => {
     res.send('From admin route');
 })
 
-router.post('/get-users-details', verifyToken, verifyAdmin, async (request, response) => {
+router.post('/get-all-users-details', verifyToken, verifyAdmin, async (request, response) => {
 
     const pool = await poolPromise;
     try {
@@ -306,7 +306,7 @@ router.post('/get-all-complaints', verifyToken, verifyAdmin, async (request, res
                             description: result.recordsets[1][i].description,
                             finishedDate: result.recordsets[1][i].finishedDate,
                             lastDateOfPending: result.recordsets[1][i].lastDateOfPending,
-                            productID: result.recordsets[1][i].productID[0],
+                            productID: result.recordsets[1][i].productID,
                             status: result.recordsets[1][i].status,
                             subComplaintID: result.recordsets[1][i].subComplaintID,
                             submittedDate: result.recordsets[1][i].submittedDate,
@@ -415,7 +415,10 @@ router.post('/get-selected-complaint-details', verifyToken, verifyAdmin, async (
                                 projectManagerLastName: result.recordsets[3][0].lastName,
                                 accountCoordinatorEmail: result.recordsets[4][0].userEmail,
                                 accountCoordinatorFirstName: result.recordsets[4][0].firstName,
-                                accountCoordinatorLastName: result.recordsets[4][0].lastName
+                                accountCoordinatorLastName: result.recordsets[4][0].lastName,
+                                customerEmail: result.recordsets[5][0].userEmail,
+                                customerFirstName: result.recordsets[5][0].firstName,
+                                customerLastName: result.recordsets[5][0].lastName
                             },
                             images: images
                         })
@@ -509,20 +512,20 @@ router.post('/get-selected-product-details', verifyToken, verifyAdmin, async (re
                         response.status(200).send({
                             status: true,
                             data: {
-                                accountCoordinatorEmail: result.recordsets[0][0].accountCoordinatorEmail,
+                                accountCoordinatorEmail: result.recordsets[3][0].accountCoordinatorEmail,
                                 accountCoordinatorFirstName: result.recordsets[3][0].firstName,
                                 accountCoordinatorLastName: result.recordsets[3][0].lastName,
                                 category: result.recordsets[0][0].category,
                                 createdAt: result.recordsets[0][0].createdAt,
                                 createdBy: result.recordsets[0][0].createdBy,
-                                customerEmail: result.recordsets[0][0].customerEmail,
+                                customerEmail: result.recordsets[1][0].customerEmail,
                                 customerFirstName: result.recordsets[1][0].firstName,
                                 customerLastName: result.recordsets[1][0].lastName,
                                 modifiedAt: result.recordsets[0][0].modifiedAt,
                                 modifiedBy: result.recordsets[0][0].modifiedBy,
                                 productID: result.recordsets[0][0].productID,
                                 productName: result.recordsets[0][0].productName,
-                                projectManagerEmail: result.recordsets[0][0].projectManagerEmail,
+                                projectManagerEmail: result.recordsets[2][0].projectManagerEmail,
                                 projectManagerFirstName: result.recordsets[2][0].firstName,
                                 projectManagerLastName: result.recordsets[2][0].lastName
                             }
