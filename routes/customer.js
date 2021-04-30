@@ -258,13 +258,14 @@ router.get('/get-comments', verifyToken, verifyCustomer, async (request, respons
         pool.request()
             .input('_complaintID', sql.Int, request.query.complaintID)
             .query('SELECT * FROM COMMENT C WHERE complaintID=@_complaintID ORDER BY C.submittedTime \n'+
-                ' select senderID from COMMENT WHERE complaintID=@_complaintID', (error, result) => {
+                ' select userEmail from USERS U join COMMENT C on U.userID = C.senderID WHERE complaintID=@_complaintID', (error, result) => {
                 if (error) {
                     console.log(error);
                     response.status(500).send({
                         status: false
                     });
                 } else {
+                    console.log(JSON.stringify(result));
                     let comments = [];
                     let textOrImage;
                     let avatarPicture;
@@ -284,7 +285,7 @@ router.get('/get-comments', verifyToken, verifyCustomer, async (request, respons
                             try {//get the picture to 'img' from local memory
                                 avatarPicture = fs.readFileSync('./pictures/profile-pictures/' + result.recordsets[0][i].senderEmail + '.png', {encoding: 'base64'})
                             } catch (error) {
-                                avatarPicture = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
+                                avatarPicture = fs.readFileSync('./pictures/comment-pictures/default-comment-picture.png', {encoding: 'base64'});
                             }
                         } else { // when comment is not an image
                             avatarPicture = null;
@@ -292,7 +293,7 @@ router.get('/get-comments', verifyToken, verifyCustomer, async (request, respons
                         comments[i] = {
                             IsImage: result.recordsets[0][i].isImage,
                             content: textOrImage,
-                            senderEmail: result.recordsets[1][i].senderID,
+                            senderEmail: result.recordsets[1][i].userEmail,
                             senderAvatarPicture: avatarPicture
                         }
                     }
