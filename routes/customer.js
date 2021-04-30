@@ -275,7 +275,7 @@ router.get('/get-comments', verifyToken, verifyCustomer, async (request, respons
                             try {//get the picture to 'img' from local memory
                                 textOrImage = fs.readFileSync('./pictures/comment-pictures/' + result.recordsets[0][i].textOrImageName, {encoding: 'base64'})
                             } catch (error) {
-                                textOrImage = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
+                                textOrImage = fs.readFileSync('./pictures/comment-pictures/default-comment-picture.png', {encoding: 'base64'});
                             }
                         } else { // when comment is not an image
                             textOrImage = result.recordsets[0][i].textOrImageName
@@ -285,7 +285,7 @@ router.get('/get-comments', verifyToken, verifyCustomer, async (request, respons
                             try {//get the picture to 'img' from local memory
                                 avatarPicture = fs.readFileSync('./pictures/profile-pictures/' + result.recordsets[0][i].senderEmail + '.png', {encoding: 'base64'})
                             } catch (error) {
-                                avatarPicture = fs.readFileSync('./pictures/comment-pictures/default-comment-picture.png', {encoding: 'base64'});
+                                avatarPicture = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
                             }
                         } else { // when comment is not an image
                             avatarPicture = null;
