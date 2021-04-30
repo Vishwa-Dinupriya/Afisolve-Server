@@ -386,13 +386,13 @@ router.post('/get-selected-complaint-details', verifyToken, verifyAdmin, async (
                     if (result.returnValue === 0) {
                         console.log(JSON.stringify(result) + ' 322 admin.js');
                         let images = [];
-                        const nImages = result.recordsets[5].length;
+                        const nImages = result.recordsets[6].length;
                         for (let i = 0; i < nImages; i++) {
                             let img;
                             try {//get the picture to 'img' from local memory
-                                img = fs.readFileSync('./pictures/complaint-pictures/' + result.recordsets[5][i].imageName, {encoding: 'base64'})
+                                img = fs.readFileSync('./pictures/complaint-pictures/' + result.recordsets[6][i].imageName, {encoding: 'base64'})
                             } catch (error) {
-                                img = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
+                                img = fs.readFileSync('./pictures/complaint-pictures/default-complaint-picture.png', {encoding: 'base64'});
                             }
                             images.push(img);
                         }
