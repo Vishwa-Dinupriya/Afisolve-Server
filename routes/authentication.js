@@ -150,7 +150,7 @@ router.post('/register', verifyToken, verifyAdmin, async (request, response) => 
 });
 
 router.post('/login', async (request, response) => {
-    console.log(request.body);
+    // console.log(request.body);
     const data = request.body;
 
     try {
@@ -169,14 +169,16 @@ router.post('/login', async (request, response) => {
                     if (result.returnValue === 0) {
                         console.log('login successful..!');
                         // console.log(JSON.stringify(result, null, 2));
-                        console.log(JSON.stringify(result));
+                        // console.log(JSON.stringify(result));
                         // console.log(result.recordsets[1]);
                         // console.log( result.recordsets[0][0]);
 
                         let payload = {
+                            userID : result.recordsets[1][0].userID,
                             username: result.recordsets[1][0].username,
                             role: result.recordsets[0][0].roleName //aye backend ekata enne meka
                         }
+                        // console.log(payload);
 
                         let token = jwt.sign(payload, 'secretKey')
                         response.status(200).send({
@@ -186,7 +188,8 @@ router.post('/login', async (request, response) => {
                             token: token,
                             defaultRole: result.recordsets[0][0].roleName, // default role compo. ekat navigate kranne meken
                             firstname: result.recordsets[1][0].firstName,
-                            userEmail: result.recordsets[1][0].username
+                            userEmail: result.recordsets[1][0].username,
+                            userID : result.recordsets[1][0].userID,
                         })
                     } else {
                         console.log('Invalid username or password');
@@ -219,8 +222,10 @@ router.post('/role-change', verifyToken, async (request, response) => {
             .input('_requestedRole', sql.VarChar(25), request.body.roleName)
             .execute('roleChange', (error, result) => {
                 if (result.returnValue === 0) {
+                    console.log(JSON.stringify(result));
                     console.log('Role changing successful..!');
                     let payload = {
+                        userID : result.recordsets[1][0].userID,
                         username: result.recordsets[1][0].username,
                         role: result.recordsets[0][0].roleName //aye backend ekata enne meka
                     }

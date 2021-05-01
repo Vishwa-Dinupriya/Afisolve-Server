@@ -89,10 +89,10 @@ router.post('/get-selected-user-profile-details', verifyToken, verifyAdmin, asyn
                     });
                 } else {
                     if (result.returnValue === 0) {
-                        console.log(JSON.stringify(result) + ' 75 admin.js');
+                        // console.log(JSON.stringify(result) + ' 75 admin.js');
                         let img;
                         try {//get the picture to 'img' from local memory
-                            img = fs.readFileSync('./pictures/profile-pictures/' + request.body.selectedUserEmail + '.png', {encoding: 'base64'})
+                            img = fs.readFileSync('./pictures/profile-pictures/' + result.recordsets[0][0].userID + '.png', {encoding: 'base64'})
                         } catch (error) {
                             img = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
                         }
@@ -165,7 +165,7 @@ router.post('/update-selected-user-profile-details', verifyToken, verifyAdmin, a
                         message: 'something might went wrong..!'
                     });
                 } else {
-                    console.log(result);
+                    // console.log(JSON.stringify(result) + ' 168 admin.js');
                     if (result.returnValue === 0) {
                         try {
                             if (!newProfilePhoto) {
@@ -177,14 +177,14 @@ router.post('/update-selected-user-profile-details', verifyToken, verifyAdmin, a
                                 console.log('Data Successfully Entered!!');
 
                                 //encoding and save the picture to the local memory
-                                const path = './pictures/profile-pictures/' + data.email + '.png';
+                                const path = './pictures/profile-pictures/' + result.recordsets[0][0].userID + '.png';
                                 const base64Data = newProfilePhoto.replace(/^data:([A-Za-z-+/]+);base64,/, '');
                                 fs.writeFileSync(path, base64Data, {encoding: 'base64'});
 
                                 //get the picture to 'img' from local memory
                                 let img;
                                 try {
-                                    img = fs.readFileSync('./pictures/profile-pictures/' + request.body.email + '.png', {encoding: 'base64'});
+                                    img = fs.readFileSync('./pictures/profile-pictures/' + result.recordsets[0][0].userID + '.png', {encoding: 'base64'});
                                 } catch (error) {
                                     img = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
                                 }

@@ -721,7 +721,7 @@ where userEmail = @_email;
             where ur.userID = @userID
               and r.roleID = ur.roleID
               and ur.[default] = 1;
-            select userEmail username, firstName, lastName from USERS where userEmail = @_email;
+            select userEmail username, userID, firstName, lastName from USERS where userEmail = @_email;
             return 0;
         end
     else
@@ -878,7 +878,7 @@ where userEmail = @_username;
                      join USER_ROLE ur on r.roleID = ur.roleID
             where ur.userID = @userID
               and r.roleName = @_requestedRole;
-            select userEmail username from USERS where userEmail = @_username;
+            select userEmail username, userID from USERS where userEmail = @_username;
             return 0;
         end
     else
@@ -929,7 +929,7 @@ DECLARE @commentID int;
                                 from COMMENT
                                 where complaintID = @_complaintID) ;
     SET @commentID = iif(@currentMaxCommentID is null, 1, @currentMaxCommentID + 1);
-    IF (@_text is not null)
+    IF (@_text != '')
         BEGIN
             INSERT INTO COMMENT
             VALUES (@_complaintID,
@@ -952,8 +952,8 @@ DECLARE @i int;
             SET @i = @i + 1
             /* your code*/
             INSERT INTO COMMENT
-            VALUES (@_complaintID, @commentID, 1, TRIM(STR(@_complaintID)) + '-' + TRIM(STR(@i)) + '.png', @senderID,
-                    GETDATE(), 0)
+            VALUES (@_complaintID, @commentID, 1, TRIM(STR(@_complaintID)) + '-' + TRIM(STR(@commentID)) + '.png',
+                    @senderID, GETDATE(), 0)
             SELECT * FROM COMMENT where complaintID = @_complaintID and commentID = @commentID
             SET @commentID = @commentID + 1
         END
@@ -1050,6 +1050,10 @@ WHERE userEmail = @_oldEmail;
             FETCH NEXT FROM role_cursor INTO @role
         END
     CLOSE role_cursor
+
+SELECT *
+from USERS
+where userEmail = @_newEmail
     COMMIT TRANSACTION;
     RETURN 0;
 

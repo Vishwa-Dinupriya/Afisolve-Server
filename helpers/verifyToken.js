@@ -24,7 +24,7 @@ function verifyToken(req, res, next) {
 function verifyAdmin(req, res, next) {
     try {
         let role = req.payload.role;
-        console.log('this is the role: '+ role);
+        console.log('verifyAdmin: '+ role);
         if (role!='admin') {
             return res.status(401).send('Unauthorized request');
         }
@@ -52,7 +52,7 @@ function verifyProjectManager(req, res, next) {
 function verifyCustomer(req, res, next) {
     try {
         let role = req.payload.role;
-        console.log('this is the role: '+ role);
+        console.log('verifyCustomer: '+ role);
         if (role!='customer') {
 
             return res.status(401).send('Unauthorized request');

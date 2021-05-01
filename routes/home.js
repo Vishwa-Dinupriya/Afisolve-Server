@@ -14,7 +14,8 @@ router.get('/', (req, res) => {
 
 router.post('/user-toolbar-display-details', verifyToken, async (request, response) => {
     console.log('request.payload.role: ' + request.payload.role);
-    console.log('request.payload.role: ' + request.payload.username);
+    console.log('request.payload.username: ' + request.payload.username);
+    console.log('request.payload.userID: ' + request.payload.userID);
 
     const pool = await poolPromise;
     try {
@@ -30,7 +31,7 @@ router.post('/user-toolbar-display-details', verifyToken, async (request, respon
                     console.log(JSON.stringify(result));
                     let img;
                     try {//get the picture to 'img' from local memory
-                        img = fs.readFileSync('./pictures/profile-pictures/' + request.payload.username + '.png', {encoding: 'base64'})
+                        img = fs.readFileSync('./pictures/profile-pictures/' + request.payload.userID + '.png', {encoding: 'base64'})
                     } catch (error) {
                         img = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
                     }
@@ -71,10 +72,10 @@ router.post('/get-my-profile-details', verifyToken, async (request, response) =>
                         });
                     } else {
                         if (result.returnValue === 0) {
-                            console.log(JSON.stringify(result) + ' 73 home.js');
+                            // console.log(JSON.stringify(result) + ' 75 home.js');
                             let img;
                             try {//get the picture to 'img' from local memory
-                                img = fs.readFileSync('./pictures/profile-pictures/' + request.body.UserEmail + '.png', {encoding: 'base64'})
+                                img = fs.readFileSync('./pictures/profile-pictures/' + result.recordsets[0][0].userID + '.png', {encoding: 'base64'})
                             } catch (error) {
                                 img = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
                             }
@@ -157,14 +158,14 @@ router.post('/update-my-profile-details', verifyToken, async (request, response)
                                 console.log('Data Successfully Entered!!');
 
                                 //encoding and save the picture to the local memory
-                                const path = './pictures/profile-pictures/' + data.email + '.png';
+                                const path = './pictures/profile-pictures/' + result.recordsets[0][0].userID + '.png';
                                 const base64Data = newProfilePhoto.replace(/^data:([A-Za-z-+/]+);base64,/, '');
                                 fs.writeFileSync(path, base64Data, {encoding: 'base64'});
 
                                 //get the picture to 'img' from local memory
                                 let img;
                                 try {
-                                    img = fs.readFileSync('./pictures/profile-pictures/' + request.body.email + '.png', {encoding: 'base64'});
+                                    img = fs.readFileSync('./pictures/profile-pictures/' + result.recordsets[0][0].userID + '.png', {encoding: 'base64'});
                                 } catch (error) {
                                     img = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
                                 }
