@@ -459,6 +459,27 @@ router.post('/register-product', verifyToken, verifyAdmin, async (request, respo
                     response.status(500).send({
                         status: false
                     });
+                }else if (result.returnValue === -1) {
+                    console.log('registerProduct return -1')
+                    response.status(500).send({
+                        status: false,
+                        message: ''
+                    });
+                }else if (result.returnValue === -2) {
+                    response.status(500).send({
+                        status:false,
+                        message: 'Invalid customer!'
+                    });
+                } else if (result.returnValue === -3) {
+                    response.status(500).send({
+                        status: false,
+                        message: 'Invalid account-coordinator!'
+                    });
+                }  else if (result.returnValue === -4) {
+                    response.status(500).send({
+                        status: false,
+                        message: 'Invalid project-manager'
+                    });
                 } else {
                     response.status(200).send({
                         status: true,

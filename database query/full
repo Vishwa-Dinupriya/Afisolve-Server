@@ -763,6 +763,30 @@ DECLARE
     SET @productID = ((SELECT MAX(productID)
                        from PRODUCT) + 1);
     BEGIN TRANSACTION
+    if (not exists(select 1
+                   from USER_ROLE
+                   where userID = @customerID
+                     and roleID = 0))
+        begin
+            ROLLBACK TRANSACTION
+            RETURN -2;
+        end
+    if (not exists(select 1
+                   from USER_ROLE
+                   where userID = @accountCoordinatorID
+                     and roleID = 1))
+        begin
+            ROLLBACK TRANSACTION
+            RETURN -3;
+        end
+    if (not exists(select 1
+                   from USER_ROLE
+                   where userID = @projectManagerID
+                     and roleID = 3))
+        begin
+            ROLLBACK TRANSACTION
+            RETURN -4;
+        end
 INSERT INTO PRODUCT
 VALUES (iif(@productID is null, 1, @productID),
         @_productName,
