@@ -56,8 +56,12 @@ CREATE PROCEDURE createTask @_complaintID int,
                             @_developerEmail varchar(50)
 AS
     BEGIN TRANSACTION
+DECLARE @currentMaxtaskID int;
+DECLARE @taskID int;
+    SET @currentMaxtaskID = (SELECT MAX(taskID) from TASK) ;
+    SET @taskID = iif(@currentMaxtaskID is null , 1 , @currentMaxtaskID+1);
 INSERT INTO TASK
-VALUES ((Select MAX(taskID) FROM TASK) + 1,
+VALUES (@taskID,
         @_complaintID,
         @_subComplaintID,
         GETDATE(),
@@ -101,9 +105,12 @@ CREATE PROCEDURE AccCoordinatoraddComplaint @_productID int,
                               @_description varchar(5000)
 AS
     BEGIN TRANSACTION
-
+DECLARE @currentMaxComplaintID int;
+DECLARE @complaintID int;
+    SET @currentMaxComplaintID = (SELECT MAX(complaintID) from COMPLAINT) ;
+    SET @complaintID = iif(@currentMaxComplaintID is null , 1 , @currentMaxComplaintID+1);
 INSERT INTO COMPLAINT
-VALUES ((SELECT MAX(complaintID) from COMPLAINT) + 1,
+VALUES (@complaintID,
         0,
         @_description,
         0,
@@ -121,6 +128,7 @@ VALUES ((SELECT MAX(complaintID) from COMPLAINT) + 1,
     ROLLBACK TRANSACTION
     RETURN -1;
 go
+
 
 CREATE procedure getSelectedTaskDetails(@_taskID int)
 as
@@ -144,14 +152,23 @@ end
     RETURN -1
 go
 
-create procedure updateSelectedComplaintStatusDetails (@_ID INT, @_subID INT, @_Status varchar(10))
+CREATE procedure updateComplaintStatusDetailsByAccoor (@_ID INT, @_subID INT, @_Status varchar(10))
 AS
     BEGIN TRANSACTION
-UPDATE COMPLAINT
-SET status = (select statusID from COMPLAINT_STATUS where statusName = @_Status )
-WHERE complaintID = @_ID AND  subComplaintID = @_subID
+DECLARE @wipStartDate int;
+   if   @_Status = 'InProgress'
+        UPDATE COMPLAINT
+        SET status = (select statusID from COMPLAINT_STATUS where statusName = @_Status ),  wipStartDate = GETDATE()
+        WHERE complaintID = @_ID AND  subComplaintID = @_subID
+    else if @_Status = 'Completed'
+            UPDATE COMPLAINT
+            SET status = (select statusID from COMPLAINT_STATUS where statusName = @_Status ),  finishedDate = GETDATE()
+            WHERE complaintID = @_ID AND  subComplaintID = @_subID
+    else UPDATE COMPLAINT
+         SET status = (select statusID from COMPLAINT_STATUS where statusName = @_Status )
+         WHERE complaintID = @_ID AND  subComplaintID = @_subID
 
-IF @@ROWCOUNT = 0 GOTO errorHandler;
+    IF @@ROWCOUNT = 0 GOTO errorHandler;
     COMMIT TRANSACTION;
     RETURN 0;
 
@@ -159,6 +176,8 @@ IF @@ROWCOUNT = 0 GOTO errorHandler;
     ROLLBACK TRANSACTION
     RETURN -1;
 go
+
+
 
 create procedure updateDevTaskStatus (@_taskID INT,@_task_status varchar(20))
 AS

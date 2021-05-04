@@ -48,7 +48,7 @@ router.post('/update-common-complaint-status', verifyToken, verifyAccountCoordin
             .input('_ID', sql.Int, request.body.complaintID)
             .input('_subID', sql.Int, request.body.subComplaintID)
             .input('_Status', sql.VarChar(10), request.body.complaintStatus)
-            .execute('updateComplaintStatusDetails', (error, result) => {
+            .execute('updateComplaintStatusDetailsByAccoor', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
