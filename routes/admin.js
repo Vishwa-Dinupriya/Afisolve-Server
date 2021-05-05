@@ -498,15 +498,32 @@ router.post('/get-all-products', verifyToken, verifyAdmin, async (request, respo
     const pool = await poolPromise;
     try {
         pool.request()
-            .query('select * from PRODUCT', (error, result) => {
+            .query('select * from PRODUCT \n' + 'select * from USERS', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
                     });
                 } else {
+                    console.log(JSON.stringify(result) + ' 507 admin.js');
+                    let productElements = [];
+                    for (let i = 0; i < result.recordsets[0].length; i++) {
+                        productElements[i] = {
+                            productID: result.recordsets[0][i].productID,
+                            productName: result.recordsets[0][i].productName,
+                            category: result.recordsets[0][i].category,
+                            createdAt: result.recordsets[0][i].createdAt,
+                            modifiedAt: result.recordsets[0][i].modifiedAt,
+                            customerEmail:  result.recordsets[1].filter(element => element.userID === result.recordsets[0][i].customerID).map(user => user.userEmail)[0],
+                            accountCoordinatorEmail:  result.recordsets[1].filter(element => element.userID === result.recordsets[0][i].accountCoordinatorID).map(user => user.userEmail)[0],
+                            projectManagerEmail:  result.recordsets[1].filter(element => element.userID === result.recordsets[0][i].projectManagerID).map(user => user.userEmail)[0],
+                            createdBy:  result.recordsets[1].filter(element => element.userID === result.recordsets[0][i].createdBy).map(user => user.userEmail)[0],
+                            modifiedBy:  result.recordsets[1].filter(element => element.userID === result.recordsets[0][i].modifiedBy).map(user => user.userEmail)[0]
+                        }
+                    }
+                    console.log(productElements);
                     response.status(200).send({
                         status: true,
-                        data: result.recordset
+                        data: productElements
                     });
                 }
             });
