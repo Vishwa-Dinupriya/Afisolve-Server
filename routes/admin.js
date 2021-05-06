@@ -376,9 +376,9 @@ router.post('/get-selected-complaint-details', verifyToken, verifyAdmin, async (
         pool.request()
             .input('_complaintID', sql.Int, request.body.complaintID)
             .input('_subComplaintID', sql.Int, request.body.subComplaintID)
-            .execute('getSelectedComplaintDetails', (error, result) => {
+            .execute('getSelectedComplaintDetailsAdmin', (error, result) => {
                 if (error) {
-                    console.log('cannot run getSelectedComplaintDetails');
+                    console.log('cannot run getSelectedComplaintDetailsAdmin');
                     response.status(500).send({
                         status: false
                     });
@@ -423,7 +423,7 @@ router.post('/get-selected-complaint-details', verifyToken, verifyAdmin, async (
                             images: images
                         })
                     } else {
-                        console.log('getSelectedUserDetails return -1');
+                        console.log('getSelectedComplaintDetailsAdmin return -1');
                         response.status(500).send({message: 'return value = -1'});
                     }
                 }
@@ -640,5 +640,62 @@ router.post('/get-feedbacks-details', verifyToken, verifyAdmin, async (request, 
         response.status(500).send({status: false});
     }
 });
+
+router.post('/get-selected-feedback-details', verifyToken, verifyAdmin, async (request, response) => {
+    console.log(' complaintID: ' + request.body.complaintID);
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .input('_complaintID', sql.Int, request.body.complaintID)
+            .execute('getSelectedFeedbackDetails', (error, result) => {
+                if (error) {
+                    console.log('cannot run getSelectedFeedbackDetails');
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    if (result.returnValue === 0) {
+                        console.log(JSON.stringify(result) + ' 659 admin.js');
+                        response.status(200).send({
+                            status: true,
+                            data: {
+                                complaintID: result.recordsets[0][0].complaintID,
+                                description: result.recordsets[0][0].description,
+                                satisfaction: result.recordsets[0][0].satisfaction,
+                                productID: result.recordsets[1][0].productID,
+                                productName: result.recordsets[1][0].productName,
+                                projectManagerEmail: result.recordsets[2][0].userEmail,
+                                projectManagerFirstName: result.recordsets[2][0].firstName,
+                                projectManagerLastName: result.recordsets[2][0].lastName,
+                                accountCoordinatorEmail: result.recordsets[3][0].userEmail,
+                                accountCoordinatorFirstName: result.recordsets[3][0].firstName,
+                                accountCoordinatorLastName: result.recordsets[3][0].lastName,
+                                customerEmail: result.recordsets[4][0].userEmail,
+                                customerFirstName: result.recordsets[4][0].firstName,
+                                customerLastName: result.recordsets[4][0].lastName,
+                                submittedDate: result.recordsets[5][0].submittedDate,
+                                lastDateOfPending: result.recordsets[5][0].lastDateOfPending,
+                                wipStartDate: result.recordsets[5][0].wipStartDate,
+                                finishedDate: result.recordsets[5][0].finishedDate,
+                                nOfSubComplaints: result.recordsets[6][0].nOfSubComplaints
+                            },
+                        })
+                    } else {
+                        console.log('getSelectedUserDetails return -1');
+                        response.status(500).send({message: 'return value = -1'});
+                    }
+                }
+            })
+        ;
+    } catch (e) {
+        response.status(500).send(
+            {
+                status: false
+            }
+        )
+    }
+});
+
 
 module.exports = router;
