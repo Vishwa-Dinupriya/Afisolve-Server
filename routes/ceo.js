@@ -24,7 +24,7 @@ router.get('/get-complaint-details1', verifyToken, async (request, response) => 
     const pool = await poolPromise;
     try {
         pool.request()
-          .query('select c.complaintID, c.subComplaintID, c.description, s.statusName, c.submittedDate, u.firstName from  COMPLAINT c, PRODUCT p , COMPLAINT_STATUS s, USERS u where c.productID=p.productID and c.status=s.statusID and u.userID=p.accountCoordinatorID', (error, result) => {
+          .query('select c.complaintID, c.subComplaintID, c.description, s.statusName, c.submittedDate, u.firstName, u.lastName, p.productID from  COMPLAINT c, PRODUCT p , COMPLAINT_STATUS s, USERS u where c.productID=p.productID and c.status=s.statusID and u.userID=p.accountCoordinatorID', (error, result) => {
                 if (error) {
                      response.status(500).send({
                         status: false
@@ -47,7 +47,23 @@ router.get('/get-complaint-details', verifyToken, async (request, response) => {
     const pool = await poolPromise;
     try {
          pool.request()
-            .query('select * from view_buddhi', (error, result) => {
+            .query('select c.complaintID, p.productID\n' +
+                '                       ,c.description\n' +
+                '                       ,c.submittedDate\n' +
+                '                      , c.lastDateOfPending\n' +
+                '                      ,u.firstName\n' +
+                '                      ,u.lastName\n' +
+                '                     , u.userEmail\n' +
+                '                      , p.accountCoordinatorID\n' +
+                '                from COMPLAINT c\n' +
+                '                     ,PRODUCT p\n' +
+                '                     ,COMPLAINT_STATUS s\n' +
+                '                     ,USERS u\n' +
+                '                where c.productID = p.productID\n' +
+                '                  and c.status = s.statusID\n' +
+                '                  and u.userID = p.accountCoordinatorID\n' +
+                '                  and c.status = \'0\'\n' +
+                '                  and c.lastDateOfPending < GETDATE()', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -276,8 +292,9 @@ router.post('/update-reminder', verifyToken, async (request, response)=> {
     try {
         const pool = await poolPromise;
         pool.request()
-            .input('_rem', sql.VarChar(10), data.productID)
+            .input('_rem', sql.Int, data.productID)
             .input('_aon', sql.VarChar(40), data.firstName)
+            .input('_sec', sql.VarChar(40), data.lastName)
             .input('_kan', sql.VarChar(20), charithe)
             .input('_wan', sql.VarChar(20), whaction)
             .execute('newreminder', (error, result) => {
@@ -327,18 +344,20 @@ router.get('/get-reminder-details', verifyToken, async (request, response) => {
 //........................changinng history seen eka mmethana idn....................
 
 
-router.put('/update-history-previous', verifyToken, async (request, response)=> {
+router.post('/update-history-for-ac-change', verifyToken, async (request, response)=> {
     const data = request.body;
     const charithe1= 'CEO';
     const whaction1= 'Change A.Coordinator';
-    console.log(data)
     try {
          const pool = await poolPromise;
          pool.request()
-            .input('_pon', sql.VarChar(10), data.productID)
-            .input('_ton', sql.VarChar(40), data.firstName)
+            .input('_pon', sql.Int, data.a.productID)
+            .input('_ton', sql.VarChar(40), data.a.firstName)
+             .input('_sec', sql.VarChar(40), data.a.lastName)
             .input('_ban', sql.VarChar(20), charithe1)
             .input('_dan', sql.VarChar(20), whaction1)
+             .input('_newton', sql.VarChar(40), data.b.firstName)
+             .input('_newsec', sql.VarChar(40), data.b.lastName)
             .execute('newhistory', (error, result) => {
                 if (error) {
                     response.status(500).send({
@@ -419,11 +438,10 @@ router.get('/get-notaction-details', verifyToken, async (request, response) => {
 //........................history seen eka
 
 router.get('/get-full-history', verifyToken, async (request, response) => {
-
     const pool = await poolPromise;
     try {
          pool.request()
-            .query('select * from CHANGINGHISTORY', (error, result) => {
+             .query('SELECT \'0000\'+CAST(productID AS varchar(10)) as productID , submittedtime, preAcName, newAcName, exAcName, doneBy, action FROM CHANGINGHISTORY', (error, result) => {
                  if (error) {
                      response.status(500).send({
                         status: false
