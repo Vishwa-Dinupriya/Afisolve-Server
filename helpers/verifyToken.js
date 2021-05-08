@@ -64,10 +64,26 @@ function verifyCustomer(req, res, next) {
 }
 
 
+function verifyAccountCoordinator(req, res, next) {
+    try {
+        let role = req.payload.role;
+        console.log('this is the role: '+ role);
+        if (role!='accountCoordinator') {
+
+            return res.status(401).send('Unauthorized request');
+        }
+        next();
+    } catch (exception) {
+        return res.status(401).send('Unauthorized request');
+    }
+}
+
+
 module.exports = {
     verifyToken,
     verifyAdmin,
     verifyCustomer,
-    verifyProjectManager
+    verifyProjectManager,
+    verifyAccountCoordinator
 
 }

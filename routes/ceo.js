@@ -295,6 +295,7 @@ router.post('/update-reminder', verifyToken, async (request, response)=> {
             .input('_rem', sql.Int, data.productID)
             .input('_aon', sql.VarChar(40), data.firstName)
             .input('_sec', sql.VarChar(40), data.lastName)
+            .input('_aoni', sql.Int, data.accountCoordinatorID)
             .input('_kan', sql.VarChar(20), charithe)
             .input('_wan', sql.VarChar(20), whaction)
             .execute('newreminder', (error, result) => {
@@ -348,17 +349,20 @@ router.post('/update-history-for-ac-change', verifyToken, async (request, respon
     const data = request.body;
     const charithe1= 'CEO';
     const whaction1= 'Change A.Coordinator';
+    console.log(data.b.userID)
     try {
          const pool = await poolPromise;
          pool.request()
-            .input('_pon', sql.Int, data.a.productID)
-            .input('_ton', sql.VarChar(40), data.a.firstName)
+             .input('_pon', sql.Int, data.a.productID)
+             .input('_ton', sql.VarChar(40), data.a.firstName)
              .input('_sec', sql.VarChar(40), data.a.lastName)
-            .input('_ban', sql.VarChar(20), charithe1)
-            .input('_dan', sql.VarChar(20), whaction1)
+             .input('_toni', sql.Int, data.a.accountCoordinatorID)
+             .input('_ban', sql.VarChar(20), charithe1)
+             .input('_dan', sql.VarChar(20), whaction1)
              .input('_newton', sql.VarChar(40), data.b.firstName)
              .input('_newsec', sql.VarChar(40), data.b.lastName)
-            .execute('newhistory', (error, result) => {
+             .input('_newtoni', sql.Int, data.b.userID)
+             .execute('newhistory', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false

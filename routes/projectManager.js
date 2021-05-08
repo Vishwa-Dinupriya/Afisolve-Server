@@ -257,7 +257,7 @@ router.post('/update-reminder', verifyToken, async (request, response)=> {
     const data = request.body;
     const charithe= 'Project-Manager';
     const whaction= 'Reminder';
-    console.log(data.complaintID);
+    console.log(data.accountCoordinatorID + "vbnm dhjd jsjsj sjsjjs skskkks");
 
 
 
@@ -298,6 +298,7 @@ router.post('/update-reminder', verifyToken, async (request, response)=> {
             .input('_rem', sql.Int, data.productID)
             .input('_aon', sql.VarChar(40), data.firstName)
             .input('_sec', sql.VarChar(40), data.lastName)
+            .input('_aoni', sql.Int, data.accountCoordinatorID)
             .input('_kan', sql.VarChar(20), charithe)
             .input('_wan', sql.VarChar(20), whaction)
             .execute('newreminder', (error, result) => {
@@ -319,29 +320,6 @@ router.post('/update-reminder', verifyToken, async (request, response)=> {
 
 })
 
-router.get('/get-reminder-details', verifyToken, async (request, response) => {
-
-    const pool = await poolPromise;
-    try {
-        // pool.request()
-        //     .query('select * from CHANGINGHISTORY \n' +
-        //         'where wAction=\'Reminder\'', (error, result) => {
-        //         if (error) {
-        //             response.status(500).send({
-        //                 status: false
-        //             });
-        //         } else {
-        //             response.status(200).send({
-        //                 status: true,
-        //                 data: result.recordset
-        //             });
-        //         }
-        //     });
-    } catch (e) {
-        response.status(500).send({status: false});
-    }
-});
-
 
 //........................changinng history seen eka mmethana idn....................
 
@@ -350,13 +328,14 @@ router.post('/update-history-for-ac-change', verifyToken, async (request, respon
     const data = request.body;
     const charithe1 = 'Project-Manager';
     const whaction1 = 'Change A.Coordinator';
-    console.log(data)
     try {
         const pool = await poolPromise;
         pool.request()
             .input('_pon', sql.Int, data.a.productID)
+            .input('_newtoni', sql.Int, data.b.userID)
             .input('_ton', sql.VarChar(40), data.a.firstName)
             .input('_sec', sql.VarChar(40), data.a.lastName)
+            .input('_toni', sql.Int, data.a.accountCoordinatorID)
             .input('_ban', sql.VarChar(20), charithe1)
             .input('_dan', sql.VarChar(20), whaction1)
             .input('_newton', sql.VarChar(40), data.b.firstName)
@@ -381,31 +360,6 @@ router.post('/update-history-for-ac-change', verifyToken, async (request, respon
 })
 
 
-router.put('/update-history-new', verifyToken, async (request, response)=> {
-    const data = request.body.accountCoordinatorName;
-    console.log(data)
-    try {
-        // const pool = await poolPromise;
-        // pool.request()
-        //     .input('_son', sql.VarChar(40), data)
-        //     .execute('updatehistory', (error, result) => {
-        //         if (error) {
-        //             response.status(500).send({
-        //                 status: false
-        //             });
-        //
-        //         } else {
-        //             response.status(200).send({
-        //                 status: true,
-        //                 data: result.recordset
-        //             });
-        //         }
-        //     });
-    } catch (e) {
-        response.status(500).send({status: false});
-    }
-
-})
 
 
 //........................history seen eka
@@ -415,9 +369,7 @@ router.get('/get-full-history', verifyToken, async (request, response) => {
     const pool = await poolPromise;
     try {
         pool.request()
-            .query('\n' +
-                '\n' +
-                'SELECT \'0000\'+CAST(productID AS varchar(10)) as productID , submittedtime, preAcName, newAcName, exAcName, doneBy, action FROM CHANGINGHISTORY ', (error, result) => {
+            .query('SELECT \'0000\'+CAST(productID AS varchar(10)) as productID , submittedtime, preAcName, newAcName, exAcName, doneBy, action FROM CHANGINGHISTORY', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
