@@ -454,7 +454,7 @@ router.post('/get-product-details', verifyToken, verifyAccountCoordinator, async
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 //-----------------------Send Mail-----------------------------//
-router.post('/sendMail', verifyToken, verifyAccountCoordinator, async (request, response) => {
+router.post('/sendMail', verifyToken, async (request, response) => {
     const data = request.body;
     console.log(data)
     const receiver= data.recMail;

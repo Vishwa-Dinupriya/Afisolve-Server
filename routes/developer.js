@@ -181,7 +181,7 @@ router.post('/get-devComplaints-details', verifyToken,verifyDeveloper, async (re
     const pool = await poolPromise;
     try {
         pool.request()
-            .query('select * from COMPLAINT c,COMPLAINT_STATUS s where c.status=s.statusID order by c.complaintID', (error, result) => {
+            .query('select c.complaintID, c.subComplaintID, c.productID, p.productName, c.submittedDate,  s.statusName from COMPLAINT c,COMPLAINT_STATUS s, PRODUCT p where c.status=s.statusID AND p.productID = c.productID order by c.complaintID', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -204,7 +204,7 @@ router.post('/get-devProducts-details', verifyToken,verifyDeveloper, async (requ
     const pool = await poolPromise;
     try {
         pool.request()
-            .query('select p.productID, p.productName, p.category, ap.userEmail as projectManagerEmail, aa.userEmail as accountCoordinatorEmail from PRODUCT p, Ayoma_ProjectManagers ap, Ayoma_AccountCoordinators aa where p.projectManagerID = ap.userID AND p.accountCoordinatorID = aa.userID ', (error, result) => {
+            .query("select p.productID, p.productName, p.category, ap.firstName +' '+ ap.lastName as projectManagerName , ap.userEmail as projectManagerEmail, aa.firstName +' '+ aa.lastName as accountCoordinatorName, aa.userEmail as accountCoordinatorEmail from PRODUCT p, Ayoma_ProjectManagers ap, Ayoma_AccountCoordinators aa where p.projectManagerID = ap.userID AND p.accountCoordinatorID = aa.userID ", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -220,5 +220,75 @@ router.post('/get-devProducts-details', verifyToken,verifyDeveloper, async (requ
         response.status(500).send({status: false});
     }
 });
+// Get selected complaint details
+router.post('/get-selected-complaint-details', verifyToken,verifyDeveloper,  async (request, response) => {
+    console.log(' complaintID: ' + request.body.complaintID);
+    console.log(' subComplaintID: ' + request.body.subComplaintID);
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .input('_complaintID', sql.Int, request.body.complaintID)
+            .input('_subComplaintID', sql.Int, request.body.subComplaintID)
+            .execute('getSelectedComplaintDetails', (error, result) => {
+                if (error) {
+                    console.log('cannot run getSelectedUserDetails');
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    if (result.returnValue === 0) {
+                        console.log(JSON.stringify(result) + ' 322 developer.js');
+                        let images = [ ];
+                        const nImages = result.recordsets[5].length;
+                        for(let i=0; i<nImages; i++){
+                            let img;
+                            try {//get the picture to 'img' from local memory
+                                img = fs.readFileSync('./pictures/complaint-pictures/' + result.recordsets[5][i].imageName, {encoding: 'base64'})
+                            } catch (error) {
+                                img = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
+                            }
+                            images.push(img);
+                        }
+                        response.status(200).send({
+                            status: true,
+                            data: {
+                                complaintID: result.recordsets[0][0].complaintID,
+                                subComplaintID: result.recordsets[0][0].subComplaintID,
+                                description: result.recordsets[0][0].description,
+                                statusID: result.recordsets[0][0].status,
+                                submittedDate: result.recordsets[0][0].submittedDate,
+                                lastDateOfPending: result.recordsets[0][0].lastDateOfPending,
+                                wipStartDate: result.recordsets[0][0].wipStartDate,
+                                finishedDate: result.recordsets[0][0].finishedDate,
+                                productID: result.recordsets[0][0].productID,
+                                statusName: result.recordsets[1][0].statusName,
+                                productName: result.recordsets[2][0].productName,
+                                projectManagerEmail: result.recordsets[3][0].userEmail,
+                                projectManagerFirstName: result.recordsets[3][0].firstName,
+                                projectManagerLastName: result.recordsets[3][0].lastName,
+                                accountCoordinatorEmail: result.recordsets[4][0].userEmail,
+                                accountCoordinatorFirstName: result.recordsets[4][0].firstName,
+                                accountCoordinatorLastName: result.recordsets[4][0].lastName
+                            },
+                            images: images
+                        })
+                    } else {
+                        console.log('getSelectedUserDetails return -1');
+                        response.status(500).send({message: 'return value = -1'});
+                    }
+                }
+            })
+        ;
+    } catch (e) {
+        response.status(500).send(
+            {
+                status: false
+            }
+        )
+    }
+});
+
+
 
 module.exports = router;
