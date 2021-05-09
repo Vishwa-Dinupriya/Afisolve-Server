@@ -374,5 +374,134 @@ router.get('/get-feedback-countcus', verifyToken, async (request, response) => {
     }
 });
 
+// ----------------------------------------Dashboard ekata data-----------
+
+router.get('/get-full-count', verifyToken, verifyCustomer, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .input('_pmEmail', sql.VarChar(50), request.payload.username)
+            .query('\n' +
+                'select COUNT(*) as count from COMPLAINT c , PRODUCT p \n' +
+                'where p.productID = c.productID and p.customerID= (select userID from USERS where userEmail= @_pmEmail )', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+router.get('/get-pending-count', verifyToken, verifyCustomer, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .input('_pmEmail', sql.VarChar(50), request.payload.username)
+            .query('\n' +
+                'select COUNT(*) as count from COMPLAINT c , PRODUCT p \n' +
+                'where p.productID = c.productID and p.customerID= (select userID from USERS where userEmail= @_pmEmail) and c.status=\'0\' ', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+router.get('/get-working-count', verifyToken, verifyCustomer, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .input('_pmEmail', sql.VarChar(50), request.payload.username)
+            .query('\n' +
+                'select COUNT(*) as count from COMPLAINT c , PRODUCT p \n' +
+                'where p.productID = c.productID and p.customerID= (select userID from USERS where userEmail= @_pmEmail) and c.status=\'1\' ', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+router.get('/get-finish-count', verifyToken, verifyCustomer, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .input('_pmEmail', sql.VarChar(50), request.payload.username)
+            .query('\n' +
+                'select COUNT(*) as count from COMPLAINT c , PRODUCT p \n' +
+                'where p.productID = c.productID and p.customerID= (select userID from USERS where userEmail= @_pmEmail) and c.status=\'2\' ', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+router.get('/get-closed-count', verifyToken, verifyCustomer, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .input('_pmEmail', sql.VarChar(50), request.payload.username)
+            .query('\n' +
+                'select COUNT(*) as count from COMPLAINT c , PRODUCT p \n' +
+                'where p.productID = c.productID and p.customerID= (select userID from USERS where userEmail= @_pmEmail) and c.status=\'3\' ', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+
 
 module.exports = router;
