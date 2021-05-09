@@ -300,6 +300,46 @@ where userEmail = @_username;
         end
 go
 
+CREATE PROCEDURE forgotPasswordChange @_email VARCHAR(50),
+                                      @_newPassword VARCHAR(20),
+                                      @_clientOtp INT,
+                                      @_generatedOtpID INT
+AS
+DECLARE @userID int, @role INT, @generatedOTPValue int;
+
+SELECT @generatedOTPValue = otpCode
+FROM OTP
+where otpID = @_generatedOtpID;
+-- delete otp record from the OTP table
+Delete
+from OTP
+where otpID = @_generatedOtpID
+
+    BEGIN TRANSACTION
+    if (@_clientOtp != @generatedOTPValue)
+        begin
+            ROLLBACK TRANSACTION
+            return -2;
+        end
+    else
+        if not exists(select 1 from USERS where userEmail = @_email)
+            begin
+                ROLLBACK TRANSACTION
+                return -3;
+            end
+UPDATE USERS
+SET password = @_newPassword
+where userEmail = @_email
+    IF @@ROWCOUNT = 0 GOTO errorHandler;
+
+    COMMIT TRANSACTION;
+    RETURN 0;
+
+    errorHandler:
+    ROLLBACK TRANSACTION
+    RETURN -1;
+go
+
 CREATE procedure getCustomerComplaintsByStatusID @_customerEmail VARCHAR(50),
                                                  @_reqComplaintsStatus int
 as
@@ -1085,17 +1125,20 @@ DECLARE
 DECLARE
     role_cursor CURSOR LOCAL FOR SELECT *
                                  FROM @_roles
-    if (@_oldEmail != @_newEmail and @_clientOtp != @generatedOTPValue)
+    if (@_oldEmail != @_newEmail)
         begin
-            ROLLBACK TRANSACTION
-            return -2;
+            if (@_clientOtp != @generatedOTPValue)
+                begin
+                    ROLLBACK TRANSACTION
+                    return -2;
+                end
+            else
+                if (exists(select 1 from USERS where userEmail = @_newEmail))
+                    begin
+                        ROLLBACK TRANSACTION
+                        return -3;
+                    end
         end
-    else
-        if (@_oldEmail != @_newEmail and exists(select 1 from USERS where userEmail = @_newEmail))
-            begin
-                ROLLBACK TRANSACTION
-                return -3;
-            end
 
     OPEN cursor_email
     fetch next from cursor_email into @userIDTemp, @roleID
