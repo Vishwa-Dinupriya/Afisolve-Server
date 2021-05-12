@@ -3,8 +3,8 @@ const sql = require('mssql');
 const config = {
     server: 'localhost',
     instance: 'MSSQLSERVER',
-    user: 'vishwa',
-    password: '12345',
+    user: 'sanduni',
+    password: '123456',
     database: 'afisolve',
     options: {
         enableArithAbort: true,

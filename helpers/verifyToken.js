@@ -1,21 +1,27 @@
 const jwt = require('jsonwebtoken')
 
 function verifyToken(req, res, next) {
+    // console.log(req.headers.authentication, "request eka");
     if (!req.headers.authentication) {
+        console.log('try eke if !req.headers.authentication eka ')
         return res.status(401).send('Unauthorized request');
     }
     let token = req.headers.authentication.split(' ')[1];
     if (token === 'null') {
+        console.log('verifyToken  try eke if token==null eka ')
         return res.status(401).send('Unauthorized request');
     }
     try {
         let payload = jwt.verify(token, 'secretKey');
         if (!payload) {
+            console.log('verifyToken  try eke if !payload eka ')
             return res.status(401).send('Unauthorized request');
         }
+        // console.log('verifyToken eke try else ')
         req.payload = payload; // attach the payload to request
         next();
     } catch (exception) {
+        console.log('verifyToken eke catch eka ')
         return res.status(401).send('Unauthorized request');
     }
 
@@ -49,6 +55,8 @@ function verifyProjectManager(req, res, next) {
     }
 }
 
+
+
 function verifyCustomer(req, res, next) {
     try {
         let role = req.payload.role;
@@ -59,6 +67,7 @@ function verifyCustomer(req, res, next) {
         }
         next();
     } catch (exception) {
+        console.log('verifyCustomer eke catch eka ');
         return res.status(401).send('Unauthorized request');
     }
 }

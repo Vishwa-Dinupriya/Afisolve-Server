@@ -168,10 +168,6 @@ router.post('/login', async (request, response) => {
                 } else {
                     if (result.returnValue === 0) {
                         console.log('login successful..!');
-                        // console.log(JSON.stringify(result, null, 2));
-                        // console.log(JSON.stringify(result));
-                        // console.log(result.recordsets[1]);
-                        // console.log( result.recordsets[0][0]);
 
                         let payload = {
                             userID : result.recordsets[1][0].userID,
@@ -203,7 +199,7 @@ router.post('/login', async (request, response) => {
             });
 
     } catch (error) {
-        console.log(error);
+        // console.log(error);
         response.status(500).send({
             status: false,
             message: 'DB Connection error..!'
