@@ -300,6 +300,46 @@ where userEmail = @_username;
         end
 go
 
+CREATE PROCEDURE forgotPasswordChange @_email VARCHAR(50),
+                                      @_newPassword VARCHAR(20),
+                                      @_clientOtp INT,
+                                      @_generatedOtpID INT
+AS
+DECLARE @userID int, @role INT, @generatedOTPValue int;
+
+SELECT @generatedOTPValue = otpCode
+FROM OTP
+where otpID = @_generatedOtpID;
+-- delete otp record from the OTP table
+Delete
+from OTP
+where otpID = @_generatedOtpID
+
+    BEGIN TRANSACTION
+    if (@_clientOtp != @generatedOTPValue)
+        begin
+            ROLLBACK TRANSACTION
+            return -2;
+        end
+    else
+        if not exists(select 1 from USERS where userEmail = @_email)
+            begin
+                ROLLBACK TRANSACTION
+                return -3;
+            end
+UPDATE USERS
+SET password = @_newPassword
+where userEmail = @_email
+    IF @@ROWCOUNT = 0 GOTO errorHandler;
+
+    COMMIT TRANSACTION;
+    RETURN 0;
+
+    errorHandler:
+    ROLLBACK TRANSACTION
+    RETURN -1;
+go
+
 CREATE procedure getCustomerComplaintsByStatusID @_customerEmail VARCHAR(50),
                                                  @_reqComplaintsStatus int
 as
@@ -409,8 +449,8 @@ where userEmail = @_customerEmail;
     RETURN -1;
 go
 
-CREATE procedure getSelectedComplaintDetails(@_complaintID int,
-                                             @_subComplaintID int)
+CREATE procedure getSelectedComplaintDetailsAdmin(@_complaintID int,
+                                                  @_subComplaintID int)
 as
     if exists(select 1
               from COMPLAINT
@@ -531,6 +571,68 @@ where userEmail = @_customerEmail;
     errorHandler:
     ROLLBACK TRANSACTION
     RETURN -1;
+go
+
+CREATE procedure getSelectedFeedbackDetails(@_complaintID int)
+as
+    if exists(select 1
+              from FEEDBACK
+              where complaintID = @_complaintID
+                and subComplaintID = 0)
+        begin
+            select * from FEEDBACK where complaintID = @_complaintID and subComplaintID = 0
+
+            select P.productID, P.productName
+            from PRODUCT P
+                     JOIN COMPLAINT C2 on P.productID = C2.productID
+            where C2.complaintID = @_complaintID
+              and C2.subComplaintID = 0
+
+            select userEmail, firstName, lastName
+            from USERS USR
+                     JOIN PRODUCT P2 on USR.userID = P2.projectManagerID
+            where P2.productID = (select P.productID
+                                  from PRODUCT P
+                                           JOIN COMPLAINT C2 on P.productID = C2.productID
+                                  where C2.complaintID = @_complaintID
+                                    and C2.subComplaintID = 0)
+
+            select userEmail, firstName, lastName
+            from USERS USR
+                     JOIN PRODUCT P2 on USR.userID = P2.accountCoordinatorID
+            where P2.productID = (select P.productID
+                                  from PRODUCT P
+                                           JOIN COMPLAINT C2 on P.productID = C2.productID
+                                  where C2.complaintID = @_complaintID
+                                    and C2.subComplaintID = 0)
+
+            select userEmail, firstName, lastName
+            from USERS USR
+                     JOIN PRODUCT P2 on USR.userID = P2.customerID
+            where P2.productID = (select P.productID
+                                  from PRODUCT P
+                                           JOIN COMPLAINT C2 on P.productID = C2.productID
+                                  where C2.complaintID = @_complaintID
+                                    and C2.subComplaintID = 0)
+
+            select * from COMPLAINT where complaintID = @_complaintID and subComplaintID = 0
+
+            select COUNT(subComplaintID) as nOfSubComplaints
+            from COMPLAINT
+            where complaintID = @_complaintID and subComplaintID != 0
+
+            return 0;
+        end
+    else
+        begin
+            GOTO errorHandler;
+        end
+    COMMIT TRANSACTION;
+    RETURN 0;
+
+    errorHandler:
+    ROLLBACK TRANSACTION
+    RETURN -1
 go
 
 CREATE procedure getSelectedProductDetails(@_productID int)
@@ -1023,17 +1125,20 @@ DECLARE
 DECLARE
     role_cursor CURSOR LOCAL FOR SELECT *
                                  FROM @_roles
-    if (@_oldEmail != @_newEmail and @_clientOtp != @generatedOTPValue)
+    if (@_oldEmail != @_newEmail)
         begin
-            ROLLBACK TRANSACTION
-            return -2;
+            if (@_clientOtp != @generatedOTPValue)
+                begin
+                    ROLLBACK TRANSACTION
+                    return -2;
+                end
+            else
+                if (exists(select 1 from USERS where userEmail = @_newEmail))
+                    begin
+                        ROLLBACK TRANSACTION
+                        return -3;
+                    end
         end
-    else
-        if (@_oldEmail != @_newEmail and exists(select 1 from USERS where userEmail = @_newEmail))
-            begin
-                ROLLBACK TRANSACTION
-                return -3;
-            end
 
     OPEN cursor_email
     fetch next from cursor_email into @userIDTemp, @roleID

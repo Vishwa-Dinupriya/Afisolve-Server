@@ -108,7 +108,7 @@ router.post('/get-my-profile-details', verifyToken, async (request, response) =>
     }
 });
 
-router.post('/update-my-profile-details', verifyToken, async (request, response) => {
+router.post('/update-own-profile-details', verifyToken, async (request, response) => {
     const oldEmail = request.body.emailOld;
     const data = request.body.userNewData;
     const adminEmail = request.payload.username;

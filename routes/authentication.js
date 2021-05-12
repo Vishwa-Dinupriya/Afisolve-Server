@@ -16,7 +16,7 @@ router.get('/', (req, res) => {
     res.send('From authentication route');
 });
 
-router.post('/sendOtpToEmail', verifyToken, async (request, response) => {
+router.post('/sendOtpToEmail', async (request, response) => {
     console.log(request.body);
     const data = request.body;
     let otpID;
@@ -120,14 +120,14 @@ router.post('/register', verifyToken, verifyAdmin, async (request, response) => 
                                     message: 'Server Error!'
                                 });
                             }
-                        }else if(result.returnValue===-2) {//vishwa brogen ahanna
+                        }else if(result.returnValue===-2) {
                             console.log('otp not equal')
                             response.status(500).send({
                                 status: false,
                                 message: 'invalid OTP(one-time-password) code!'
                             });
                         }
-                        else if(result.returnValue===-3) {//vishwa brogen ahanna
+                        else if(result.returnValue===-3) {
                             console.log('existing user')
                             response.status(500).send({
                                 status: false,
@@ -135,8 +135,10 @@ router.post('/register', verifyToken, verifyAdmin, async (request, response) => 
                             });
                         }
 
-                        else {//vishwa brogen ahanna
-                            response.status(500).send({message: 'from error handler'});
+                        else {
+                            response.status(500).send({
+                                status:false,
+                                message: 'error! but not from error handler'});
                         }
                     }
                 });
@@ -206,6 +208,76 @@ router.post('/login', async (request, response) => {
         });
     }
 
+});
+
+router.post('/forget-password',async (request, response) => {
+    console.log(request.body);
+
+    const newPassword = request.body.newPassword;
+    const otpClient = request.body.otp;
+    const generatedOtpID = request.body.otpID;
+
+
+    try {
+        const pool = await poolPromise;
+        await pool.request()
+            .input('_email', sql.VarChar(50), request.body.forgetPasswordEmail)
+            .input('_newPassword', sql.VarChar(20), newPassword)
+            .input('_clientOtp', sql.Int, otpClient)
+            .input('_generatedOtpID', sql.Int, generatedOtpID)
+            .execute('forgotPasswordChange', (error, result) => {
+                if (error) {
+                    console.log(error);
+                    if (error.number === 2627) {
+                        response.status(500).send({
+                            status: false,
+                            message: 'Entered email already exists'
+                        });
+                    } else {//query Error..!
+                        response.status(500).send({
+                            status: false,
+                            message: 'something might went wrong..!'
+                        });
+                    }
+                } else {
+
+                    if (result.returnValue === 0) {
+                        console.log('Password reset successfully!')
+                        response.status(200).send({
+                            status: true,
+                            message: 'Password reset successfully!'
+                        });
+                    }else if(result.returnValue===-2) {
+                        console.log('Client otp and generated otp mismatched ')
+                        response.status(500).send({
+                            status: false,
+                            message: 'OTP(one-time-password) code mismatched!'
+                        });
+                    }
+                    else if(result.returnValue===-3) {
+                        console.log('existing user')
+                        response.status(500).send({
+                            status: false,
+                            message: 'Entered email is not exist! '
+                        });
+                    }
+
+                    else {
+                        console.log('error! but not from error handler');
+                        response.status(500).send({
+                            status:false,
+                            message: 'Something might went wrong!'
+                        });
+                    }
+                }
+            });
+    } catch (error) {
+        console.log(error);
+        response.status(500).send({
+            status: false,
+            message: 'DB connection Error..!'
+        });
+    }
 });
 
 router.post('/role-change', verifyToken, async (request, response) => {
