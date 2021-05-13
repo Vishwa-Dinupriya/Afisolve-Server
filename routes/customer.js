@@ -55,7 +55,7 @@ router.post('/lodge-complaint', verifyToken, verifyCustomer, async (request, res
 router.post('/get-complaints-by-statusID', verifyToken, verifyCustomer, async (request, response) => {
 
     const pool = await poolPromise;
-    console.log(request.body.statusID);
+    // console.log(request.body.statusID);
     try {
         pool.request()
             .input('_customerEmail', sql.VarChar(50), request.payload.username)
@@ -66,7 +66,7 @@ router.post('/get-complaints-by-statusID', verifyToken, verifyCustomer, async (r
                         status: false
                     });
                 } else {
-                    console.log(JSON.stringify(result) + ' 56 customer.js');
+                    // console.log(JSON.stringify(result) + ' 56 customer.js');
                     let complaintElements = [];
                     for (let i = 0; i < result.recordsets[1].length; i++) {
                         complaintElements[i] = {
@@ -84,7 +84,7 @@ router.post('/get-complaints-by-statusID', verifyToken, verifyCustomer, async (r
                             })
                         }
                     }
-                    console.log(complaintElements);
+                    // console.log(complaintElements);
 
                     response.status(200).send({
                         status: true,
@@ -201,7 +201,7 @@ router.post('/get-all-products', verifyToken, verifyCustomer, async (request, re
     try {
         pool.request()
             .input('_customerEmail', sql.VarChar(50), request.payload.username)
-            .query('select * from PRODUCT where customerEmail=@_customerEmail', (error, result) => {
+            .query('select * from PRODUCT where customerID= (select userID from USERS where userEmail = @_customerEmail)', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -252,18 +252,20 @@ router.post('/create-feedback', verifyToken, verifyCustomer, async (request, res
 
 //--get comments for requested complaint ID
 router.get('/get-comments', verifyToken, verifyCustomer, async (request, response) => {
-    console.log(request.payload);
     const pool = await poolPromise;
     try {
         pool.request()
             .input('_complaintID', sql.Int, request.query.complaintID)
-            .query('SELECT * FROM COMMENT C WHERE complaintID=@_complaintID ORDER BY C.submittedTime ', (error, result) => {
+            .input('_reqSenderUname', sql.VarChar(50), request.payload.username)
+            .query('SELECT * FROM COMMENT C WHERE complaintID=@_complaintID ORDER BY C.submittedTime \n'+
+                ' select userID from USERS U WHERE userEmail=@_reqSenderUname', (error, result) => {
                 if (error) {
                     console.log(error);
                     response.status(500).send({
                         status: false
                     });
                 } else {
+                    console.log(JSON.stringify(result) + ' : 268 customer');
                     let comments = [];
                     let textOrImage;
                     let avatarPicture;
@@ -273,25 +275,25 @@ router.get('/get-comments', verifyToken, verifyCustomer, async (request, respons
                             try {//get the picture to 'img' from local memory
                                 textOrImage = fs.readFileSync('./pictures/comment-pictures/' + result.recordsets[0][i].textOrImageName, {encoding: 'base64'})
                             } catch (error) {
-                                textOrImage = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
+                                textOrImage = fs.readFileSync('./pictures/comment-pictures/default-comment-picture.png', {encoding: 'base64'});
                             }
                         } else { // when comment is not an image
                             textOrImage = result.recordsets[0][i].textOrImageName
                         }
-                        if (result.recordsets[0][i].senderEmail !== request.payload.username) {
-                            console.log(result.recordsets[0][i].senderEmail);
+                        if (result.recordsets[0][i].senderID !== request.payload.userID) {
+                            // console.log(result.recordsets[0][i]);
                             try {//get the picture to 'img' from local memory
-                                avatarPicture = fs.readFileSync('./pictures/profile-pictures/' + result.recordsets[0][i].senderEmail + '.png', {encoding: 'base64'})
+                                avatarPicture = fs.readFileSync('./pictures/profile-pictures/' + result.recordsets[0][i].senderID + '.png', {encoding: 'base64'})
                             } catch (error) {
                                 avatarPicture = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
                             }
-                        } else { // when comment is not an image
+                        } else {
                             avatarPicture = null;
                         }
                         comments[i] = {
                             IsImage: result.recordsets[0][i].isImage,
                             content: textOrImage,
-                            senderEmail: result.recordsets[0][i].senderEmail,
+                            senderID: result.recordsets[0][i].senderID,
                             senderAvatarPicture: avatarPicture
                         }
                     }
@@ -308,9 +310,6 @@ router.get('/get-comments', verifyToken, verifyCustomer, async (request, respons
 
 //--save comments for requested complaint ID
 router.put('/save-comment_', verifyToken, verifyCustomer, async (request, response) => {
-    console.log(request.payload.username);
-    console.log('nOfImages: ' + request.body.images.length);
-    console.log('text' + request.body.text);
     const images = request.body.images;
     try {
         const pool = await poolPromise;
@@ -327,7 +326,7 @@ router.put('/save-comment_', verifyToken, verifyCustomer, async (request, respon
                     });
 
                 } else {
-                    console.log(JSON.stringify(result) + '330 customer');
+                    // console.log(JSON.stringify(result) + ' : 330 customer');
                     if (result.recordsets.length !== 0) {
                         for (let i = 0; i < result.recordsets.length; i++) {
                             //encoding and save the picture to the local memory

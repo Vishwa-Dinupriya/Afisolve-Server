@@ -9,35 +9,51 @@ const {sql} = require('../helpers/mssql-server-connection');
 const {verifyToken} = require('../helpers/verifyToken');
 const {verifyAdmin} = require('../helpers/verifyToken');
 
+const otpService = require('../helpers/otpService');
+const {sendOtp} = require("../helpers/otpService");
+
 //------------------------------------------users-----------------------------------------------
 router.get('/', (req, res, next) => {
     res.send('From admin route');
 })
 
-router.post('/get-users-details', verifyToken, verifyAdmin, async (request, response) => {
+router.post('/get-all-users-details', verifyToken, verifyAdmin, async (request, response) => {
 
     const pool = await poolPromise;
     try {
         pool.request()
             .input('_username', sql.VarChar(50), request.payload.username)
-            .query('select * from USERS where userEmail!= @_username', (error, result) => {
+            .query('select userID, roleID from USER_ROLE' +
+                ' select * from  USERS  where userEmail != @_username \n', (error, result) => {
                 if (error) {
+                    console.log(error);
                     response.status(500).send({
                         status: false
                     });
                 } else {
+                    // console.log(JSON.stringify(result));
+                    const users = result.recordsets[1];
+                    const userRoles = result.recordsets[0];
+
+                    for (let user of users) {
+                        user.roleIDs = userRoles.filter(role => role.userID === user.userID).map(r => r.roleID);
+                    }
+
+                    console.log(users);
                     response.status(200).send({
                         status: true,
-                        data: result.recordset
+                        data: users,
                     });
+
                 }
             });
     } catch (e) {
+        consoel.log(error);
         response.status(500).send({status: false});
     }
 });
 
-router.post('/get-active-users', verifyToken, verifyAdmin, async (request, response) => {
+router.post('/get-users-details-brief', verifyToken, verifyAdmin, async (request, response) => {
 
     const pool = await poolPromise;
     try {
@@ -73,10 +89,10 @@ router.post('/get-selected-user-profile-details', verifyToken, verifyAdmin, asyn
                     });
                 } else {
                     if (result.returnValue === 0) {
-                        console.log(JSON.stringify(result) + ' 75 admin.js');
+                        // console.log(JSON.stringify(result) + ' 75 admin.js');
                         let img;
                         try {//get the picture to 'img' from local memory
-                            img = fs.readFileSync('./pictures/profile-pictures/' + request.body.selectedUserEmail + '.png', {encoding: 'base64'})
+                            img = fs.readFileSync('./pictures/profile-pictures/' + result.recordsets[0][0].userID + '.png', {encoding: 'base64'})
                         } catch (error) {
                             img = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
                         }
@@ -112,11 +128,12 @@ router.post('/get-selected-user-profile-details', verifyToken, verifyAdmin, asyn
 });
 
 router.post('/update-selected-user-profile-details', verifyToken, verifyAdmin, async (request, response) => {
-
     const oldEmail = request.body.emailOld;
     const data = request.body.userNewData;
     const adminEmail = request.payload.username;
     const newProfilePhoto = request.body.newProfilePhoto_;
+    const clientOtp = request.body.clientOtp;
+    const generatedOtpID = request.body.generatedOtpID;
 
     try {
 
@@ -138,44 +155,46 @@ router.post('/update-selected-user-profile-details', verifyToken, verifyAdmin, a
             .input('_defaultRole', sql.Int, data.defaultRole)
             .input('_contactNumber', sql.VarChar(20), data.contactNumber)
             .input('_modifiedAdmin', sql.VarChar(50), adminEmail)
+            .input('_clientOtp', sql.Int, clientOtp)
+            .input('_generatedOtpID', sql.Int, generatedOtpID)
             .execute('updateSelectedUserDetails', (error, result) => {
                 if (error) {
                     console.log(error);
                     response.status(500).send({
                         status: false,
-                        message: error
+                        message: 'something might went wrong..!'
                     });
                 } else {
-                    console.log(result);
+                    // console.log(JSON.stringify(result) + ' 168 admin.js');
                     if (result.returnValue === 0) {
                         try {
-                           if(!newProfilePhoto) {
-                               response.status(200).send({
-                                   status: true,
-                                   message: 'Data Successfully Updated! Image not found!!'
-                               });
-                           }else{
-                               console.log('Data Successfully Entered!!');
+                            if (!newProfilePhoto) {
+                                response.status(200).send({
+                                    status: true,
+                                    message: 'Data Successfully Updated! Image not found!!'
+                                });
+                            } else {
+                                console.log('Data Successfully Entered!!');
 
-                               //encoding and save the picture to the local memory
-                               const path = './pictures/profile-pictures/' + data.email + '.png';
-                               const base64Data = newProfilePhoto.replace(/^data:([A-Za-z-+/]+);base64,/, '');
-                               fs.writeFileSync(path, base64Data, {encoding: 'base64'});
+                                //encoding and save the picture to the local memory
+                                const path = './pictures/profile-pictures/' + result.recordsets[0][0].userID + '.png';
+                                const base64Data = newProfilePhoto.replace(/^data:([A-Za-z-+/]+);base64,/, '');
+                                fs.writeFileSync(path, base64Data, {encoding: 'base64'});
 
-                               //get the picture to 'img' from local memory
-                               let img;
-                               try {
-                                   img = fs.readFileSync('./pictures/profile-pictures/' + request.body.email + '.png', {encoding: 'base64'});
-                               } catch (error) {
-                                   img = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
-                               }
-                               response.status(200).send({
-                                   status: true,
-                                   message: 'Data Successfully Entered!',
-                                   image: img
-                               });
-                           }
-                        }catch (error){
+                                //get the picture to 'img' from local memory
+                                let img;
+                                try {
+                                    img = fs.readFileSync('./pictures/profile-pictures/' + result.recordsets[0][0].userID + '.png', {encoding: 'base64'});
+                                } catch (error) {
+                                    img = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
+                                }
+                                response.status(200).send({
+                                    status: true,
+                                    message: 'Data Successfully Entered!',
+                                    image: img
+                                });
+                            }
+                        } catch (error) {
                             console.log(error);
                             response.status(500).send({
                                 status: false,
@@ -183,6 +202,15 @@ router.post('/update-selected-user-profile-details', verifyToken, verifyAdmin, a
                             });
                         }
 
+                    } else if (result.returnValue === -2) {
+                        console.log('stored procedure returned -2');
+                        response.status(500).send({message: 'Entered OTP mismatched'});
+                    } else if (result.returnValue === -3) {
+                        console.log('existing user')
+                        response.status(500).send({
+                            status: false,
+                            message: 'Entered email already exists!'
+                        });
                     } else {
                         console.log('2');
                         response.status(500).send({message: 'from error handler'});
@@ -259,6 +287,7 @@ router.post('/get-complaints-details-brief', verifyToken, verifyAdmin, async (re
 });
 
 router.post('/get-all-complaints', verifyToken, verifyAdmin, async (request, response) => {
+
     const pool = await poolPromise;
     try {
         pool.request()
@@ -277,7 +306,7 @@ router.post('/get-all-complaints', verifyToken, verifyAdmin, async (request, res
                             description: result.recordsets[1][i].description,
                             finishedDate: result.recordsets[1][i].finishedDate,
                             lastDateOfPending: result.recordsets[1][i].lastDateOfPending,
-                            productID: result.recordsets[1][i].productID[0],
+                            productID: result.recordsets[1][i].productID,
                             status: result.recordsets[1][i].status,
                             subComplaintID: result.recordsets[1][i].subComplaintID,
                             submittedDate: result.recordsets[1][i].submittedDate,
@@ -302,41 +331,41 @@ router.post('/get-all-complaints', verifyToken, verifyAdmin, async (request, res
     }
 });
 
-router.post('/get-subComplaints', verifyToken, verifyAdmin, async (request, response) => {
-
-    const pool = await poolPromise;
-    try {
-        pool.request()
-            .input('_complainId', sql.VarChar(10), request.body.selectedComplaintID)
-            .execute('getSubComplaintsOfSelectedComplain', (error, result) => {
-                if (error) {
-                    console.log('cannot run getSubComplaintsOfSelectedComplain');
-                    response.status(500).send({
-                        status: false
-                    });
-                } else {
-                    if (result.returnValue === 0) {
-                        console.log(JSON.stringify(result) + ' 74 admin.js');
-                        response.status(200).send({
-                            status: true,
-                            data: result.recordset
-                        })
-                    } else if (result.returnValue === 1) {
-                        console.log(JSON.stringify(result));
-                        response.status(500).send({
-                            status: false,
-                            message: 'no sub-complaints',
-                        })
-                    } else {
-                        console.log('getSubComplaintsOfSelectedComplain return -1');
-                        response.status(500).send({message: 'return value = -1'});
-                    }
-                }
-            });
-    } catch (e) {
-        response.status(500).send({status: false});
-    }
-});
+// router.post('/get-subComplaints', verifyToken, verifyAdmin, async (request, response) => {
+//
+//     const pool = await poolPromise;
+//     try {
+//         pool.request()
+//             .input('_complainId', sql.VarChar(10), request.body.selectedComplaintID)
+//             .execute('getSubComplaintsOfSelectedComplain', (error, result) => {
+//                 if (error) {
+//                     console.log('cannot run getSubComplaintsOfSelectedComplain');
+//                     response.status(500).send({
+//                         status: false
+//                     });
+//                 } else {
+//                     if (result.returnValue === 0) {
+//                         console.log(JSON.stringify(result) + ' 74 admin.js');
+//                         response.status(200).send({
+//                             status: true,
+//                             data: result.recordset
+//                         })
+//                     } else if (result.returnValue === 1) {
+//                         console.log(JSON.stringify(result));
+//                         response.status(500).send({
+//                             status: false,
+//                             message: 'no sub-complaints',
+//                         })
+//                     } else {
+//                         console.log('getSubComplaintsOfSelectedComplain return -1');
+//                         response.status(500).send({message: 'return value = -1'});
+//                     }
+//                 }
+//             });
+//     } catch (e) {
+//         response.status(500).send({status: false});
+//     }
+// });
 
 router.post('/get-selected-complaint-details', verifyToken, verifyAdmin, async (request, response) => {
     console.log(' complaintID: ' + request.body.complaintID);
@@ -347,23 +376,23 @@ router.post('/get-selected-complaint-details', verifyToken, verifyAdmin, async (
         pool.request()
             .input('_complaintID', sql.Int, request.body.complaintID)
             .input('_subComplaintID', sql.Int, request.body.subComplaintID)
-            .execute('getSelectedComplaintDetails', (error, result) => {
+            .execute('getSelectedComplaintDetailsAdmin', (error, result) => {
                 if (error) {
-                    console.log('cannot run getSelectedUserDetails');
+                    console.log('cannot run getSelectedComplaintDetailsAdmin');
                     response.status(500).send({
                         status: false
                     });
                 } else {
                     if (result.returnValue === 0) {
                         console.log(JSON.stringify(result) + ' 322 admin.js');
-                        let images = [ ];
-                        const nImages = result.recordsets[5].length;
-                        for(let i=0; i<nImages; i++){
+                        let images = [];
+                        const nImages = result.recordsets[6].length;
+                        for (let i = 0; i < nImages; i++) {
                             let img;
                             try {//get the picture to 'img' from local memory
-                                img = fs.readFileSync('./pictures/complaint-pictures/' + result.recordsets[5][i].imageName, {encoding: 'base64'})
+                                img = fs.readFileSync('./pictures/complaint-pictures/' + result.recordsets[6][i].imageName, {encoding: 'base64'})
                             } catch (error) {
-                                img = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
+                                img = fs.readFileSync('./pictures/complaint-pictures/default-complaint-picture.png', {encoding: 'base64'});
                             }
                             images.push(img);
                         }
@@ -386,12 +415,15 @@ router.post('/get-selected-complaint-details', verifyToken, verifyAdmin, async (
                                 projectManagerLastName: result.recordsets[3][0].lastName,
                                 accountCoordinatorEmail: result.recordsets[4][0].userEmail,
                                 accountCoordinatorFirstName: result.recordsets[4][0].firstName,
-                                accountCoordinatorLastName: result.recordsets[4][0].lastName
+                                accountCoordinatorLastName: result.recordsets[4][0].lastName,
+                                customerEmail: result.recordsets[5][0].userEmail,
+                                customerFirstName: result.recordsets[5][0].firstName,
+                                customerLastName: result.recordsets[5][0].lastName
                             },
                             images: images
                         })
                     } else {
-                        console.log('getSelectedUserDetails return -1');
+                        console.log('getSelectedComplaintDetailsAdmin return -1');
                         response.status(500).send({message: 'return value = -1'});
                     }
                 }
@@ -427,6 +459,27 @@ router.post('/register-product', verifyToken, verifyAdmin, async (request, respo
                     response.status(500).send({
                         status: false
                     });
+                }else if (result.returnValue === -1) {
+                    console.log('registerProduct return -1')
+                    response.status(500).send({
+                        status: false,
+                        message: ''
+                    });
+                }else if (result.returnValue === -2) {
+                    response.status(500).send({
+                        status:false,
+                        message: 'Invalid customer!'
+                    });
+                } else if (result.returnValue === -3) {
+                    response.status(500).send({
+                        status: false,
+                        message: 'Invalid account-coordinator!'
+                    });
+                }  else if (result.returnValue === -4) {
+                    response.status(500).send({
+                        status: false,
+                        message: 'Invalid project-manager'
+                    });
                 } else {
                     response.status(200).send({
                         status: true,
@@ -445,15 +498,32 @@ router.post('/get-all-products', verifyToken, verifyAdmin, async (request, respo
     const pool = await poolPromise;
     try {
         pool.request()
-            .query('select * from PRODUCT', (error, result) => {
+            .query('select * from PRODUCT \n' + 'select * from USERS', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
                     });
                 } else {
+                    console.log(JSON.stringify(result) + ' 507 admin.js');
+                    let productElements = [];
+                    for (let i = 0; i < result.recordsets[0].length; i++) {
+                        productElements[i] = {
+                            productID: result.recordsets[0][i].productID,
+                            productName: result.recordsets[0][i].productName,
+                            category: result.recordsets[0][i].category,
+                            createdAt: result.recordsets[0][i].createdAt,
+                            modifiedAt: result.recordsets[0][i].modifiedAt,
+                            customerEmail:  result.recordsets[1].filter(element => element.userID === result.recordsets[0][i].customerID).map(user => user.userEmail)[0],
+                            accountCoordinatorEmail:  result.recordsets[1].filter(element => element.userID === result.recordsets[0][i].accountCoordinatorID).map(user => user.userEmail)[0],
+                            projectManagerEmail:  result.recordsets[1].filter(element => element.userID === result.recordsets[0][i].projectManagerID).map(user => user.userEmail)[0],
+                            createdBy:  result.recordsets[1].filter(element => element.userID === result.recordsets[0][i].createdBy).map(user => user.userEmail)[0],
+                            modifiedBy:  result.recordsets[1].filter(element => element.userID === result.recordsets[0][i].modifiedBy).map(user => user.userEmail)[0]
+                        }
+                    }
+                    console.log(productElements);
                     response.status(200).send({
                         status: true,
-                        data: result.recordset
+                        data: productElements
                     });
                 }
             });
@@ -480,20 +550,20 @@ router.post('/get-selected-product-details', verifyToken, verifyAdmin, async (re
                         response.status(200).send({
                             status: true,
                             data: {
-                                accountCoordinatorEmail: result.recordsets[0][0].accountCoordinatorEmail,
+                                accountCoordinatorEmail: result.recordsets[3][0].accountCoordinatorEmail,
                                 accountCoordinatorFirstName: result.recordsets[3][0].firstName,
                                 accountCoordinatorLastName: result.recordsets[3][0].lastName,
                                 category: result.recordsets[0][0].category,
                                 createdAt: result.recordsets[0][0].createdAt,
                                 createdBy: result.recordsets[0][0].createdBy,
-                                customerEmail: result.recordsets[0][0].customerEmail,
+                                customerEmail: result.recordsets[1][0].customerEmail,
                                 customerFirstName: result.recordsets[1][0].firstName,
                                 customerLastName: result.recordsets[1][0].lastName,
                                 modifiedAt: result.recordsets[0][0].modifiedAt,
                                 modifiedBy: result.recordsets[0][0].modifiedBy,
                                 productID: result.recordsets[0][0].productID,
                                 productName: result.recordsets[0][0].productName,
-                                projectManagerEmail: result.recordsets[0][0].projectManagerEmail,
+                                projectManagerEmail: result.recordsets[2][0].projectManagerEmail,
                                 projectManagerFirstName: result.recordsets[2][0].firstName,
                                 projectManagerLastName: result.recordsets[2][0].lastName
                             }
@@ -571,182 +641,61 @@ router.post('/get-feedbacks-details', verifyToken, verifyAdmin, async (request, 
     }
 });
 
-
-//........................................... dashboard....................
-
-router.post('/get-all-user-count', verifyToken, verifyAdmin, async (request, response) => {
+router.post('/get-selected-feedback-details', verifyToken, verifyAdmin, async (request, response) => {
+    console.log(' complaintID: ' + request.body.complaintID);
 
     const pool = await poolPromise;
     try {
         pool.request()
-            .query('SELECT count(*) as count FROM USERS', (error, result) => {
+            .input('_complaintID', sql.Int, request.body.complaintID)
+            .execute('getSelectedFeedbackDetails', (error, result) => {
                 if (error) {
+                    console.log('cannot run getSelectedFeedbackDetails');
                     response.status(500).send({
                         status: false
                     });
                 } else {
-                    response.status(200).send({
-                        status: true,
-                        data: result.recordset
-                    });
+                    if (result.returnValue === 0) {
+                        console.log(JSON.stringify(result) + ' 659 admin.js');
+                        response.status(200).send({
+                            status: true,
+                            data: {
+                                complaintID: result.recordsets[0][0].complaintID,
+                                description: result.recordsets[0][0].description,
+                                satisfaction: result.recordsets[0][0].satisfaction,
+                                productID: result.recordsets[1][0].productID,
+                                productName: result.recordsets[1][0].productName,
+                                projectManagerEmail: result.recordsets[2][0].userEmail,
+                                projectManagerFirstName: result.recordsets[2][0].firstName,
+                                projectManagerLastName: result.recordsets[2][0].lastName,
+                                accountCoordinatorEmail: result.recordsets[3][0].userEmail,
+                                accountCoordinatorFirstName: result.recordsets[3][0].firstName,
+                                accountCoordinatorLastName: result.recordsets[3][0].lastName,
+                                customerEmail: result.recordsets[4][0].userEmail,
+                                customerFirstName: result.recordsets[4][0].firstName,
+                                customerLastName: result.recordsets[4][0].lastName,
+                                submittedDate: result.recordsets[5][0].submittedDate,
+                                lastDateOfPending: result.recordsets[5][0].lastDateOfPending,
+                                wipStartDate: result.recordsets[5][0].wipStartDate,
+                                finishedDate: result.recordsets[5][0].finishedDate,
+                                nOfSubComplaints: result.recordsets[6][0].nOfSubComplaints
+                            },
+                        })
+                    } else {
+                        console.log('getSelectedUserDetails return -1');
+                        response.status(500).send({message: 'return value = -1'});
+                    }
                 }
-            });
+            })
+        ;
     } catch (e) {
-        response.status(500).send({status: false});
+        response.status(500).send(
+            {
+                status: false
+            }
+        )
     }
 });
-
-router.post('/get-active-user-count', verifyToken, verifyAdmin, async (request, response) => {
-
-    const pool = await poolPromise;
-    try {
-        pool.request()
-            .query('select  count(*) as count from USERS where USERS.activeStatus =\'true\'', (error, result) => {
-                if (error) {
-                    response.status(500).send({
-                        status: false
-                    });
-                } else {
-                    response.status(200).send({
-                        status: true,
-                        data: result.recordset
-                    });
-                }
-            });
-    } catch (e) {
-        response.status(500).send({status: false});
-    }
-});
-
-router.post('/get-all-complaints-count', verifyToken, verifyAdmin, async (request, response) => {
-    const pool = await poolPromise;
-    try {
-        pool.request()
-            .query('SELECT count(*) as count FROM COMPLAINT', (error, result) => {
-                if (error) {
-                    response.status(500).send({
-                        status: false
-                    });
-                } else {
-                    response.status(200).send({
-                        status: true,
-                        data: result.recordset
-                    });
-                }
-            });
-    } catch (e) {
-        response.status(500).send({status: false});
-    }
-});
-
-
-router.post('/get-closed-complaints-count', verifyToken, verifyAdmin, async (request, response) => {
-
-    const pool = await poolPromise;
-    try {
-        pool.request()
-            .query('select count(*) as count from COMPLAINT where status= \'3\'', (error, result) => {
-                if (error) {
-                    response.status(500).send({
-                        status: false
-                    });
-                } else {
-                    response.status(200).send({
-                        status: true,
-                        data: result.recordset
-                    });
-                }
-            });
-    } catch (e) {
-        response.status(500).send({status: false});
-    }
-});
-
-
-// .........................chart..............
-
-
-//....................................... TIME EKT ANUWA COMPLAINT
-router.get('/get-month-count', verifyToken, async (request, response) => {
-
-    const pool = await poolPromise;
-    try {
-        pool.request()
-            .query('\n' +
-                'SELECT TOP 5 count(*) as num, format(submittedDate, \'yyyy-MM\') as month\n' +
-                'FROM COMPLAINT\n' +
-                'GROUP BY format(submittedDate, \'yyyy-MM\')\n' +
-                'order by 2 DESC', (error, result) => {
-                if (error) {
-                    response.status(500).send({
-                        status: false
-                    });
-                } else {
-                    response.status(200).send({
-                        status: true,
-                        data: result.recordset
-                    });
-                }
-            });
-    } catch (e) {
-        response.status(500).send({status: false});
-    }
-});
-
-// ..............timme ekta anuwa users la...
-
-router.get('/get-month-count-users', verifyToken, async (request, response) => {
-
-    const pool = await poolPromise;
-    try {
-        pool.request()
-            .query('SELECT TOP 5 count(*) as num, format(createdAt, \'yyyy-MM\') as month\n' +
-                '                FROM USERS\n' +
-                '                GROUP BY format(createdAt, \'yyyy-MM\')\n' +
-                '                order by 2 DESC', (error, result) => {
-                if (error) {
-                    response.status(500).send({
-                        status: false
-                    });
-                } else {
-                    response.status(200).send({
-                        status: true,
-                        data: result.recordset
-                    });
-                }
-            });
-    } catch (e) {
-        response.status(500).send({status: false});
-    }
-});
-
-router.get('/get-feedback-count', verifyToken, async (request, response) => {
-
-    const pool = await poolPromise;
-    try {
-        pool.request()
-            .query('SELECT  count(*) as num, satisfaction\n' +
-                '                FROM FEEDBACK\n' +
-                '                GROUP BY satisfaction\n' +
-                '                order by 2 DESC', (error, result) => {
-                if (error) {
-                    response.status(500).send({
-                        status: false
-                    });
-                } else {
-                    response.status(200).send({
-                        status: true,
-                        data: result.recordset
-                    });
-                }
-            });
-    } catch (e) {
-        response.status(500).send({status: false});
-    }
-});
-
-
-
 
 
 module.exports = router;
