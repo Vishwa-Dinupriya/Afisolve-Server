@@ -255,6 +255,118 @@ where complaintID = @_complaintID
     RETURN -1;
 go
 
+CREATE procedure deleteSelectedComplaint @_complaintID int
+as
+    BEGIN TRANSACTION
+DECLARE @complaintIDTemp int, @subComplaintIDTemp int, @commentIDTemp int, @imageIndexTemp int, @taskIDTemp int
+DECLARE
+    comments_cursor CURSOR LOCAL FOR SELECT complaintID, commentID
+                                     FROM COMMENT
+                                     WHERE complaintID = @_complaintID
+DECLARE
+    complaintAttachment_cursor CURSOR LOCAL FOR SELECT complaintID, imageIndex
+                                                FROM COMPLAINT_ATTACHMENT_DETAILS
+                                                WHERE complaintID = @_complaintID
+DECLARE
+    tasks_cursor CURSOR LOCAL FOR SELECT taskID, complaintID
+                                  FROM TASK
+                                  WHERE complaintID = @_complaintID
+DECLARE
+    complaints_cursor CURSOR LOCAL FOR SELECT complaintID, subComplaintID
+                                       FROM COMPLAINT
+                                       WHERE complaintID = @_complaintID
+    if exists(select 1
+              from COMPLAINT
+              where complaintID = @_complaintID)
+        begin
+            if exists(select 1
+                      from COMMENT
+                      where complaintID = @_complaintID)
+                begin
+
+                    OPEN comments_cursor
+                    fetch next from comments_cursor into @complaintIDTemp, @commentIDTemp
+
+                    while @@fetch_status = 0
+                        begin
+                            delete from COMMENT where complaintID = @complaintIDTemp AND commentID = @commentIDTemp
+                            IF @@ROWCOUNT = 0 GOTO errorHandler;
+                            fetch next from comments_cursor into @complaintIDTemp, @commentIDTemp
+                        end
+                    CLOSE comments_cursor
+
+                end
+
+            if exists(select 1
+                      from COMPLAINT_ATTACHMENT_DETAILS
+                      where complaintID = @_complaintID)
+                begin
+                    SELECT * from COMPLAINT_ATTACHMENT_DETAILS where complaintID = @_complaintID
+
+                    OPEN complaintAttachment_cursor
+                    fetch next from complaintAttachment_cursor into @complaintIDTemp, @imageIndexTemp
+
+                    while @@fetch_status = 0
+                        begin
+                            delete
+                            from COMPLAINT_ATTACHMENT_DETAILS
+                            where complaintID = @complaintIDTemp AND imageIndex = @imageIndexTemp
+                            IF @@ROWCOUNT = 0 GOTO errorHandler;
+                            fetch next from complaintAttachment_cursor into @complaintIDTemp, @imageIndexTemp
+                        end
+                    CLOSE comments_cursor
+
+                end
+
+            if exists(select 1
+                      from FEEDBACK
+                      where complaintID = @_complaintID)
+                begin
+                    Delete from FEEDBACK where complaintID = @_complaintID
+                    IF @@ROWCOUNT = 0 GOTO errorHandler;
+                end
+
+            if exists(select 1
+                      from TASK
+                      where complaintID = @_complaintID)
+                begin
+
+                    OPEN tasks_cursor
+                    fetch next from tasks_cursor into @taskIDTemp ,@complaintIDTemp
+
+                    while @@fetch_status = 0
+                        begin
+                            delete from TASK where taskID = @taskIDTemp AND complaintID = @complaintIDTemp
+                            IF @@ROWCOUNT = 0 GOTO errorHandler;
+                            fetch next from tasks_cursor into @taskIDTemp, @complaintIDTemp
+                        end
+                    CLOSE tasks_cursor
+
+                end
+
+            OPEN complaints_cursor
+            fetch next from complaints_cursor into @complaintIDTemp, @subComplaintIDTemp
+
+            while @@fetch_status = 0
+                begin
+                    delete from COMPLAINT where complaintID = @complaintIDTemp AND subComplaintID = @subComplaintIDTemp
+                    IF @@ROWCOUNT = 0 GOTO errorHandler;
+                    fetch next from complaints_cursor into @complaintIDTemp, @subComplaintIDTemp
+                end
+            CLOSE tasks_cursor
+            COMMIT TRANSACTION
+            RETURN 0;
+        end
+    else
+        begin
+            ROLLBACK TRANSACTION
+            RETURN -2;
+        end
+    errorHandler:
+    ROLLBACK TRANSACTION
+    RETURN -1;
+go
+
 CREATE procedure deleteSelectedProduct @_productID INT
 as
     BEGIN TRANSACTION
@@ -307,6 +419,8 @@ where userEmail = @_username;
             DELETE FROM USERS WHERE userEmail = @_username;
             IF @@ROWCOUNT = 0 GOTO errorHandler;
             CLOSE cursor_email
+            COMMIT TRANSACTION
+            RETURN 0;
         end
     else
         begin
