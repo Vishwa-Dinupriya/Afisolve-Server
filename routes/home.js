@@ -193,8 +193,9 @@ router.post('/update-own-profile-details', verifyToken, async (request, response
                             message: 'Entered email already exists!'
                         });
                     } else {
-                        console.log('2');
-                        response.status(500).send({message: 'from error handler'});
+                        response.status(500).send({
+                            status: false,
+                            message: 'from error handler'});
                     }
                 }
             });

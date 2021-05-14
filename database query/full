@@ -369,23 +369,115 @@ DECLARE
     RETURN -1;
 go
 
-CREATE procedure deleteSelectedProduct @_productID INT
+CREATE procedure deleteSelectedProduct @_productID int
 as
     BEGIN TRANSACTION
+DECLARE
+    @_complaintID int, @complaintIDTemp int, @subComplaintIDTemp int, @commentIDTemp int, @imageIndexTemp int, @taskIDTemp int
+
+    -- check whether is there any complaint with product which is going to be deleted and if exists then first of all delete those complaints with it's all
+    -- child data.(comments,complaint attachments details,feedbacks,tasks)
     if exists(select 1
-              from PRODUCT
+              from COMPLAINT
               where productID = @_productID)
         begin
-            DELETE FROM PRODUCT WHERE productID = @_productID;
-            IF @@ROWCOUNT = 0 GOTO errorHandler;
+            SELECT @_complaintID = complaintID FROM COMPLAINT where productID = @_productID
+            DECLARE comments_cursor CURSOR LOCAL FOR SELECT complaintID, commentID
+                                                     FROM COMMENT
+                                                     WHERE complaintID = @_complaintID
+            DECLARE complaintAttachment_cursor CURSOR LOCAL FOR SELECT complaintID, imageIndex
+                                                                FROM COMPLAINT_ATTACHMENT_DETAILS
+                                                                WHERE complaintID = @_complaintID
+            DECLARE tasks_cursor CURSOR LOCAL FOR SELECT taskID, complaintID FROM TASK WHERE complaintID = @_complaintID
+            DECLARE complaints_cursor CURSOR LOCAL FOR SELECT complaintID, subComplaintID
+                                                       FROM COMPLAINT
+                                                       WHERE complaintID = @_complaintID
 
-            COMMIT TRANSACTION
-            RETURN 0;
+            if exists(select 1
+                      from COMMENT
+                      where complaintID = @_complaintID)
+                begin
+
+                    select * from COMMENT where complaintID = @_complaintID and isImage = 1
+
+                    OPEN comments_cursor
+                    fetch next from comments_cursor into @complaintIDTemp, @commentIDTemp
+
+                    while @@fetch_status = 0
+                        begin
+                            delete from COMMENT where complaintID = @complaintIDTemp AND commentID = @commentIDTemp
+                            IF @@ROWCOUNT = 0 GOTO errorHandler;
+                            fetch next from comments_cursor into @complaintIDTemp, @commentIDTemp
+                        end
+                    CLOSE comments_cursor
+
+                end
+
+            if exists(select 1
+                      from COMPLAINT_ATTACHMENT_DETAILS
+                      where complaintID = @_complaintID)
+                begin
+                    SELECT * from COMPLAINT_ATTACHMENT_DETAILS where complaintID = @_complaintID
+
+                    OPEN complaintAttachment_cursor
+                    fetch next from complaintAttachment_cursor into @complaintIDTemp, @imageIndexTemp
+
+                    while @@fetch_status = 0
+                        begin
+                            delete
+                            from COMPLAINT_ATTACHMENT_DETAILS
+                            where complaintID = @complaintIDTemp AND imageIndex = @imageIndexTemp
+                            IF @@ROWCOUNT = 0 GOTO errorHandler;
+                            fetch next from complaintAttachment_cursor into @complaintIDTemp, @imageIndexTemp
+                        end
+                    CLOSE complaintAttachment_cursor
+
+                end
+
+            if exists(select 1
+                      from FEEDBACK
+                      where complaintID = @_complaintID)
+                begin
+                    Delete from FEEDBACK where complaintID = @_complaintID
+                    IF @@ROWCOUNT = 0 GOTO errorHandler;
+                end
+
+            if exists(select 1
+                      from TASK
+                      where complaintID = @_complaintID)
+                begin
+
+                    OPEN tasks_cursor
+                    fetch next from tasks_cursor into @taskIDTemp ,@complaintIDTemp
+
+                    while @@fetch_status = 0
+                        begin
+                            delete from TASK where taskID = @taskIDTemp AND complaintID = @complaintIDTemp
+                            IF @@ROWCOUNT = 0 GOTO errorHandler;
+                            fetch next from tasks_cursor into @taskIDTemp, @complaintIDTemp
+                        end
+                    CLOSE tasks_cursor
+
+                end
+
+            OPEN complaints_cursor
+            fetch next from complaints_cursor into @complaintIDTemp, @subComplaintIDTemp
+
+            while @@fetch_status = 0
+                begin
+                    delete from COMPLAINT where complaintID = @complaintIDTemp AND subComplaintID = @subComplaintIDTemp
+                    IF @@ROWCOUNT = 0 GOTO errorHandler;
+                    fetch next from complaints_cursor into @complaintIDTemp, @subComplaintIDTemp
+                end
+            CLOSE complaints_cursor
         end
-    else
-        begin
-            GOTO errorHandler;
-        end
+    -- end of the if statenment
+delete
+from PRODUCT
+where productID = @_productID
+    COMMIT transaction
+    RETURN 0;
+
     errorHandler:
     ROLLBACK TRANSACTION
     RETURN -1;
@@ -394,28 +486,22 @@ go
 CREATE procedure deleteSelectedUser @_username VARCHAR(50)
 as
     BEGIN TRANSACTION
-DECLARE @userIDTemp int, @roleID int, @userID int
-DECLARE
-    cursor_email CURSOR LOCAL FOR SELECT userID, roleID
-                                  FROM USER_ROLE
-                                  WHERE userID = @userID
-
-SELECT @userID = userID
-FROM USERS
-where userEmail = @_username;
+DECLARE @userIDTemp int, @roleIDTemp int, @userID int
     if exists(select 1
               from USERS
               where userEmail = @_username)
         begin
+            SELECT @userID = userID FROM USERS where userEmail = @_username;
+            DECLARE cursor_email CURSOR LOCAL FOR SELECT userID, roleID FROM USER_ROLE WHERE userID = @userID
 
             OPEN cursor_email
-            fetch next from cursor_email into @userIDTemp, @roleID
+            fetch next from cursor_email into @userIDTemp, @roleIDTemp
 
             while @@fetch_status = 0
                 begin
-                    delete from USER_ROLE where userID = @userIDTemp AND roleID = @roleID
+                    delete from USER_ROLE where userID = @userIDTemp AND roleID = @roleIDTemp
                     IF @@ROWCOUNT = 0 GOTO errorHandler;
-                    fetch next from cursor_email into @userIDTemp, @roleID
+                    fetch next from cursor_email into @userIDTemp, @roleIDTemp
                 end
 
             DELETE FROM USERS WHERE userEmail = @_username;
@@ -970,6 +1056,7 @@ DECLARE
                    where userID = @customerID
                      and roleID = 0))
         begin
+            ROLLBACK TRANSACTION
             RETURN -2;
         end
     if (not exists(select 1
@@ -977,6 +1064,7 @@ DECLARE
                    where userID = @accountCoordinatorID
                      and roleID = 1))
         begin
+            ROLLBACK TRANSACTION
             RETURN -3;
         end
     if (not exists(select 1
@@ -984,6 +1072,7 @@ DECLARE
                    where userID = @projectManagerID
                      and roleID = 3))
         begin
+            ROLLBACK TRANSACTION
             RETURN -4;
         end
 INSERT INTO PRODUCT
@@ -1208,15 +1297,6 @@ DECLARE @userID int, @userIDTemp int, @roleID int, @role INT, @generatedOTPValue
 SELECT @userID = userID
 FROM USERS
 where userEmail = @_oldEmail;
-SELECT @generatedOTPValue = otpCode
-FROM OTP
-where otpID = @_generatedOtpID;
-    -- delete otp record from the OTP table
-Delete
-from OTP
-where otpID = @_generatedOtpID
-    IF @@ROWCOUNT = 0 GOTO errorHandler;
-
 
 DECLARE
     cursor_email CURSOR LOCAL FOR SELECT userID, roleID
@@ -1227,6 +1307,11 @@ DECLARE
                                  FROM @_roles
     if (@_oldEmail != @_newEmail)
         begin
+            SELECT @generatedOTPValue = otpCode FROM OTP where otpID = @_generatedOtpID;
+            -- delete otp record from the OTP table
+            Delete from OTP where otpID = @_generatedOtpID
+            IF @@ROWCOUNT = 0 GOTO errorHandler;
+
             if (@_clientOtp != @generatedOTPValue)
                 begin
                     ROLLBACK TRANSACTION
@@ -1238,6 +1323,7 @@ DECLARE
                         ROLLBACK TRANSACTION
                         return -3;
                     end
+
         end
 
     OPEN cursor_email
