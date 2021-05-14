@@ -284,6 +284,8 @@ DECLARE
                       where complaintID = @_complaintID)
                 begin
 
+                    select * from COMMENT where complaintID = @_complaintID and isImage = 1
+
                     OPEN comments_cursor
                     fetch next from comments_cursor into @complaintIDTemp, @commentIDTemp
 
@@ -314,7 +316,7 @@ DECLARE
                             IF @@ROWCOUNT = 0 GOTO errorHandler;
                             fetch next from complaintAttachment_cursor into @complaintIDTemp, @imageIndexTemp
                         end
-                    CLOSE comments_cursor
+                    CLOSE complaintAttachment_cursor
 
                 end
 
@@ -353,7 +355,7 @@ DECLARE
                     IF @@ROWCOUNT = 0 GOTO errorHandler;
                     fetch next from complaints_cursor into @complaintIDTemp, @subComplaintIDTemp
                 end
-            CLOSE tasks_cursor
+            CLOSE complaints_cursor
             COMMIT TRANSACTION
             RETURN 0;
         end

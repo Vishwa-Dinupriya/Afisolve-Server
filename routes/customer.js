@@ -28,7 +28,8 @@ router.post('/lodge-complaint', verifyToken, verifyCustomer, async (request, res
                 if (error) {
                     console.log(error);
                     response.status(500).send({
-                        status: false
+                        status: false,
+                        message: error
                     });
                 } else {
                     if (result.recordsets[0].length !== 0) {
@@ -39,10 +40,10 @@ router.post('/lodge-complaint', verifyToken, verifyCustomer, async (request, res
                             fs.writeFileSync(path, base64Data, {encoding: 'base64'});
                         }
                     }
-                    console.log(JSON.stringify(result) + ' 75 admin.js');
+                    // console.log(JSON.stringify(result) + ' 75 admin.js');
                     response.status(200).send({
                         status: true,
-                        message: ' ',
+                        message: 'Complaint Lodged! ',
                     });
                 }
             });

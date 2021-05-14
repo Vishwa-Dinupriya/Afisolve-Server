@@ -417,14 +417,48 @@ router.post('/delete-selected-complaint', verifyToken, verifyAdmin, async (reque
                     });
                 } else {
                     if (result.returnValue === 0) {
-                        response.status(200).send({});
-                    } else {
+                        console.log(JSON.stringify(result));
+                        // delete comment attachments from local memory
+                        if (result.recordsets[0].length !== 0) {
+                            for (let i = 0; i < result.recordsets[0].length; i++) {
+                                const path = './pictures/comment-pictures/' + result.recordsets[0][i].textOrImageName;
+                                try{
+                                    fs.unlinkSync(path);
+                                    //file removed
+                                }catch (error){
+                                    console.log(error);
+                                }
+                            }
+                        }
+                        // delete complaint attachments from local memory
+                        if (result.recordsets[1].length !== 0) {
+                            for (let i = 0; i < result.recordsets[1].length; i++) {
+                                const path = './pictures/complaint-pictures/' + result.recordsets[1][i].imageName;
+                                try{
+                                    fs.unlinkSync(path);
+                                    //file removed
+                                }catch (error){
+                                    console.log(error);
+                                }
+                            }
+                        }
+                        response.status(200).send({
+
+                        });
+                    }
+                    else if (result.returnValue === -2) {
+                        console.log('return -2 ');
+                        response.status(500).send({
+                            message: 'Something went wrong! (return value = -2)'
+                            });
+                    }else {
                         console.log('return -1 ');
-                        response.status(500).send({message: 'return value = -1'});
+                        response.status(500).send({
+                            message: 'Something went wrong! (return value = -1)'
+                        });
                     }
                 }
             })
-        ;
     } catch (e) {
         console.log(e);
         response.status(500).send(
