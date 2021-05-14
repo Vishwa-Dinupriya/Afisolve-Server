@@ -11,6 +11,7 @@ const {verifyAdmin} = require('../helpers/verifyToken');
 
 const otpService = require('../helpers/otpService');
 const {sendOtp} = require("../helpers/otpService");
+const nodemailer = require('nodemailer');
 
 //------------------------------------------users-----------------------------------------------
 router.get('/', (req, res, next) => {
@@ -696,6 +697,368 @@ router.post('/get-selected-feedback-details', verifyToken, verifyAdmin, async (r
         )
     }
 });
+
+//........................................... dashboard....................
+
+router.post('/get-all-user-count', verifyToken, verifyAdmin, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query('SELECT count(*) as count FROM USERS', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+router.post('/get-active-user-count', verifyToken, verifyAdmin, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query('select  count(*) as count from USERS where USERS.activeStatus =\'true\'', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+router.post('/get-all-complaints-count', verifyToken, verifyAdmin, async (request, response) => {
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .execute('getComplaintCount', (error, result) => {
+                if (error) {
+                    console.log('cannot run getComplaintCount');
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: {
+                            alll: result.recordsets[0][0].alll,
+                            clos: result.recordsets[4][0].clos
+                        },
+                    })
+                }
+            })
+        ;
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+
+// .........................chart..............
+
+
+//....................................... TIME EKT ANUWA COMPLAINT
+router.get('/get-month-count', verifyToken, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query('\n' +
+                'SELECT TOP 5 count(*) as num, format(submittedDate, \'yyyy-MM\') as month\n' +
+                'FROM COMPLAINT\n' +
+                'GROUP BY format(submittedDate, \'yyyy-MM\')\n' +
+                'order by 2 DESC', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+// ..............timme ekta anuwa users la...
+
+router.get('/get-month-count-users', verifyToken, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query('SELECT TOP 5 count(*) as num, format(createdAt, \'yyyy-MM\') as month\n' +
+                '                FROM USERS\n' +
+                '                GROUP BY format(createdAt, \'yyyy-MM\')\n' +
+                '                order by 2 DESC', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+router.get('/get-feedback-count', verifyToken, async (request, response) => {
+
+        const pool = await poolPromise;
+        try {
+            pool.request()
+                .execute('getFeedbackCount', (error, result) => {
+                    if (error) {
+                        console.log('cannot run getFeedbackCount');
+                        response.status(500).send({
+                            status: false
+                        });
+                    } else {
+                            response.status(200).send({
+                                status: true,
+                                data: {
+                                    sat1: result.recordsets[0][0].sat1,
+                                    sat2: result.recordsets[1][0].sat2,
+                                    sat3: result.recordsets[2][0].sat3,
+                                    sat4: result.recordsets[3][0].sat4,
+                                    sat5: result.recordsets[4][0].sat5
+                                },
+                            })
+                    }
+                })
+            ;
+        } catch (e) {
+            response.status(500).send(
+                {
+                    status: false
+                }
+            )
+        }
+    });
+
+
+router.post('/get-active-users', verifyToken, verifyAdmin, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query('select * from USERS where USERS.activeStatus = \'true\'', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+router.post('/update-Ac', verifyToken, async (request, response)=> {
+    const data = request.body;
+    console.log(data.v);
+    console.log(data.u.userID);
+
+    async function main() {
+        let transporter = nodemailer.createTransport({
+            service: "gmail",
+            auth: {
+                user: 'info.afisolve@gmail.com', // generated ethereal user
+                pass: 'codered09' // generated ethereal password
+            },
+        });
+
+        let info = await transporter.sendMail({
+            from: 'info.afisolve@gmail.com', // sender address
+            to: data.w, // list of receivers
+            subject: "Remove as Account Coordinator", // Subject line
+            text: "Dear Sir/Madam,\n" +
+                "    We discussed your problem which is working as account coordinator of the product Id "+ data.v + "product. Therefore, you have been removed as account coordinator of this product.\n" +
+                "\n" +
+                "    NOTE: If you have any issue, please contact the admin of the complaint management unit.\n" +
+                "\n" +
+                "    Best Regards,\n" +
+                "    afi-Solve Complaint Management Unit,\n" +
+                "    Afisol (Pvt) Ltd.   \n" +
+                " _________________________________________________________________________ \n" +
+                "    Disclaimer: This is a system-generated mail. For any queries, please contact the Company.\n"
+        });
+
+        let info1 = await transporter.sendMail({
+            from: 'info.afisolve@gmail.com', // sender address
+            to: data.u.userEmail, // list of receivers
+            subject: "New Approval", // Subject line
+            text: "Dear Sir/Madam,\n" +
+                "    You have been selected as the new Account Coordinator of Product ID "+ data.v + ". Please pay attention to provide solutions to complaints of this product.\n" +
+                "\n" +
+                "    NOTE: If you have any issue, please contact the admin of the complaint management unit.\n" +
+                "\n" +
+                "    Best Regards,\n" +
+                "    afi-Solve Complaint Management Unit,\n" +
+                "    Afisol (Pvt) Ltd.   \n" +
+                " _________________________________________________________________________ \n" +
+                "    Disclaimer: This is a system-generated mail. For any queries, please contact the Company.\n" +
+                "\n" });
+    }
+
+   main().catch(console.error);
+
+    try {
+        const pool = await poolPromise;
+        pool.request()
+            .input('_cbc', sql.Int, data.u.userID)
+            .input('_pdi', sql.Int, data.v)
+            .execute('updateAccountCoordinator', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+
+});
+
+router.post('/get-project-Manager-List', verifyToken, verifyAdmin, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query('select u.userEmail, u.firstName, u.lastName, u.userID\n' +
+                'from USERS u,USER_ROLE r\n' +
+                'where u.userID = r.userID and r.roleID = \'3\'', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+router.post('/update-Pm', verifyToken, async (request, response)=> {
+    const data = request.body;
+    console.log(data.v);
+    console.log(data.u.userID);
+
+    async function main() {
+        let transporter = nodemailer.createTransport({
+            service: "gmail",
+            auth: {
+                user: 'info.afisolve@gmail.com', // generated ethereal user
+                pass: 'codered09' // generated ethereal password
+            },
+        });
+
+        let info = await transporter.sendMail({
+            from: 'info.afisolve@gmail.com', // sender address
+            to: data.w, // list of receivers
+            subject: "Remove as Project Manager", // Subject line
+            text: "Dear Sir/Madam,\n" +
+                "    We discussed your problem which is working as project manager of the product Id "+ data.v + " product. Therefore, you have been removed as project manager of this product.\n" +
+                "\n" +
+                "    NOTE: If you have any issue, please contact the admin of the complaint management unit.\n" +
+                "\n" +
+                "    Best Regards,\n" +
+                "    afi-Solve Complaint Management Unit,\n" +
+                "    Afisol (Pvt) Ltd.   \n" +
+                " _________________________________________________________________________ \n" +
+                "    Disclaimer: This is a system-generated mail. For any queries, please contact the Company.\n"
+        });
+
+        let info1 = await transporter.sendMail({
+            from: 'info.afisolve@gmail.com', // sender address
+            to: data.u.userEmail, // list of receivers
+            subject: "New Approval", // Subject line
+            text: "Dear Sir/Madam,\n" +
+                "    You have been selected as the new project manager of Product ID "+ data.v + ". Please pay attention to provide solutions to complaints of this product.\n" +
+                "\n" +
+                "    NOTE: If you have any issue, please contact the admin of the complaint management unit.\n" +
+                "\n" +
+                "    Best Regards,\n" +
+                "    afi-Solve Complaint Management Unit,\n" +
+                "    Afisol (Pvt) Ltd.   \n" +
+                " _________________________________________________________________________ \n" +
+                "    Disclaimer: This is a system-generated mail. For any queries, please contact the Company.\n" +
+                "\n" });
+    }
+
+    main().catch(console.error);
+
+    try {
+        const pool = await poolPromise;
+        pool.request()
+            .input('_cbc', sql.Int, data.u.userID)
+            .input('_pdi', sql.Int, data.v)
+            .execute('updateProjectManger', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+
+});
+
+
+
+
+
 
 
 module.exports = router;

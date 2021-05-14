@@ -3,7 +3,6 @@ const jwt = require('jsonwebtoken')
 const router = express.Router();
 const {poolPromise} = require('../helpers/mssql-server-connection');
 const {sql} = require('../helpers/mssql-server-connection');
-const {verifyToken} = require('../helpers/verifyToken');
 const {verifyAccountCoordinator} = require('../helpers/verifyToken');
 const nodemailer = require("nodemailer");
 

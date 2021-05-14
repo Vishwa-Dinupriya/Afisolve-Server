@@ -208,4 +208,61 @@ router.post('/update-own-profile-details', verifyToken, async (request, response
 
 });
 
+router.get('/get-reminder-notification', verifyToken, async (request, response) => {
+    console.log(request.payload.username);
+    console.log("awa awa awa");
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .input('_username', sql.VarChar(50), request.payload.username)
+            .execute('getNotification', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    for(let i=0; i<result.recordset.length;i++) {
+                        if (result.recordset[i].preAcID == result.returnValue) {
+                            result.recordset[i].action = 'Removel from Position'
+                        } else if (result.recordset[i].newAcID == result.returnValue){
+                            result.recordset[i].action = 'New Appoinment'
+                        } else {
+                            console.log("awlk ne");
+                        }
+                    }
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+router.post('/update-reading-status', verifyToken, async (request, response) => {
+    const data = request.body;
+    console.log(data.submittedtime)
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .input('_time', sql.VarChar(50),data.submittedtime )
+            .execute('updateReadStatus', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
 module.exports = router;
