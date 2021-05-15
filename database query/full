@@ -1,6 +1,19 @@
+create type developers as table
+(
+    developer int
+)
+go
+
 create type roles as table
 (
     role int
+)
+go
+
+create table ACTIVE_SESSION
+(
+    userID     int,
+    lastActive bigint
 )
 go
 
@@ -87,6 +100,25 @@ create table ALLOCATION
             references PRODUCT,
     constraint ALLOCATION_pk
         primary key nonclustered (developerID, productID)
+)
+go
+
+create table CHANGINGHISTORY
+(
+    productID     int
+        constraint CHANGINGHISTORY_PRODUCT_productID_fk
+            references PRODUCT
+            on delete cascade,
+    submittedtime datetime,
+    exAcID        int,
+    preAcID       int,
+    newAcID       int,
+    doneBy        varchar(20),
+    action        varchar(20),
+    exAcName      varchar(40),
+    preAcName     varchar(40),
+    newAcName     varchar(40),
+    readStatus    bit
 )
 go
 
@@ -196,6 +228,33 @@ create table USER_ROLE
 )
 go
 
+create view Ayoma_Developers AS
+select u.userID,
+       u.userEmail,
+       u.firstName,
+       u.lastName,
+       u.contactNumber,
+       u.activeStatus,
+       u.password,
+       ur.roleID,
+       ur.[default],
+       r.roleName
+from USERS u,
+     USER_ROLE ur,
+     Role r
+where u.userID = ur.userID
+  AND ur.roleID = r.roleID
+  AND r.roleName = 'developer'
+go
+
+create view view_ac as
+select u.userEmail, u.firstName, u.lastName, u.userID
+from USERS u,
+     USER_ROLE r
+where u.userID = r.userID
+  and r.roleID = '1'
+go
+
 CREATE function SelectRole(@role_input varchar)
     Returns int
 AS
@@ -227,6 +286,29 @@ BEGIN
         end
     return -1
 END
+go
+
+CREATE procedure checkUser @userID int, @time bigint as
+    if exists(select 1
+              from ACTIVE_SESSION
+              where userID = @userID)
+        begin
+            declare @lastActive bigint
+            select @lastActive = lastActive from ACTIVE_SESSION where userID = @userID
+            if (@time - @lastActive < 7200000)
+                begin
+                    update ACTIVE_SESSION set lastActive = @time where userID = @userID
+                    return 0;
+                end
+            else
+                begin
+                    return 1;
+                end
+        end
+    else
+        begin
+            return -1;
+        end
 go
 
 CREATE PROCEDURE createFeedback @_complaintID int,
@@ -373,7 +455,11 @@ CREATE procedure deleteSelectedProduct @_productID int
 as
     BEGIN TRANSACTION
 DECLARE
-    @_complaintID int, @complaintIDTemp int, @subComplaintIDTemp int, @commentIDTemp int, @imageIndexTemp int, @taskIDTemp int
+    @_complaintID int, @complaintIDTemp int, @subComplaintIDTemp int, @commentIDTemp int, @imageIndexTemp int, @taskIDTemp int, @productIDTemp int, @developerIDTemp int
+DECLARE
+    allocations_cursor CURSOR LOCAL FOR SELECT developerID, productID
+                                        FROM ALLOCATION
+                                        WHERE productID = @_productID
 
     -- check whether is there any complaint with product which is going to be deleted and if exists then first of all delete those complaints with it's all
     -- child data.(comments,complaint attachments details,feedbacks,tasks)
@@ -472,6 +558,22 @@ DECLARE
             CLOSE complaints_cursor
         end
     -- end of the if statenment
+    if exists(select 1
+              from ALLOCATION
+              where productID = @_productID)
+        begin
+            OPEN allocations_cursor
+            fetch next from allocations_cursor into @developerIDTemp ,@productIDTemp
+
+            while @@fetch_status = 0
+                begin
+                    delete from ALLOCATION where productID = @productIDTemp AND developerID = @developerIDTemp
+                    IF @@ROWCOUNT = 0 GOTO errorHandler;
+                    fetch next from allocations_cursor into @developerIDTemp, @productIDTemp
+                end
+            CLOSE allocations_cursor
+        end
+
 delete
 from PRODUCT
 where productID = @_productID
@@ -558,6 +660,58 @@ where userEmail = @_email
     errorHandler:
     ROLLBACK TRANSACTION
     RETURN -1;
+go
+
+CREATE procedure getComplaintCount
+as
+begin
+    SELECT count(*) as alll FROM COMPLAINT
+    select count(*) as pen from COMPLAINT where status = '0'
+    select count(*) as work from COMPLAINT where status = '1'
+    select count(*) as fin from COMPLAINT where status = '2'
+    select count(*) as clos from COMPLAINT where status = '3'
+    return 0;
+end
+go
+
+CREATE procedure getComplaintCountForPM(@_pmEmail VARCHAR(50))
+as
+begin
+    select COUNT(*) as alll
+    from COMPLAINT c,
+         PRODUCT p
+    where p.productID = c.productID
+      and p.projectManagerID = (select userID from USERS where userEmail = @_pmEmail)
+
+    select COUNT(*) as pen
+    from COMPLAINT c,
+         PRODUCT p
+    where p.productID = c.productID
+      and p.projectManagerID = (select userID from USERS where userEmail = @_pmEmail)
+      and c.status = '0'
+
+    select COUNT(*) as work
+    from COMPLAINT c,
+         PRODUCT p
+    where p.productID = c.productID
+      and p.projectManagerID = (select userID from USERS where userEmail = @_pmEmail)
+      and c.status = '1'
+
+    select COUNT(*) as fin
+    from COMPLAINT c,
+         PRODUCT p
+    where p.productID = c.productID
+      and p.projectManagerID = (select userID from USERS where userEmail = @_pmEmail)
+      and c.status = '2'
+
+    select COUNT(*) as clos
+    from COMPLAINT c,
+         PRODUCT p
+    where p.productID = c.productID
+      and p.projectManagerID = (select userID from USERS where userEmail = @_pmEmail)
+      and c.status = '3'
+    return 0;
+end
 go
 
 CREATE procedure getCustomerComplaintsByStatusID @_customerEmail VARCHAR(50),
@@ -659,6 +813,34 @@ where userEmail = @_customerEmail;
         begin
             RETURN -1;
         end
+go
+
+CREATE procedure getFeedbackCount
+as
+begin
+    select COUNT(*) as sat1 from FEEDBACK where satisfaction = '1'
+    select COUNT(*) as sat2 from FEEDBACK where satisfaction = '2'
+    select COUNT(*) as sat3 from FEEDBACK where satisfaction = '3'
+    select COUNT(*) as sat4 from FEEDBACK where satisfaction = '4'
+    select COUNT(*) as sat5 from FEEDBACK where satisfaction = '5'
+    return 0;
+end
+go
+
+CREATE procedure getNotification @_username VARCHAR(50)
+as
+DECLARE @userID int;
+SELECT @userID = userID
+FROM USERS
+where userEmail = @_username;
+begin
+    select *
+    from CHANGINGHISTORY
+    where (exAcID = @userID OR preAcID = @userID OR newAcID = @userID)
+      AND readStatus = 'false'
+    order by submittedtime DESC
+    return @userID;
+end
 go
 
 CREATE procedure getSelectedComplaintDetailsAdmin(@_complaintID int,
@@ -1017,12 +1199,76 @@ where userEmail = @_email;
     RETURN -1;
 go
 
+CREATE procedure newhistory @_pon INT,
+                            @_toni INT,
+                            @_ban VARCHAR(20),
+                            @_dan VARCHAR(20),
+                            @_newtoni INT,
+                            @_ton VARCHAR(40),
+                            @_sec VARCHAR(40),
+                            @_newton VARCHAR(40),
+                            @_newsec VARCHAR(40)
+AS
+begin
+    INSERT INTO [dbo].[CHANGINGHISTORY]
+    ( [productID]
+    , [submittedTime]
+    , [preAcID]
+    , [newAcID]
+    , [doneBy]
+    , [action]
+    , [preAcName]
+    , [newAcName]
+    , [readStatus])
+    VALUES ( @_pon
+           , getdate()
+           , @_toni
+           , @_newtoni
+           , @_ban
+           , @_dan
+           , (@_ton + ' ' + @_sec)
+           , (@_newton + ' ' + @_newsec)
+           , 'false')
+
+
+end
+go
+
+CREATE procedure newreminder @_rem INT,
+                             @_aoni INT,
+                             @_aon VARCHAR(40),
+                             @_sec VARCHAR(40),
+                             @_kan VARCHAR(20),
+                             @_wan VARCHAR(20)
+AS
+begin
+    INSERT INTO [dbo].[CHANGINGHISTORY]
+    ( [productID]
+    , [submittedTime]
+    , [exAcID]
+    , [action]
+    , [doneBy]
+    , [exAcName]
+    , [readStatus])
+    VALUES ( @_rem
+           , getdate()
+           , @_aoni
+           , @_wan
+           , @_kan
+           , (@_aon + ' ' + @_sec)
+           , 'false')
+
+
+end
+go
+
 CREATE PROCEDURE registerProduct @_productName varchar(40),
                                  @_category varchar(20),
                                  @_customerEmail varchar(50),
                                  @_projectManagerEmail varchar(50),
                                  @_accountCoordinatorEmail varchar(50),
-                                 @_createdAdmin varchar(50)
+                                 @_createdAdmin varchar(50),
+                                 @_developers developers READONLY
 AS
     BEGIN TRANSACTION
 DECLARE @customerID int;
@@ -1054,7 +1300,7 @@ DECLARE
     if (not exists(select 1
                    from USER_ROLE
                    where userID = @customerID
-                     and roleID = 0))
+                     and roleID = 1))
         begin
             ROLLBACK TRANSACTION
             RETURN -2;
@@ -1062,7 +1308,7 @@ DECLARE
     if (not exists(select 1
                    from USER_ROLE
                    where userID = @accountCoordinatorID
-                     and roleID = 1))
+                     and roleID = 3))
         begin
             ROLLBACK TRANSACTION
             RETURN -3;
@@ -1070,7 +1316,7 @@ DECLARE
     if (not exists(select 1
                    from USER_ROLE
                    where userID = @projectManagerID
-                     and roleID = 3))
+                     and roleID = 2))
         begin
             ROLLBACK TRANSACTION
             RETURN -4;
@@ -1085,6 +1331,20 @@ VALUES (iif(@productID is null, 1, @productID),
         GETDATE(),
         @createdAdminID, null, null)
     IF @@ROWCOUNT = 0 GOTO errorHandler;
+DECLARE @developerID INT ;
+
+DECLARE
+    developer_cursor CURSOR LOCAL FOR SELECT *
+                                      FROM @_developers
+
+    OPEN developer_cursor
+    FETCH NEXT FROM developer_cursor INTO @developerID
+    WHILE @@FETCH_STATUS = 0
+        BEGIN
+            INSERT INTO ALLOCATION VALUES (@developerID, @productID);
+            FETCH NEXT FROM developer_cursor INTO @developerID
+        END
+    CLOSE developer_cursor
 
     COMMIT TRANSACTION;
     RETURN 0;
@@ -1277,6 +1537,49 @@ DECLARE @i int;
     errorHandler:
     ROLLBACK TRANSACTION
     RETURN -1;
+go
+
+CREATE procedure updateAccountCoordinator @_cbc INT,
+                                          @_pdi INT
+AS
+begin
+    UPDATE [dbo].[PRODUCT] SET [accountCoordinatorID] =@_cbc WHERE productID = @_pdi
+
+end
+go
+
+CREATE procedure updateLogin @userID int, @lastActive BIGINT as
+    begin transaction
+    if (exists(select 1
+               from ACTIVE_SESSION
+               where userID = @userID))
+        begin
+            update ACTIVE_SESSION set lastActive = @lastActive where userID = @userID
+        end
+    else
+        begin
+            insert into ACTIVE_SESSION values (@userID, @lastActive)
+        end
+    commit transaction
+go
+
+CREATE procedure updateProjectManger @_cbc INT,
+                                     @_pdi INT
+AS
+begin
+    UPDATE [dbo].[PRODUCT] SET [projectManagerID] =@_cbc WHERE productID = @_pdi
+
+end
+go
+
+CREATE procedure updateReadStatus @_time varchar(50)
+AS
+
+begin
+    UPDATE [dbo].[CHANGINGHISTORY]
+    SET [readStatus] ='true'
+    where submittedtime = @_time
+end
 go
 
 CREATE procedure updateSelectedUserDetails @_oldEmail VARCHAR(50),
