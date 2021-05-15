@@ -542,7 +542,7 @@ router.post('/register-product', verifyToken, verifyAdmin, async (request, respo
     }
 });
 
-//-------------------------------------------------get developers for-products------------------------------------------------------------------------------------------
+//------------------------------------------get developers for-products------------------------------------------------------------------------------------------
 router.post('/get-all-developers', verifyToken, verifyAdmin, async (request, response) => {
 
     const pool = await poolPromise;
