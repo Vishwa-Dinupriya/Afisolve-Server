@@ -56,7 +56,7 @@ router.post('/lodge-complaint', verifyToken, verifyCustomer, async (request, res
 router.post('/get-complaints-by-statusID', verifyToken, verifyCustomer, async (request, response) => {
 
     const pool = await poolPromise;
-    //console.log(request.body.statusID);
+    // console.log(request.body.statusID);
     try {
         pool.request()
             .input('_customerEmail', sql.VarChar(50), request.payload.username)
@@ -85,7 +85,7 @@ router.post('/get-complaints-by-statusID', verifyToken, verifyCustomer, async (r
                             })
                         }
                     }
-                   // console.log(complaintElements);
+                    // console.log(complaintElements);
 
                     response.status(200).send({
                         status: true,
@@ -203,7 +203,6 @@ router.post('/get-all-products', verifyToken, verifyCustomer, async (request, re
         pool.request()
             .input('_customerEmail', sql.VarChar(50), request.payload.username)
             .query('select * from PRODUCT where customerID= (select userID from USERS where userEmail=@_customerEmail)', (error, result) => {
-
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -254,7 +253,6 @@ router.post('/create-feedback', verifyToken, verifyCustomer, async (request, res
 
 //--get comments for requested complaint ID
 router.get('/get-comments', verifyToken, verifyCustomer, async (request, response) => {
-
     const pool = await poolPromise;
     try {
         pool.request()
@@ -331,7 +329,7 @@ router.put('/save-comment_', verifyToken, verifyCustomer, async (request, respon
                     });
 
                 } else {
-                   // console.log(JSON.stringify(result) + '330 customer');
+                   // console.log(JSON.stringify(result) + ' : 330 customer');
                     if (result.recordsets.length !== 0) {
                         for (let i = 0; i < result.recordsets.length; i++) {
                             //encoding and save the picture to the local memory
