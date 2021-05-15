@@ -424,7 +424,7 @@ router.post('/delete-selected-complaint', verifyToken, verifyAdmin, async (reque
                     if (result.returnValue === 0) {
                         console.log(JSON.stringify(result));
                         // delete comment attachments from local memory
-                        if (result.recordsets[0].length !== 0) {
+                        if (result.recordsets[0] && result.recordsets[0].length !== 0) {
                             for (let i = 0; i < result.recordsets[0].length; i++) {
                                 const path = './pictures/comment-pictures/' + result.recordsets[0][i].textOrImageName;
                                 try{
@@ -436,7 +436,7 @@ router.post('/delete-selected-complaint', verifyToken, verifyAdmin, async (reque
                             }
                         }
                         // delete complaint attachments from local memory
-                        if (result.recordsets[1].length !== 0) {
+                        if (result.recordsets[1] && result.recordsets[1].length !== 0) {
                             for (let i = 0; i < result.recordsets[1].length; i++) {
                                 const path = './pictures/complaint-pictures/' + result.recordsets[1][i].imageName;
                                 try{
@@ -641,7 +641,7 @@ router.post('/delete-selected-product', verifyToken, verifyAdmin, async (request
                     if (result.returnValue === 0) {
                         console.log(JSON.stringify(result));
                         // delete comment attachments from local memory
-                        if (result.recordsets[0].length !== 0) {
+                        if (result.recordsets[0] && result.recordsets[0].length !== 0) {
                             for (let i = 0; i < result.recordsets[0].length; i++) {
                                 const path = './pictures/comment-pictures/' + result.recordsets[0][i].textOrImageName;
                                 try{
@@ -653,7 +653,7 @@ router.post('/delete-selected-product', verifyToken, verifyAdmin, async (request
                             }
                         }
                         // delete complaint attachments from local memory
-                        if (result.recordsets[1].length !== 0) {
+                        if (result.recordsets[1] && result.recordsets[1].length !== 0) {
                             for (let i = 0; i < result.recordsets[1].length; i++) {
                                 const path = './pictures/complaint-pictures/' + result.recordsets[1][i].imageName;
                                 try{
