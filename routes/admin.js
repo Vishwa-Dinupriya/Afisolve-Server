@@ -19,7 +19,6 @@ router.get('/', (req, res, next) => {
 })
 
 router.post('/get-all-users-details', verifyToken, verifyAdmin, async (request, response) => {
-
     const pool = await poolPromise;
     try {
         pool.request()
@@ -85,6 +84,7 @@ router.post('/get-selected-user-profile-details', verifyToken, verifyAdmin, asyn
             .execute('getSelectedUserDetails', (error, result) => {
                 if (error) {
                     console.log('cannot run getSelectedUserDetails');
+                    console.log(error);
                     response.status(500).send({
                         status: false
                     });
@@ -244,10 +244,15 @@ router.post('/delete-selected-user', verifyToken, verifyAdmin, async (request, r
                     });
                 } else {
                     if (result.returnValue === 0) {
-                        response.status(200).send({});
+                        response.status(200).send({
+                            status: true,
+                            message: 'User deleted succssfully!'
+                        });
                     } else {
                         console.log('return -1 ');
-                        response.status(500).send({message: 'return value = -1'});
+                        response.status(500).send({
+                            status:false,
+                            message: 'return value = -1'});
                     }
                 }
             })
@@ -299,7 +304,7 @@ router.post('/get-all-complaints', verifyToken, verifyAdmin, async (request, res
                         status: false
                     });
                 } else {
-                    console.log(JSON.stringify(result) + ' 248 admin.js');
+                    // console.log(JSON.stringify(result) + ' 248 admin.js');
                     let complaintElements = [];
                     for (let i = 0; i < result.recordsets[1].length; i++) {
                         complaintElements[i] = {
@@ -317,7 +322,7 @@ router.post('/get-all-complaints', verifyToken, verifyAdmin, async (request, res
                             })
                         }
                     }
-                    console.log(complaintElements);
+                    // console.log(complaintElements);
 
                     response.status(200).send({
                         status: true,
@@ -332,45 +337,9 @@ router.post('/get-all-complaints', verifyToken, verifyAdmin, async (request, res
     }
 });
 
-// router.post('/get-subComplaints', verifyToken, verifyAdmin, async (request, response) => {
-//
-//     const pool = await poolPromise;
-//     try {
-//         pool.request()
-//             .input('_complainId', sql.VarChar(10), request.body.selectedComplaintID)
-//             .execute('getSubComplaintsOfSelectedComplain', (error, result) => {
-//                 if (error) {
-//                     console.log('cannot run getSubComplaintsOfSelectedComplain');
-//                     response.status(500).send({
-//                         status: false
-//                     });
-//                 } else {
-//                     if (result.returnValue === 0) {
-//                         console.log(JSON.stringify(result) + ' 74 admin.js');
-//                         response.status(200).send({
-//                             status: true,
-//                             data: result.recordset
-//                         })
-//                     } else if (result.returnValue === 1) {
-//                         console.log(JSON.stringify(result));
-//                         response.status(500).send({
-//                             status: false,
-//                             message: 'no sub-complaints',
-//                         })
-//                     } else {
-//                         console.log('getSubComplaintsOfSelectedComplain return -1');
-//                         response.status(500).send({message: 'return value = -1'});
-//                     }
-//                 }
-//             });
-//     } catch (e) {
-//         response.status(500).send({status: false});
-//     }
-// });
-
 router.post('/get-selected-complaint-details', verifyToken, verifyAdmin, async (request, response) => {
-    console.log(' complaintID: ' + request.body.complaintID);
-    console.log(' subComplaintID: ' + request.body.subComplaintID);
+    // console.log(' complaintID: ' + request.body.complaintID);
+    // console.log(' subComplaintID: ' + request.body.subComplaintID);
 
     const pool = await poolPromise;
     try {
@@ -385,7 +354,7 @@ router.post('/get-selected-complaint-details', verifyToken, verifyAdmin, async (
                     });
                 } else {
                     if (result.returnValue === 0) {
-                        console.log(JSON.stringify(result) + ' 322 admin.js');
+                        // console.log(JSON.stringify(result) + ' 322 admin.js');
                         let images = [];
                         const nImages = result.recordsets[6].length;
                         for (let i = 0; i < nImages; i++) {
@@ -439,6 +408,76 @@ router.post('/get-selected-complaint-details', verifyToken, verifyAdmin, async (
     }
 });
 
+router.post('/delete-selected-complaint', verifyToken, verifyAdmin, async (request, response) => {
+
+    console.log(request.body);
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .input('_complaintID', sql.Int, request.body.complaintID)
+            .execute('deleteSelectedComplaint', (error, result) => {
+                if (error) {
+                    console.log(error);
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    if (result.returnValue === 0) {
+                        console.log(JSON.stringify(result));
+                        // delete comment attachments from local memory
+                        if (result.recordsets[0] && result.recordsets[0].length !== 0) {
+                            for (let i = 0; i < result.recordsets[0].length; i++) {
+                                const path = './pictures/comment-pictures/' + result.recordsets[0][i].textOrImageName;
+                                try{
+                                    fs.unlinkSync(path);
+                                    //file removed
+                                }catch (error){
+                                    console.log(error);
+                                }
+                            }
+                        }
+                        // delete complaint attachments from local memory
+                        if (result.recordsets[1] && result.recordsets[1].length !== 0) {
+                            for (let i = 0; i < result.recordsets[1].length; i++) {
+                                const path = './pictures/complaint-pictures/' + result.recordsets[1][i].imageName;
+                                try{
+                                    fs.unlinkSync(path);
+                                    //file removed
+                                }catch (error){
+                                    console.log(error);
+                                }
+                            }
+                        }
+                        response.status(200).send({
+                            status: true,
+                            message: 'Complaint deleted successfully!'
+                        });
+                    }
+                    else if (result.returnValue === -2) {
+                        console.log('return -2 ');
+                        response.status(500).send({
+                            status: false,
+                            message: 'Something went wrong! (return value = -2)'
+                            });
+                    }else {
+                        console.log('return -1 ');
+                        response.status(500).send({
+                            status: false,
+                            message: 'Something went wrong! (return value = -1)'
+                        });
+                    }
+                }
+            })
+    } catch (e) {
+        console.log(e);
+        response.status(500).send(
+            {
+                status: false
+            }
+        )
+    }
+});
+
 
 //------------------------------------------products--------------------------------------------
 router.post('/register-product', verifyToken, verifyAdmin, async (request, response) => {
@@ -446,6 +485,13 @@ router.post('/register-product', verifyToken, verifyAdmin, async (request, respo
     const data = request.body;
     const requestedAdminEmail = request.payload.username;
     try {
+        const developers = new sql.Table('developers');
+        developers.columns.add('developer', sql.Int);
+
+        for (const developer of data.developers) {
+            developers.rows.add(developer);
+        }
+        // console.log(developers);
         const pool = await poolPromise;
         pool.request()
             .input('_productName', sql.VarChar(40), data.productName)
@@ -454,6 +500,7 @@ router.post('/register-product', verifyToken, verifyAdmin, async (request, respo
             .input('_projectManagerEmail', sql.VarChar(50), data.projectManagerEmail)
             .input('_accountCoordinatorEmail', sql.VarChar(50), data.accountCoordinatorEmail)
             .input('_createdAdmin', sql.VarChar(50), requestedAdminEmail)
+            .input('_developers', developers)
             .execute('registerProduct', (error, result) => {
                 if (error) {
                     console.log(error);
@@ -485,6 +532,35 @@ router.post('/register-product', verifyToken, verifyAdmin, async (request, respo
                     response.status(200).send({
                         status: true,
                         data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        console.log(e);
+        response.status(500).send(
+            {status: false}
+            );
+    }
+});
+
+//------------------------------------------get developers for-products------------------------------------------------------------------------------------------
+router.post('/get-all-developers', verifyToken, verifyAdmin, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            // .input('_customerEmail', sql.VarChar(50), request.payload.username)
+            .query('select userID, userEmail from Ayoma_Developers', (error, result) => {
+                if (error) {
+                    console.log(error);
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    console.log(JSON.stringify(result) + ' 75 admin.js');
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset,
                     });
                 }
             });
@@ -599,11 +675,43 @@ router.post('/delete-selected-product', verifyToken, verifyAdmin, async (request
                         status: false
                     });
                 } else {
+                    // console.log('Product deleted successfully!');
                     if (result.returnValue === 0) {
-                        response.status(200).send({});
+                        console.log(JSON.stringify(result));
+                        // delete comment attachments from local memory
+                        if (result.recordsets[0] && result.recordsets[0].length !== 0) {
+                            for (let i = 0; i < result.recordsets[0].length; i++) {
+                                const path = './pictures/comment-pictures/' + result.recordsets[0][i].textOrImageName;
+                                try{
+                                    fs.unlinkSync(path);
+                                    //file removed
+                                }catch (error){
+                                    console.log(error);
+                                }
+                            }
+                        }
+                        // delete complaint attachments from local memory
+                        if (result.recordsets[1] && result.recordsets[1].length !== 0) {
+                            for (let i = 0; i < result.recordsets[1].length; i++) {
+                                const path = './pictures/complaint-pictures/' + result.recordsets[1][i].imageName;
+                                try{
+                                    fs.unlinkSync(path);
+                                    //file removed
+                                }catch (error){
+                                    console.log(error);
+                                }
+                            }
+                        }
+                        response.status(200).send({
+                            status:true,
+                            message: 'Product deleted successfully!'
+                        });
                     } else {
                         console.log('return -1 ');
-                        response.status(500).send({message: 'return value = -1'});
+                        response.status(500).send({
+                            status: false,
+                            message: 'return value = -1'
+                        });
                     }
                 }
             })
