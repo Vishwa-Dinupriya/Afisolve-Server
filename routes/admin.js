@@ -18,7 +18,6 @@ router.get('/', (req, res, next) => {
 })
 
 router.post('/get-all-users-details', verifyToken, verifyAdmin, async (request, response) => {
-    console.log('test');
     const pool = await poolPromise;
     try {
         pool.request()
@@ -84,6 +83,7 @@ router.post('/get-selected-user-profile-details', verifyToken, verifyAdmin, asyn
             .execute('getSelectedUserDetails', (error, result) => {
                 if (error) {
                     console.log('cannot run getSelectedUserDetails');
+                    console.log(error);
                     response.status(500).send({
                         status: false
                     });
@@ -484,6 +484,13 @@ router.post('/register-product', verifyToken, verifyAdmin, async (request, respo
     const data = request.body;
     const requestedAdminEmail = request.payload.username;
     try {
+        const developers = new sql.Table('developers');
+        developers.columns.add('developer', sql.Int);
+
+        for (const developer of data.developers) {
+            developers.rows.add(developer);
+        }
+        // console.log(developers);
         const pool = await poolPromise;
         pool.request()
             .input('_productName', sql.VarChar(40), data.productName)
@@ -492,6 +499,7 @@ router.post('/register-product', verifyToken, verifyAdmin, async (request, respo
             .input('_projectManagerEmail', sql.VarChar(50), data.projectManagerEmail)
             .input('_accountCoordinatorEmail', sql.VarChar(50), data.accountCoordinatorEmail)
             .input('_createdAdmin', sql.VarChar(50), requestedAdminEmail)
+            .input('_developers', developers)
             .execute('registerProduct', (error, result) => {
                 if (error) {
                     console.log(error);
@@ -523,6 +531,35 @@ router.post('/register-product', verifyToken, verifyAdmin, async (request, respo
                     response.status(200).send({
                         status: true,
                         data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        console.log(e);
+        response.status(500).send(
+            {status: false}
+            );
+    }
+});
+
+//-------------------------------------------------get developers for-products------------------------------------------------------------------------------------------
+router.post('/get-all-developers', verifyToken, verifyAdmin, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            // .input('_customerEmail', sql.VarChar(50), request.payload.username)
+            .query('select userID, userEmail from Ayoma_Developers', (error, result) => {
+                if (error) {
+                    console.log(error);
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    console.log(JSON.stringify(result) + ' 75 admin.js');
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset,
                     });
                 }
             });

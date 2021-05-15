@@ -54,7 +54,6 @@ function verifyCustomer(req, res, next) {
         let role = req.payload.role;
         console.log('verifyCustomer: '+ role);
         if (role!='customer') {
-
             return res.status(401).send('Unauthorized request');
         }
         next();
@@ -95,10 +94,8 @@ module.exports = {
     verifyToken,
     verifyAdmin,
     verifyCustomer,
-
     verifyDeveloper,
-   verifyAccountCoordinator,
-
+    verifyAccountCoordinator,
     verifyProjectManager
 
 

@@ -202,7 +202,7 @@ router.post('/get-all-products', verifyToken, verifyCustomer, async (request, re
     try {
         pool.request()
             .input('_customerEmail', sql.VarChar(50), request.payload.username)
-            .query('select * from PRODUCT where customerID= (select userID from USERS where userEmail = @_customerEmail)', (error, result) => {
+            .query('select * from PRODUCT where customerID= (select userID from USERS where userEmail=@_customerEmail)', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -259,8 +259,7 @@ router.get('/get-comments', verifyToken, verifyCustomer, async (request, respons
             .input('_complaintID', sql.Int, request.query.complaintID)
             .input('_reqSenderUname', sql.VarChar(50), request.payload.username)
             .query('SELECT * FROM COMMENT C WHERE complaintID=@_complaintID ORDER BY C.submittedTime \n'+
-                ' select userID from USERS U WHERE userEmail=@_reqSenderUname', (error, result) => {
-                if (error) {
+                ' select userID from USERS U WHERE userEmail=@_reqSenderUname', (error, result) => {                if (error) {
                     console.log(error);
                     response.status(500).send({
                         status: false
@@ -311,6 +310,9 @@ router.get('/get-comments', verifyToken, verifyCustomer, async (request, respons
 
 //--save comments for requested complaint ID
 router.put('/save-comment_', verifyToken, verifyCustomer, async (request, response) => {
+    console.log(request.payload.username);
+    console.log('nOfImages: ' + request.body.images.length);
+    console.log('text' + request.body.text);
     const images = request.body.images;
     try {
         const pool = await poolPromise;
@@ -327,7 +329,7 @@ router.put('/save-comment_', verifyToken, verifyCustomer, async (request, respon
                     });
 
                 } else {
-                    // console.log(JSON.stringify(result) + ' : 330 customer');
+                   // console.log(JSON.stringify(result) + ' : 330 customer');
                     if (result.recordsets.length !== 0) {
                         for (let i = 0; i < result.recordsets.length; i++) {
                             //encoding and save the picture to the local memory
