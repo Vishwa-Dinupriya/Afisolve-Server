@@ -18,7 +18,7 @@ router.get('/', (req, res, next) => {
 })
 
 router.post('/get-all-users-details', verifyToken, verifyAdmin, async (request, response) => {
-
+    console.log('test');
     const pool = await poolPromise;
     try {
         pool.request()
