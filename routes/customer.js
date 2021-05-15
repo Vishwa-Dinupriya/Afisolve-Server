@@ -67,7 +67,7 @@ router.post('/get-complaints-by-statusID', verifyToken, verifyCustomer, async (r
                         status: false
                     });
                 } else {
-                   // console.log(JSON.stringify(result) + ' 56 customer.js');
+                    // console.log(JSON.stringify(result) + ' 56 customer.js');
                     let complaintElements = [];
                     for (let i = 0; i < result.recordsets[1].length; i++) {
                         complaintElements[i] = {
@@ -202,7 +202,7 @@ router.post('/get-all-products', verifyToken, verifyCustomer, async (request, re
     try {
         pool.request()
             .input('_customerEmail', sql.VarChar(50), request.payload.username)
-            .query('select * from PRODUCT where customerID=(select userID from Users where userEmail=@_customerEmail)', (error, result) => {
+            .query('select * from PRODUCT where customerID= (select userID from USERS where userEmail=@_customerEmail)', (error, result) => {
 
                 if (error) {
                     response.status(500).send({
@@ -267,7 +267,7 @@ router.get('/get-comments', verifyToken, verifyCustomer, async (request, respons
                         status: false
                     });
                 } else {
-                    console.log(JSON.stringify(result) + ': 268 customer');
+                    console.log(JSON.stringify(result) + ' : 268 customer');
                     let comments = [];
                     let textOrImage;
                     let avatarPicture;
@@ -283,7 +283,7 @@ router.get('/get-comments', verifyToken, verifyCustomer, async (request, respons
                             textOrImage = result.recordsets[0][i].textOrImageName
                         }
                         if (result.recordsets[0][i].senderID !== request.payload.userID) {
-                           // console.log(result.recordsets[0][i].senderEmail);
+                            // console.log(result.recordsets[0][i]);
                             try {//get the picture to 'img' from local memory
                                 avatarPicture = fs.readFileSync('./pictures/profile-pictures/' + result.recordsets[0][i].senderID + '.png', {encoding: 'base64'})
                             } catch (error) {

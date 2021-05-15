@@ -205,7 +205,7 @@ router.post('/login', async (request, response) => {
             });
 
     } catch (error) {
-         console.log(error);
+        console.log(error);
         response.status(500).send({
             status: false,
             message: 'DB Connection error..!'
