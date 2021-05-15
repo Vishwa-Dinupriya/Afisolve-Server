@@ -90,7 +90,7 @@ router.post('/register', verifyToken, verifyAdmin, async (request, response) => 
                                     response.status(200).send({
                                         status: false,
                                         message: 'Data Successfully Entered! Image not found!!',
-                                        image: fs.readFileSync('./pictures/default-pictures/default-profile-picture.png', {encoding: 'base64'})
+                                        image: fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'})
                                     });
                                 } else {
                                     console.log('Data Successfully Entered!');
