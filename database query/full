@@ -138,6 +138,7 @@ create table COMPLAINT
         constraint COMPLAINT_PRODUCT_productID_fk
             references PRODUCT
             on update cascade,
+    acViewedStatus    bit,
     constraint COMPLAINT_pk
         primary key nonclustered (complaintID, subComplaintID)
 )
@@ -589,12 +590,52 @@ CREATE procedure deleteSelectedUser @_username VARCHAR(50)
 as
     BEGIN TRANSACTION
 DECLARE @userIDTemp int, @roleIDTemp int, @userID int
+SELECT @userID = userID
+FROM USERS
+where userEmail = @_username;
+DECLARE
+    cursor_email CURSOR LOCAL FOR SELECT userID, roleID
+                                  FROM USER_ROLE
+                                  WHERE userID = @userID
+    if exists(select 1
+              from PRODUCT
+              where customerID = @userID)
+        begin
+            select productID, productName from PRODUCT where customerID = @userID
+            ROLLBACK TRANSACTION
+            RETURN -2;
+        end
+    if exists(select 1
+              from PRODUCT
+              where accountCoordinatorID = @userID)
+        begin
+            select productID, productName from PRODUCT where accountCoordinatorID = @userID
+            ROLLBACK TRANSACTION
+            RETURN -3;
+        end
+    if exists(select 1
+              from PRODUCT
+              where projectManagerID = @userID)
+        begin
+            select productID, productName from PRODUCT where projectManagerID = @userID
+            ROLLBACK TRANSACTION
+            RETURN -4;
+        end
+    if exists(select 1
+              from ALLOCATION
+              where developerID = @userID)
+        begin
+            select P.productID, productName
+            from ALLOCATION A
+                     join PRODUCT P on P.productID = A.productID
+            where developerID = @userID
+            ROLLBACK TRANSACTION
+            RETURN -4;
+        end
     if exists(select 1
               from USERS
               where userEmail = @_username)
         begin
-            SELECT @userID = userID FROM USERS where userEmail = @_username;
-            DECLARE cursor_email CURSOR LOCAL FOR SELECT userID, roleID FROM USER_ROLE WHERE userID = @userID
 
             OPEN cursor_email
             fetch next from cursor_email into @userIDTemp, @roleIDTemp
@@ -747,7 +788,7 @@ where userEmail = @_customerEmail;
                                  JOIN PRODUCT P ON C.productID = P.productID
                         where C.subComplaintID != 0
                           and P.customerID = @customerID
-                          and C.status = 0
+
                         select *
                         from COMPLAINT C
                                  JOIN PRODUCT P ON C.productID = P.productID
@@ -764,7 +805,7 @@ where userEmail = @_customerEmail;
                                      JOIN PRODUCT P ON C.productID = P.productID
                             where C.subComplaintID != 0
                               and P.customerID = @customerID
-                              and C.status = 1
+
                             select *
                             from COMPLAINT C
                                      JOIN PRODUCT P ON C.productID = P.productID
@@ -781,7 +822,7 @@ where userEmail = @_customerEmail;
                                          JOIN PRODUCT P ON C.productID = P.productID
                                 where C.subComplaintID != 0
                                   and P.customerID = @customerID
-                                  and C.status = 2
+
                                 select *
                                 from COMPLAINT C
                                          JOIN PRODUCT P ON C.productID = P.productID
@@ -798,7 +839,7 @@ where userEmail = @_customerEmail;
                                              JOIN PRODUCT P ON C.productID = P.productID
                                     where C.subComplaintID != 0
                                       and P.customerID = @customerID
-                                      and C.status = 3
+
                                     select *
                                     from COMPLAINT C
                                              JOIN PRODUCT P ON C.productID = P.productID
@@ -1102,7 +1143,8 @@ VALUES (@complaintID,
         (SELECT DATEADD(day, 2, GETDATE()) AS DateAdd),
         null,
         null,
-        @_productID)
+        @_productID,
+        0)
     IF @@ROWCOUNT = 0 GOTO errorHandler;
 
 DECLARE @i int;
@@ -1135,8 +1177,8 @@ AS
     BEGIN TRANSACTION
 DECLARE
     @subComplaintID int;
-    SET @subComplaintID = ((SELECT MAX(@subComplaintID)
-                            from COMPLAIN
+    SET @subComplaintID = ((SELECT MAX(subComplaintID)
+                            from COMPLAINT
                             where complaintID = @_complaintID) + 1);
 
 INSERT INTO COMPLAINT
@@ -1148,11 +1190,14 @@ VALUES (@_complaintID,
         (SELECT DATEADD(day, 2, GETDATE()) AS DateAdd),
         null,
         null,
-        (SELECT productID from COMPLAINT where complaintID = @_complaintID and subComplaintID = 0))
+        (SELECT productID from COMPLAINT where complaintID = @_complaintID and subComplaintID = 0),
+        0)
     IF @@ROWCOUNT = 0 GOTO errorHandler;
+
 UPDATE COMPLAINT
 SET status = 0
 where complaintID = @_complaintID
+  and subComplaintID = 0
     IF @@ROWCOUNT = 0 GOTO errorHandler;
 
     COMMIT TRANSACTION;
