@@ -41,7 +41,7 @@ router.post('/get-Task-Overdue-details', verifyToken,verifyDeveloper, async (req
     try {
         pool.request()
             .input('_developerEmail', sql.VarChar(50), request.payload.username)
-            .query("select t.taskID, p.productName, c.complaintID, c.subComplaintID, t.assignDate, t.deadline,t.task_status from TASK t,PRODUCT p,COMPLAINT c, USERS u where t.complaintID=c.complaintID AND t.subComplaintID=c.subComplaintID AND c.productID=p.productID AND t.developerID = u.userID AND u.userEmail=@_developerEmail AND t.task_status = 'Pending' AND t.deadline <= GETDATE()", (error, result) => {
+            .query("select t.taskID, p.productName, c.complaintID, c.subComplaintID, t.assignDate, t.deadline,t.task_status from TASK t,PRODUCT p,COMPLAINT c, USERS u where t.complaintID=c.complaintID AND t.subComplaintID=c.subComplaintID AND c.productID=p.productID AND t.developerID = u.userID AND u.userEmail=@_developerEmail AND t.task_status = 'Pending' AND t.deadline < GETDATE()", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
