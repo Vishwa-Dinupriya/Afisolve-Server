@@ -34,6 +34,29 @@ router.post('/get-Task-All-details', verifyToken, verifyDeveloper, async (reques
         response.status(500).send({status: false});
     }
 });
+//Get overdue task details
+router.post('/get-Task-Overdue-details', verifyToken,verifyDeveloper, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .input('_developerEmail', sql.VarChar(50), request.payload.username)
+            .query("select t.taskID, p.productName, c.complaintID, c.subComplaintID, t.assignDate, t.deadline,t.task_status from TASK t,PRODUCT p,COMPLAINT c, USERS u where t.complaintID=c.complaintID AND t.subComplaintID=c.subComplaintID AND c.productID=p.productID AND t.developerID = u.userID AND u.userEmail=@_developerEmail AND t.task_status = 'Pending' AND t.deadline < GETDATE()", (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
 //Get pending task details
 router.post('/get-Task-Pending-details', verifyToken,verifyDeveloper, async (request, response) => {
 

@@ -37,9 +37,9 @@ router.post('/add-complaint', verifyToken, verifyAccountCoordinator, async (requ
         response.status(500).send({status: false});
     }
 });
-
+/*
 // update comman complaint status
-router.post('/update-common-complaint-status', verifyToken, verifyAccountCoordinator, async (request, response) => {
+router.post('/update-complaint-status', verifyToken, verifyAccountCoordinator, async (request, response) => {
 
     const pool = await poolPromise;
     console.log(request.body);
@@ -64,7 +64,32 @@ router.post('/update-common-complaint-status', verifyToken, verifyAccountCoordin
     }
 
 });
+*/
+//update-complaint-status
+router.post('/update-complaint-status', verifyToken, verifyAccountCoordinator, async (request, response) => {
 
+    const pool = await poolPromise;
+    console.log(request.body);
+    try {
+        pool.request()
+            .input('_ID', sql.Int, request.body.complaintID)
+            .input('_subID', sql.Int, request.body.subComplaintID)
+            .input('_Status', sql.VarChar(10), request.body.complaintStatus)
+            .execute('updateComplaintStatusDetailsByAccoor', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
 //Complaint profile current
 router.post('/get-selected-accoorcomplaint-details-current', verifyToken, verifyAccountCoordinator, async (request, response) => {
     console.log(' complaintID: '+ request.body.complaintID);
@@ -136,6 +161,29 @@ router.post('/get-accoorcomplaints-details', verifyToken, async (request, respon
             .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
             .query('select c.complaintID,c.subComplaintID,c.finishedDate,c.lastDateOfPending,c.submittedDate,c.wipStartDate,s.statusName,p.productName, p.category, c.productID from COMPLAINT c,COMPLAINT_STATUS s, PRODUCT p, Ayoma_AccountCoordinators aa where c.status=s.statusID AND c.productID= p.productID AND aa.userID=p.accountCoordinatorID AND aa.userEmail = @_accountCoordinatorEmail order by c.complaintID',
                 (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+// Get Overdue complaint details
+router.post('/get-overdue-accoorcomplaints-details', verifyToken, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
+            .query("select c.complaintID,c.subComplaintID,c.finishedDate,c.lastDateOfPending,c.submittedDate,c.wipStartDate,s.statusName,p.productName, p.category , c.productID from COMPLAINT c,COMPLAINT_STATUS s, PRODUCT p, Ayoma_AccountCoordinators aa where c.status=s.statusID AND c.productID= p.productID AND aa.userID=p.accountCoordinatorID AND aa.userEmail = @_accountCoordinatorEmail AND c.lastDateOfPending < GETDATE() and s.statusName = 'Pending' order by c.complaintID", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -258,6 +306,7 @@ router.post('/create-task', verifyToken, verifyAccountCoordinator, async (reques
             .input('_taskdescription', sql.VarChar(200), request.body.task_description)
             .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
             .input('_developerEmail', sql.VarChar(50), request.body.developerEmail)
+           // .input('_developerName', sql.VarChar(50), request.body.selectedName)
             .execute('createTask', (error, result) => {
                 if (error) {
                     response.status(500).send({
@@ -273,6 +322,57 @@ router.post('/create-task', verifyToken, verifyAccountCoordinator, async (reques
         response.status(500).send({status: false});
     }
 });
+router.post('/update-developer', verifyToken, verifyAccountCoordinator, async (request, response) => {
+
+    const pool = await poolPromise;
+    console.log(request.body)
+    try {
+        pool.request()
+            .input('_taskID', sql.Int, request.body.taskID)
+            .input('_developerEmail', sql.VarChar(50), request.body.developerEmail)
+            .input('_deadline', sql.DateTime, request.body.deadline)
+            .execute('updateDeveloperByAccoor', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+/*
+//------------------------------Developer Name list----------------------------------//
+
+router.post('/get-DeveloperNameList', verifyToken, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+           // .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
+            .query("select userID as developerID, firstName + ' ' + lastName as developerName from Ayoma_Developers", (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+//-----------------------------------------------------------------------------------//*/
 //Get All task details
 router.post('/get-Task-All-details', verifyToken, async (request, response) => {
 
@@ -281,6 +381,29 @@ router.post('/get-Task-All-details', verifyToken, async (request, response) => {
         pool.request()
             .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
             .query("select t.taskID,t.complaintID,t.subComplaintID,t.assignDate,t.deadline,t.task_status,ad.userEmail as developerEmail,ad.firstName+\' \'+ad.lastName as DevName from TASK t,Ayoma_AccountCoordinators aa, Ayoma_Developers ad where t.developerID=ad.userID AND t.accountCoordinatorID = aa.userID AND aa.userEmail = @_accountCoordinatorEmail order by t.complaintID", (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+//Get Overdue task details
+router.post('/get-Task-Overdue-details', verifyToken, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
+            .query("select t.taskID,t.complaintID,t.subComplaintID,t.assignDate,t.deadline,ad.userEmail as developerEmail,ad.firstName+\' \'+ad.lastName as DevName from TASK t,Ayoma_AccountCoordinators aa, Ayoma_Developers ad where t.developerID=ad.userID AND t.accountCoordinatorID = aa.userID AND aa.userEmail = @_accountCoordinatorEmail AND t.task_status='Pending' AND t.deadline < GETDATE()", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -453,6 +576,7 @@ router.post('/get-product-details', verifyToken, verifyAccountCoordinator, async
 });
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+
 //-----------------------Send Mail-----------------------------//
 router.post('/sendMail', verifyToken, async (request, response) => {
     const data = request.body;
@@ -607,8 +731,49 @@ router.put('/save-comment_', verifyToken, verifyAccountCoordinator, async (reque
 
 })
 
+//////////////////////////////////////////////////////////////////////////////////////
+/*
+router.post('/get-edit-task-details', verifyToken,verifyAccountCoordinator, async (request, response) => {
 
+    const pool = await poolPromise;
+    console.log(' taskID: '+ request.body.taskID);
+    try {
+        pool.request()
+            .input('_taskID', sql.Int, request.body.taskID)
+            .execute('getSelectedTaskDetails', (error, result) => {
+                if (error) {
+                    console.log('cannot run getSelectedTaskDetails');
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    if (result.returnValue === 0) {
+                        console.log(JSON.stringify(result));
+                        response.status(200).send({
+                            status: true,
+                            data: {
+                                developerEmail: result.recordsets[1][1].userEmail,
+                                deadline: result.recordsets[0][0].deadline,
+                                task_description: result.recordsets[0][0].task_description,
+                            }
+                        })
+                    } else {
+                        console.log('getSelectedTaskDetails return -1');
+                        response.status(500).send({message: 'return value = -1'});
+                    }
+                }
+            })
+        ;
+    } catch (e) {
+        response.status(500).send(
+            {
+                status: false
+            }
+        )
+    }
+});
 
+*/
 
 //////////////////////////////////////////////////////////////////////////////////////
 module.exports = router;
