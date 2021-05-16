@@ -1,0 +1,13 @@
+insert into dbo.ROLE (roleID, roleName)
+values  (0, N'customer'),
+        (1, N'account-coordinator'),
+        (2, N'developer'),
+        (3, N'project-manager'),
+        (4, N'ceo'),
+        (5, N'admin');
+
+insert into dbo.COMPLAINT_STATUS (statusName, statusID)
+values  (N'Pending', 0),
+        (N'InProgress', 1),
+        (N'Completed', 2),
+        (N'Closed', 3);

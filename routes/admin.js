@@ -528,6 +528,11 @@ router.post('/register-product', verifyToken, verifyAdmin, async (request, respo
                         status: false,
                         message: 'Invalid project-manager'
                     });
+                } else if (result.returnValue === -5) {
+                    response.status(500).send({
+                        status: false,
+                        message: 'Invalid developer'
+                    });
                 } else {
                     response.status(200).send({
                         status: true,
