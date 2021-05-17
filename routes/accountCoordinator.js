@@ -346,16 +346,16 @@ router.post('/update-developer', verifyToken, verifyAccountCoordinator, async (r
         response.status(500).send({status: false});
     }
 });
-/*
-//------------------------------Developer Name list----------------------------------//
 
-router.post('/get-DeveloperNameList', verifyToken, async (request, response) => {
+//------------------------------Developer Email list----------------------------------//
+
+router.post('/get-DeveloperList', verifyToken, async (request, response) => {
 
     const pool = await poolPromise;
     try {
         pool.request()
            // .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
-            .query("select userID as developerID, firstName + ' ' + lastName as developerName from Ayoma_Developers", (error, result) => {
+            .query("select userEmail as developerEmail from Ayoma_Developers", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -372,7 +372,7 @@ router.post('/get-DeveloperNameList', verifyToken, async (request, response) => 
     }
 });
 
-//-----------------------------------------------------------------------------------//*/
+//-----------------------------------------------------------------------------------//
 //Get All task details
 router.post('/get-Task-All-details', verifyToken, async (request, response) => {
 
