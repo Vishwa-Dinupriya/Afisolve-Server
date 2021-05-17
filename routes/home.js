@@ -14,7 +14,8 @@ router.get('/', (req, res) => {
 
 router.post('/user-toolbar-display-details', verifyToken, async (request, response) => {
     console.log('request.payload.role: ' + request.payload.role);
-    console.log('request.payload.role: ' + request.payload.username);
+    console.log('request.payload.username: ' + request.payload.username);
+    console.log('request.payload.userID: ' + request.payload.userID);
 
     const pool = await poolPromise;
     try {
@@ -30,7 +31,7 @@ router.post('/user-toolbar-display-details', verifyToken, async (request, respon
                     console.log(JSON.stringify(result));
                     let img;
                     try {//get the picture to 'img' from local memory
-                        img = fs.readFileSync('./pictures/profile-pictures/' + request.payload.username + '.png', {encoding: 'base64'})
+                        img = fs.readFileSync('./pictures/profile-pictures/' + request.payload.userID + '.png', {encoding: 'base64'})
                     } catch (error) {
                         img = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
                     }
@@ -71,10 +72,10 @@ router.post('/get-my-profile-details', verifyToken, async (request, response) =>
                         });
                     } else {
                         if (result.returnValue === 0) {
-                            console.log(JSON.stringify(result) + ' 73 home.js');
+                            // console.log(JSON.stringify(result) + ' 75 home.js');
                             let img;
                             try {//get the picture to 'img' from local memory
-                                img = fs.readFileSync('./pictures/profile-pictures/' + request.body.UserEmail + '.png', {encoding: 'base64'})
+                                img = fs.readFileSync('./pictures/profile-pictures/' + result.recordsets[0][0].userID + '.png', {encoding: 'base64'})
                             } catch (error) {
                                 img = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
                             }
@@ -107,12 +108,13 @@ router.post('/get-my-profile-details', verifyToken, async (request, response) =>
     }
 });
 
-router.post('/update-my-profile-details', verifyToken, async (request, response) => {
-
+router.post('/update-own-profile-details', verifyToken, async (request, response) => {
     const oldEmail = request.body.emailOld;
     const data = request.body.userNewData;
     const adminEmail = request.payload.username;
     const newProfilePhoto = request.body.newProfilePhoto_;
+    const clientOtp = request.body.clientOtp;
+    const generatedOtpID = request.body.generatedOtpID;
 
     try {
 
@@ -134,12 +136,14 @@ router.post('/update-my-profile-details', verifyToken, async (request, response)
             .input('_defaultRole', sql.Int, data.defaultRole)
             .input('_contactNumber', sql.VarChar(20), data.contactNumber)
             .input('_modifiedAdmin', sql.VarChar(50), adminEmail)
+            .input('_clientOtp', sql.Int, clientOtp)
+            .input('_generatedOtpID', sql.Int, generatedOtpID)
             .execute('updateSelectedUserDetails', (error, result) => {
                 if (error) {
                     console.log(error);
                     response.status(500).send({
                         status: false,
-                        message: error
+                        message: 'something might went wrong..!'
                     });
                 } else {
                     console.log(result);
@@ -154,14 +158,14 @@ router.post('/update-my-profile-details', verifyToken, async (request, response)
                                 console.log('Data Successfully Entered!!');
 
                                 //encoding and save the picture to the local memory
-                                const path = './pictures/profile-pictures/' + data.email + '.png';
+                                const path = './pictures/profile-pictures/' + result.recordsets[0][0].userID + '.png';
                                 const base64Data = newProfilePhoto.replace(/^data:([A-Za-z-+/]+);base64,/, '');
                                 fs.writeFileSync(path, base64Data, {encoding: 'base64'});
 
                                 //get the picture to 'img' from local memory
                                 let img;
                                 try {
-                                    img = fs.readFileSync('./pictures/profile-pictures/' + request.body.email + '.png', {encoding: 'base64'});
+                                    img = fs.readFileSync('./pictures/profile-pictures/' + result.recordsets[0][0].userID + '.png', {encoding: 'base64'});
                                 } catch (error) {
                                     img = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
                                 }
@@ -178,9 +182,20 @@ router.post('/update-my-profile-details', verifyToken, async (request, response)
                                 message: 'Server Error!'
                             });
                         }
+                    }else if (result.returnValue === -2) {
+                        console.log('stored procedure returned -2');
+                        response.status(500).send({message: 'Entered OTP mismatched'});
+                    }
+                    else if(result.returnValue===-3) {
+                        console.log('existing user')
+                        response.status(500).send({
+                            status: false,
+                            message: 'Entered email already exists!'
+                        });
                     } else {
-                        console.log('2');
-                        response.status(500).send({message: 'from error handler'});
+                        response.status(500).send({
+                            status: false,
+                            message: 'from error handler'});
                     }
                 }
             });
@@ -192,6 +207,63 @@ router.post('/update-my-profile-details', verifyToken, async (request, response)
         });
     }
 
+});
+
+router.get('/get-reminder-notification', verifyToken, async (request, response) => {
+    console.log(request.payload.username);
+    console.log("awa awa awa");
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .input('_username', sql.VarChar(50), request.payload.username)
+            .execute('getNotification', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    for(let i=0; i<result.recordset.length;i++) {
+                        if (result.recordset[i].preAcID == result.returnValue) {
+                            result.recordset[i].action = 'Removel from Position'
+                        } else if (result.recordset[i].newAcID == result.returnValue){
+                            result.recordset[i].action = 'New Appoinment'
+                        } else {
+                            console.log("awlk ne");
+                        }
+                    }
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+router.post('/update-reading-status', verifyToken, async (request, response) => {
+    const data = request.body;
+    console.log(data.submittedtime)
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .input('_time', sql.VarChar(50),data.submittedtime )
+            .execute('updateReadStatus', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
 });
 
 module.exports = router;

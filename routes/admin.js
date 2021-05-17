@@ -9,30 +9,46 @@ const {sql} = require('../helpers/mssql-server-connection');
 const {verifyToken} = require('../helpers/verifyToken');
 const {verifyAdmin} = require('../helpers/verifyToken');
 
+const otpService = require('../helpers/otpService');
+const {sendOtp} = require("../helpers/otpService");
+const nodemailer = require('nodemailer');
+
 //------------------------------------------users-----------------------------------------------
 router.get('/', (req, res, next) => {
     res.send('From admin route');
 })
 
-router.post('/get-users-details', verifyToken, verifyAdmin, async (request, response) => {
-
+router.post('/get-all-users-details', verifyToken, verifyAdmin, async (request, response) => {
     const pool = await poolPromise;
     try {
         pool.request()
             .input('_username', sql.VarChar(50), request.payload.username)
-            .query('select * from USERS where userEmail!= @_username', (error, result) => {
+            .query('select userID, roleID from USER_ROLE' +
+                ' select * from  USERS  where userEmail != @_username \n', (error, result) => {
                 if (error) {
+                    console.log(error);
                     response.status(500).send({
                         status: false
                     });
                 } else {
+                    // console.log(JSON.stringify(result));
+                    const users = result.recordsets[1];
+                    const userRoles = result.recordsets[0];
+
+                    for (let user of users) {
+                        user.roleIDs = userRoles.filter(role => role.userID === user.userID).map(r => r.roleID);
+                    }
+
+                    console.log(users);
                     response.status(200).send({
                         status: true,
-                        data: result.recordset
+                        data: users,
                     });
+
                 }
             });
     } catch (e) {
+        consoel.log(error);
         response.status(500).send({status: false});
     }
 });
@@ -68,15 +84,16 @@ router.post('/get-selected-user-profile-details', verifyToken, verifyAdmin, asyn
             .execute('getSelectedUserDetails', (error, result) => {
                 if (error) {
                     console.log('cannot run getSelectedUserDetails');
+                    console.log(error);
                     response.status(500).send({
                         status: false
                     });
                 } else {
                     if (result.returnValue === 0) {
-                        console.log(JSON.stringify(result) + ' 75 admin.js');
+                        // console.log(JSON.stringify(result) + ' 75 admin.js');
                         let img;
                         try {//get the picture to 'img' from local memory
-                            img = fs.readFileSync('./pictures/profile-pictures/' + request.body.selectedUserEmail + '.png', {encoding: 'base64'})
+                            img = fs.readFileSync('./pictures/profile-pictures/' + result.recordsets[0][0].userID + '.png', {encoding: 'base64'})
                         } catch (error) {
                             img = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
                         }
@@ -112,11 +129,12 @@ router.post('/get-selected-user-profile-details', verifyToken, verifyAdmin, asyn
 });
 
 router.post('/update-selected-user-profile-details', verifyToken, verifyAdmin, async (request, response) => {
-
     const oldEmail = request.body.emailOld;
     const data = request.body.userNewData;
     const adminEmail = request.payload.username;
     const newProfilePhoto = request.body.newProfilePhoto_;
+    const clientOtp = request.body.clientOtp;
+    const generatedOtpID = request.body.generatedOtpID;
 
     try {
 
@@ -138,44 +156,46 @@ router.post('/update-selected-user-profile-details', verifyToken, verifyAdmin, a
             .input('_defaultRole', sql.Int, data.defaultRole)
             .input('_contactNumber', sql.VarChar(20), data.contactNumber)
             .input('_modifiedAdmin', sql.VarChar(50), adminEmail)
+            .input('_clientOtp', sql.Int, clientOtp)
+            .input('_generatedOtpID', sql.Int, generatedOtpID)
             .execute('updateSelectedUserDetails', (error, result) => {
                 if (error) {
                     console.log(error);
                     response.status(500).send({
                         status: false,
-                        message: error
+                        message: 'something might went wrong..!'
                     });
                 } else {
-                    console.log(result);
+                    // console.log(JSON.stringify(result) + ' 168 admin.js');
                     if (result.returnValue === 0) {
                         try {
-                           if(!newProfilePhoto) {
-                               response.status(200).send({
-                                   status: true,
-                                   message: 'Data Successfully Updated! Image not found!!'
-                               });
-                           }else{
-                               console.log('Data Successfully Entered!!');
+                            if (!newProfilePhoto) {
+                                response.status(200).send({
+                                    status: true,
+                                    message: 'Data Successfully Updated! Image not found!!'
+                                });
+                            } else {
+                                console.log('Data Successfully Entered!!');
 
-                               //encoding and save the picture to the local memory
-                               const path = './pictures/profile-pictures/' + data.email + '.png';
-                               const base64Data = newProfilePhoto.replace(/^data:([A-Za-z-+/]+);base64,/, '');
-                               fs.writeFileSync(path, base64Data, {encoding: 'base64'});
+                                //encoding and save the picture to the local memory
+                                const path = './pictures/profile-pictures/' + result.recordsets[0][0].userID + '.png';
+                                const base64Data = newProfilePhoto.replace(/^data:([A-Za-z-+/]+);base64,/, '');
+                                fs.writeFileSync(path, base64Data, {encoding: 'base64'});
 
-                               //get the picture to 'img' from local memory
-                               let img;
-                               try {
-                                   img = fs.readFileSync('./pictures/profile-pictures/' + request.body.email + '.png', {encoding: 'base64'});
-                               } catch (error) {
-                                   img = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
-                               }
-                               response.status(200).send({
-                                   status: true,
-                                   message: 'Data Successfully Entered!',
-                                   image: img
-                               });
-                           }
-                        }catch (error){
+                                //get the picture to 'img' from local memory
+                                let img;
+                                try {
+                                    img = fs.readFileSync('./pictures/profile-pictures/' + result.recordsets[0][0].userID + '.png', {encoding: 'base64'});
+                                } catch (error) {
+                                    img = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
+                                }
+                                response.status(200).send({
+                                    status: true,
+                                    message: 'Data Successfully Entered!',
+                                    image: img
+                                });
+                            }
+                        } catch (error) {
                             console.log(error);
                             response.status(500).send({
                                 status: false,
@@ -183,6 +203,15 @@ router.post('/update-selected-user-profile-details', verifyToken, verifyAdmin, a
                             });
                         }
 
+                    } else if (result.returnValue === -2) {
+                        console.log('stored procedure returned -2');
+                        response.status(500).send({message: 'Entered OTP mismatched'});
+                    } else if (result.returnValue === -3) {
+                        console.log('existing user')
+                        response.status(500).send({
+                            status: false,
+                            message: 'Entered email already exists!'
+                        });
                     } else {
                         console.log('2');
                         response.status(500).send({message: 'from error handler'});
@@ -215,10 +244,15 @@ router.post('/delete-selected-user', verifyToken, verifyAdmin, async (request, r
                     });
                 } else {
                     if (result.returnValue === 0) {
-                        response.status(200).send({});
+                        response.status(200).send({
+                            status: true,
+                            message: 'User deleted succssfully!'
+                        });
                     } else {
                         console.log('return -1 ');
-                        response.status(500).send({message: 'return value = -1'});
+                        response.status(500).send({
+                            status:false,
+                            message: 'return value = -1'});
                     }
                 }
             })
@@ -270,7 +304,7 @@ router.post('/get-all-complaints', verifyToken, verifyAdmin, async (request, res
                         status: false
                     });
                 } else {
-                    console.log(JSON.stringify(result) + ' 248 admin.js');
+                    // console.log(JSON.stringify(result) + ' 248 admin.js');
                     let complaintElements = [];
                     for (let i = 0; i < result.recordsets[1].length; i++) {
                         complaintElements[i] = {
@@ -278,7 +312,7 @@ router.post('/get-all-complaints', verifyToken, verifyAdmin, async (request, res
                             description: result.recordsets[1][i].description,
                             finishedDate: result.recordsets[1][i].finishedDate,
                             lastDateOfPending: result.recordsets[1][i].lastDateOfPending,
-                            productID: result.recordsets[1][i].productID[0],
+                            productID: result.recordsets[1][i].productID,
                             status: result.recordsets[1][i].status,
                             subComplaintID: result.recordsets[1][i].subComplaintID,
                             submittedDate: result.recordsets[1][i].submittedDate,
@@ -288,7 +322,7 @@ router.post('/get-all-complaints', verifyToken, verifyAdmin, async (request, res
                             })
                         }
                     }
-                    console.log(complaintElements);
+                    // console.log(complaintElements);
 
                     response.status(200).send({
                         status: true,
@@ -303,68 +337,32 @@ router.post('/get-all-complaints', verifyToken, verifyAdmin, async (request, res
     }
 });
 
-router.post('/get-subComplaints', verifyToken, verifyAdmin, async (request, response) => {
-
-    const pool = await poolPromise;
-    try {
-        pool.request()
-            .input('_complainId', sql.VarChar(10), request.body.selectedComplaintID)
-            .execute('getSubComplaintsOfSelectedComplain', (error, result) => {
-                if (error) {
-                    console.log('cannot run getSubComplaintsOfSelectedComplain');
-                    response.status(500).send({
-                        status: false
-                    });
-                } else {
-                    if (result.returnValue === 0) {
-                        console.log(JSON.stringify(result) + ' 74 admin.js');
-                        response.status(200).send({
-                            status: true,
-                            data: result.recordset
-                        })
-                    } else if (result.returnValue === 1) {
-                        console.log(JSON.stringify(result));
-                        response.status(500).send({
-                            status: false,
-                            message: 'no sub-complaints',
-                        })
-                    } else {
-                        console.log('getSubComplaintsOfSelectedComplain return -1');
-                        response.status(500).send({message: 'return value = -1'});
-                    }
-                }
-            });
-    } catch (e) {
-        response.status(500).send({status: false});
-    }
-});
-
 router.post('/get-selected-complaint-details', verifyToken, verifyAdmin, async (request, response) => {
-    console.log(' complaintID: ' + request.body.complaintID);
-    console.log(' subComplaintID: ' + request.body.subComplaintID);
+    // console.log(' complaintID: ' + request.body.complaintID);
+    // console.log(' subComplaintID: ' + request.body.subComplaintID);
 
     const pool = await poolPromise;
     try {
         pool.request()
             .input('_complaintID', sql.Int, request.body.complaintID)
             .input('_subComplaintID', sql.Int, request.body.subComplaintID)
-            .execute('getSelectedComplaintDetails', (error, result) => {
+            .execute('getSelectedComplaintDetailsAdmin', (error, result) => {
                 if (error) {
-                    console.log('cannot run getSelectedUserDetails');
+                    console.log('cannot run getSelectedComplaintDetailsAdmin');
                     response.status(500).send({
                         status: false
                     });
                 } else {
                     if (result.returnValue === 0) {
-                        console.log(JSON.stringify(result) + ' 322 admin.js');
-                        let images = [ ];
-                        const nImages = result.recordsets[5].length;
-                        for(let i=0; i<nImages; i++){
+                        // console.log(JSON.stringify(result) + ' 322 admin.js');
+                        let images = [];
+                        const nImages = result.recordsets[6].length;
+                        for (let i = 0; i < nImages; i++) {
                             let img;
                             try {//get the picture to 'img' from local memory
-                                img = fs.readFileSync('./pictures/complaint-pictures/' + result.recordsets[5][i].imageName, {encoding: 'base64'})
+                                img = fs.readFileSync('./pictures/complaint-pictures/' + result.recordsets[6][i].imageName, {encoding: 'base64'})
                             } catch (error) {
-                                img = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
+                                img = fs.readFileSync('./pictures/complaint-pictures/default-complaint-picture.png', {encoding: 'base64'});
                             }
                             images.push(img);
                         }
@@ -387,18 +385,91 @@ router.post('/get-selected-complaint-details', verifyToken, verifyAdmin, async (
                                 projectManagerLastName: result.recordsets[3][0].lastName,
                                 accountCoordinatorEmail: result.recordsets[4][0].userEmail,
                                 accountCoordinatorFirstName: result.recordsets[4][0].firstName,
-                                accountCoordinatorLastName: result.recordsets[4][0].lastName
+                                accountCoordinatorLastName: result.recordsets[4][0].lastName,
+                                customerEmail: result.recordsets[5][0].userEmail,
+                                customerFirstName: result.recordsets[5][0].firstName,
+                                customerLastName: result.recordsets[5][0].lastName
                             },
                             images: images
                         })
                     } else {
-                        console.log('getSelectedUserDetails return -1');
+                        console.log('getSelectedComplaintDetailsAdmin return -1');
                         response.status(500).send({message: 'return value = -1'});
                     }
                 }
             })
         ;
     } catch (e) {
+        response.status(500).send(
+            {
+                status: false
+            }
+        )
+    }
+});
+
+router.post('/delete-selected-complaint', verifyToken, verifyAdmin, async (request, response) => {
+
+    console.log(request.body);
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .input('_complaintID', sql.Int, request.body.complaintID)
+            .execute('deleteSelectedComplaint', (error, result) => {
+                if (error) {
+                    console.log(error);
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    if (result.returnValue === 0) {
+                        console.log(JSON.stringify(result));
+                        // delete comment attachments from local memory
+                        if (result.recordsets[0] && result.recordsets[0].length !== 0) {
+                            for (let i = 0; i < result.recordsets[0].length; i++) {
+                                const path = './pictures/comment-pictures/' + result.recordsets[0][i].textOrImageName;
+                                try{
+                                    fs.unlinkSync(path);
+                                    //file removed
+                                }catch (error){
+                                    console.log(error);
+                                }
+                            }
+                        }
+                        // delete complaint attachments from local memory
+                        if (result.recordsets[1] && result.recordsets[1].length !== 0) {
+                            for (let i = 0; i < result.recordsets[1].length; i++) {
+                                const path = './pictures/complaint-pictures/' + result.recordsets[1][i].imageName;
+                                try{
+                                    fs.unlinkSync(path);
+                                    //file removed
+                                }catch (error){
+                                    console.log(error);
+                                }
+                            }
+                        }
+                        response.status(200).send({
+                            status: true,
+                            message: 'Complaint deleted successfully!'
+                        });
+                    }
+                    else if (result.returnValue === -2) {
+                        console.log('return -2 ');
+                        response.status(500).send({
+                            status: false,
+                            message: 'Something went wrong! (return value = -2)'
+                            });
+                    }else {
+                        console.log('return -1 ');
+                        response.status(500).send({
+                            status: false,
+                            message: 'Something went wrong! (return value = -1)'
+                        });
+                    }
+                }
+            })
+    } catch (e) {
+        console.log(e);
         response.status(500).send(
             {
                 status: false
@@ -414,6 +485,13 @@ router.post('/register-product', verifyToken, verifyAdmin, async (request, respo
     const data = request.body;
     const requestedAdminEmail = request.payload.username;
     try {
+        const developers = new sql.Table('developers');
+        developers.columns.add('developer', sql.Int);
+
+        for (const developer of data.developers) {
+            developers.rows.add(developer);
+        }
+        // console.log(developers);
         const pool = await poolPromise;
         pool.request()
             .input('_productName', sql.VarChar(40), data.productName)
@@ -422,16 +500,72 @@ router.post('/register-product', verifyToken, verifyAdmin, async (request, respo
             .input('_projectManagerEmail', sql.VarChar(50), data.projectManagerEmail)
             .input('_accountCoordinatorEmail', sql.VarChar(50), data.accountCoordinatorEmail)
             .input('_createdAdmin', sql.VarChar(50), requestedAdminEmail)
+            .input('_developers', developers)
             .execute('registerProduct', (error, result) => {
                 if (error) {
                     console.log(error);
                     response.status(500).send({
                         status: false
                     });
+                }else if (result.returnValue === -1) {
+                    console.log('registerProduct return -1')
+                    response.status(500).send({
+                        status: false,
+                        message: ''
+                    });
+                }else if (result.returnValue === -2) {
+                    response.status(500).send({
+                        status:false,
+                        message: 'Invalid customer!'
+                    });
+                } else if (result.returnValue === -3) {
+                    response.status(500).send({
+                        status: false,
+                        message: 'Invalid account-coordinator!'
+                    });
+                }  else if (result.returnValue === -4) {
+                    response.status(500).send({
+                        status: false,
+                        message: 'Invalid project-manager'
+                    });
+                } else if (result.returnValue === -5) {
+                    response.status(500).send({
+                        status: false,
+                        message: 'Invalid developer'
+                    });
                 } else {
                     response.status(200).send({
                         status: true,
                         data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        console.log(e);
+        response.status(500).send(
+            {status: false}
+            );
+    }
+});
+
+//------------------------------------------get developers for-products------------------------------------------------------------------------------------------
+router.post('/get-all-developers', verifyToken, verifyAdmin, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            // .input('_customerEmail', sql.VarChar(50), request.payload.username)
+            .query('select userID, userEmail from Ayoma_Developers', (error, result) => {
+                if (error) {
+                    console.log(error);
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    console.log(JSON.stringify(result) + ' 75 admin.js');
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset,
                     });
                 }
             });
@@ -446,15 +580,32 @@ router.post('/get-all-products', verifyToken, verifyAdmin, async (request, respo
     const pool = await poolPromise;
     try {
         pool.request()
-            .query('select * from PRODUCT', (error, result) => {
+            .query('select * from PRODUCT \n' + 'select * from USERS', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
                     });
                 } else {
+                    console.log(JSON.stringify(result) + ' 507 admin.js');
+                    let productElements = [];
+                    for (let i = 0; i < result.recordsets[0].length; i++) {
+                        productElements[i] = {
+                            productID: result.recordsets[0][i].productID,
+                            productName: result.recordsets[0][i].productName,
+                            category: result.recordsets[0][i].category,
+                            createdAt: result.recordsets[0][i].createdAt,
+                            modifiedAt: result.recordsets[0][i].modifiedAt,
+                            customerEmail:  result.recordsets[1].filter(element => element.userID === result.recordsets[0][i].customerID).map(user => user.userEmail)[0],
+                            accountCoordinatorEmail:  result.recordsets[1].filter(element => element.userID === result.recordsets[0][i].accountCoordinatorID).map(user => user.userEmail)[0],
+                            projectManagerEmail:  result.recordsets[1].filter(element => element.userID === result.recordsets[0][i].projectManagerID).map(user => user.userEmail)[0],
+                            createdBy:  result.recordsets[1].filter(element => element.userID === result.recordsets[0][i].createdBy).map(user => user.userEmail)[0],
+                            modifiedBy:  result.recordsets[1].filter(element => element.userID === result.recordsets[0][i].modifiedBy).map(user => user.userEmail)[0]
+                        }
+                    }
+                    console.log(productElements);
                     response.status(200).send({
                         status: true,
-                        data: result.recordset
+                        data: productElements
                     });
                 }
             });
@@ -481,20 +632,20 @@ router.post('/get-selected-product-details', verifyToken, verifyAdmin, async (re
                         response.status(200).send({
                             status: true,
                             data: {
-                                accountCoordinatorEmail: result.recordsets[0][0].accountCoordinatorEmail,
+                                accountCoordinatorEmail: result.recordsets[3][0].accountCoordinatorEmail,
                                 accountCoordinatorFirstName: result.recordsets[3][0].firstName,
                                 accountCoordinatorLastName: result.recordsets[3][0].lastName,
                                 category: result.recordsets[0][0].category,
                                 createdAt: result.recordsets[0][0].createdAt,
                                 createdBy: result.recordsets[0][0].createdBy,
-                                customerEmail: result.recordsets[0][0].customerEmail,
+                                customerEmail: result.recordsets[1][0].customerEmail,
                                 customerFirstName: result.recordsets[1][0].firstName,
                                 customerLastName: result.recordsets[1][0].lastName,
                                 modifiedAt: result.recordsets[0][0].modifiedAt,
                                 modifiedBy: result.recordsets[0][0].modifiedBy,
                                 productID: result.recordsets[0][0].productID,
                                 productName: result.recordsets[0][0].productName,
-                                projectManagerEmail: result.recordsets[0][0].projectManagerEmail,
+                                projectManagerEmail: result.recordsets[2][0].projectManagerEmail,
                                 projectManagerFirstName: result.recordsets[2][0].firstName,
                                 projectManagerLastName: result.recordsets[2][0].lastName
                             }
@@ -529,11 +680,43 @@ router.post('/delete-selected-product', verifyToken, verifyAdmin, async (request
                         status: false
                     });
                 } else {
+                    // console.log('Product deleted successfully!');
                     if (result.returnValue === 0) {
-                        response.status(200).send({});
+                        console.log(JSON.stringify(result));
+                        // delete comment attachments from local memory
+                        if (result.recordsets[0] && result.recordsets[0].length !== 0) {
+                            for (let i = 0; i < result.recordsets[0].length; i++) {
+                                const path = './pictures/comment-pictures/' + result.recordsets[0][i].textOrImageName;
+                                try{
+                                    fs.unlinkSync(path);
+                                    //file removed
+                                }catch (error){
+                                    console.log(error);
+                                }
+                            }
+                        }
+                        // delete complaint attachments from local memory
+                        if (result.recordsets[1] && result.recordsets[1].length !== 0) {
+                            for (let i = 0; i < result.recordsets[1].length; i++) {
+                                const path = './pictures/complaint-pictures/' + result.recordsets[1][i].imageName;
+                                try{
+                                    fs.unlinkSync(path);
+                                    //file removed
+                                }catch (error){
+                                    console.log(error);
+                                }
+                            }
+                        }
+                        response.status(200).send({
+                            status:true,
+                            message: 'Product deleted successfully!'
+                        });
                     } else {
                         console.log('return -1 ');
-                        response.status(500).send({message: 'return value = -1'});
+                        response.status(500).send({
+                            status: false,
+                            message: 'return value = -1'
+                        });
                     }
                 }
             })
@@ -571,66 +754,424 @@ router.post('/get-feedbacks-details', verifyToken, verifyAdmin, async (request, 
         response.status(500).send({status: false});
     }
 });
-////////////////////me/////////
 
-router.post('/update-selected-user-profile-details', verifyToken, verifyAdmin, async (request, response) => {
+router.post('/get-selected-feedback-details', verifyToken, verifyAdmin, async (request, response) => {
+    console.log(' complaintID: ' + request.body.complaintID);
 
-    const oldEmail = request.body.emailOld;
-    const data = request.body.userNewData;
-    const adminEmail = request.payload.username;
-    console.log(request.body.emailOld + ' admin.js 113');
-    console.log(request.body.userNewData.passwordGroup.password + ' password admin.js 114');
-
+    const pool = await poolPromise;
     try {
-
-        const roles = new sql.Table('roles');
-        roles.columns.add('role', sql.Int);
-
-        for (const role of data.roles) {
-            roles.rows.add(role);
-        }
-
-        const pool = await poolPromise;
-        await pool.request()
-            .input('_oldEmail', sql.VarChar(50), oldEmail)
-            .input('_firstname', sql.VarChar(40), data.firstName)
-            .input('_lastname', sql.VarChar(40), data.lastName)
-            .input('_newEmail', sql.VarChar(50), data.email)
-            .input('_password', sql.VarChar(20), data.passwordGroup.password)
-            .input('_roles', roles)
-            .input('_defaultRole', sql.Int, data.defaultRole)
-            .input('_contactNumber', sql.VarChar(20), data.contactNumber)
-            .input('_modifiedAdmin', sql.VarChar(50), adminEmail)
-            .execute('updateSelectedUserDetails', (error, result) => {
+        pool.request()
+            .input('_complaintID', sql.Int, request.body.complaintID)
+            .execute('getSelectedFeedbackDetails', (error, result) => {
                 if (error) {
-                    console.log('1');
-                    console.log(error);
+                    console.log('cannot run getSelectedFeedbackDetails');
                     response.status(500).send({
-                        status: false,
-                        message: error
+                        status: false
                     });
                 } else {
-                    console.log(result);
                     if (result.returnValue === 0) {
-                        console.log('Data Successfully Updated!');
+                        console.log(JSON.stringify(result) + ' 659 admin.js');
                         response.status(200).send({
                             status: true,
-                            message: 'Data Successfully Updated!'
-                        });
+                            data: {
+                                complaintID: result.recordsets[0][0].complaintID,
+                                description: result.recordsets[0][0].description,
+                                satisfaction: result.recordsets[0][0].satisfaction,
+                                productID: result.recordsets[1][0].productID,
+                                productName: result.recordsets[1][0].productName,
+                                projectManagerEmail: result.recordsets[2][0].userEmail,
+                                projectManagerFirstName: result.recordsets[2][0].firstName,
+                                projectManagerLastName: result.recordsets[2][0].lastName,
+                                accountCoordinatorEmail: result.recordsets[3][0].userEmail,
+                                accountCoordinatorFirstName: result.recordsets[3][0].firstName,
+                                accountCoordinatorLastName: result.recordsets[3][0].lastName,
+                                customerEmail: result.recordsets[4][0].userEmail,
+                                customerFirstName: result.recordsets[4][0].firstName,
+                                customerLastName: result.recordsets[4][0].lastName,
+                                submittedDate: result.recordsets[5][0].submittedDate,
+                                lastDateOfPending: result.recordsets[5][0].lastDateOfPending,
+                                wipStartDate: result.recordsets[5][0].wipStartDate,
+                                finishedDate: result.recordsets[5][0].finishedDate,
+                                nOfSubComplaints: result.recordsets[6][0].nOfSubComplaints
+                            },
+                        })
                     } else {
-                        console.log('2');
-                        response.status(500).send({message: 'from error handler'});
+                        console.log('getSelectedUserDetails return -1');
+                        response.status(500).send({message: 'return value = -1'});
                     }
                 }
+            })
+        ;
+    } catch (e) {
+        response.status(500).send(
+            {
+                status: false
+            }
+        )
+    }
+});
+
+//........................................... dashboard....................
+
+router.post('/get-all-user-count', verifyToken, verifyAdmin, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query('SELECT count(*) as count FROM USERS', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
             });
-    } catch (error) {
-        console.log(error);
-        response.status(500).send({
-            status: false,
-            message: 'DB connection Error..!'
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+router.post('/get-active-user-count', verifyToken, verifyAdmin, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query('select  count(*) as count from USERS where USERS.activeStatus =\'true\'', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+router.post('/get-all-complaints-count', verifyToken, verifyAdmin, async (request, response) => {
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .execute('getComplaintCount', (error, result) => {
+                if (error) {
+                    console.log('cannot run getComplaintCount');
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: {
+                            alll: result.recordsets[0][0].alll,
+                            clos: result.recordsets[4][0].clos
+                        },
+                    })
+                }
+            })
+        ;
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+
+// .........................chart..............
+
+
+//....................................... TIME EKT ANUWA COMPLAINT
+router.get('/get-month-count', verifyToken, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query('\n' +
+                'SELECT TOP 5 count(*) as num, format(submittedDate, \'yyyy-MM\') as month\n' +
+                'FROM COMPLAINT\n' +
+                'GROUP BY format(submittedDate, \'yyyy-MM\')\n' +
+                'order by 2 DESC', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+// ..............timme ekta anuwa users la...
+
+router.get('/get-month-count-users', verifyToken, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query('SELECT TOP 5 count(*) as num, format(createdAt, \'yyyy-MM\') as month\n' +
+                '                FROM USERS\n' +
+                '                GROUP BY format(createdAt, \'yyyy-MM\')\n' +
+                '                order by 2 DESC', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+router.get('/get-feedback-count', verifyToken, async (request, response) => {
+
+        const pool = await poolPromise;
+        try {
+            pool.request()
+                .execute('getFeedbackCount', (error, result) => {
+                    if (error) {
+                        console.log('cannot run getFeedbackCount');
+                        response.status(500).send({
+                            status: false
+                        });
+                    } else {
+                            response.status(200).send({
+                                status: true,
+                                data: {
+                                    sat1: result.recordsets[0][0].sat1,
+                                    sat2: result.recordsets[1][0].sat2,
+                                    sat3: result.recordsets[2][0].sat3,
+                                    sat4: result.recordsets[3][0].sat4,
+                                    sat5: result.recordsets[4][0].sat5
+                                },
+                            })
+                    }
+                })
+            ;
+        } catch (e) {
+            response.status(500).send(
+                {
+                    status: false
+                }
+            )
+        }
+    });
+
+
+router.post('/get-active-users', verifyToken, verifyAdmin, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query('select * from USERS where USERS.activeStatus = \'true\'', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+router.post('/update-Ac', verifyToken, async (request, response)=> {
+    const data = request.body;
+    console.log(data.v);
+    console.log(data.u.userID);
+
+    async function main() {
+        let transporter = nodemailer.createTransport({
+            service: "gmail",
+            auth: {
+                user: 'info.afisolve@gmail.com', // generated ethereal user
+                pass: 'codered09' // generated ethereal password
+            },
         });
+
+        let info = await transporter.sendMail({
+            from: 'info.afisolve@gmail.com', // sender address
+            to: data.w, // list of receivers
+            subject: "Remove as Account Coordinator", // Subject line
+            text: "Dear Sir/Madam,\n" +
+                "    We discussed your problem which is working as account coordinator of the product Id "+ data.v + "product. Therefore, you have been removed as account coordinator of this product.\n" +
+                "\n" +
+                "    NOTE: If you have any issue, please contact the admin of the complaint management unit.\n" +
+                "\n" +
+                "    Best Regards,\n" +
+                "    afi-Solve Complaint Management Unit,\n" +
+                "    Afisol (Pvt) Ltd.   \n" +
+                " _________________________________________________________________________ \n" +
+                "    Disclaimer: This is a system-generated mail. For any queries, please contact the Company.\n"
+        });
+
+        let info1 = await transporter.sendMail({
+            from: 'info.afisolve@gmail.com', // sender address
+            to: data.u.userEmail, // list of receivers
+            subject: "New Approval", // Subject line
+            text: "Dear Sir/Madam,\n" +
+                "    You have been selected as the new Account Coordinator of Product ID "+ data.v + ". Please pay attention to provide solutions to complaints of this product.\n" +
+                "\n" +
+                "    NOTE: If you have any issue, please contact the admin of the complaint management unit.\n" +
+                "\n" +
+                "    Best Regards,\n" +
+                "    afi-Solve Complaint Management Unit,\n" +
+                "    Afisol (Pvt) Ltd.   \n" +
+                " _________________________________________________________________________ \n" +
+                "    Disclaimer: This is a system-generated mail. For any queries, please contact the Company.\n" +
+                "\n" });
+    }
+
+   main().catch(console.error);
+
+    try {
+        const pool = await poolPromise;
+        pool.request()
+            .input('_cbc', sql.Int, data.u.userID)
+            .input('_pdi', sql.Int, data.v)
+            .execute('updateAccountCoordinator', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
     }
 
 });
-//////////////////////////////////////////////////////
+
+router.post('/get-project-Manager-List', verifyToken, verifyAdmin, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query('select u.userEmail, u.firstName, u.lastName, u.userID\n' +
+                'from USERS u,USER_ROLE r\n' +
+                'where u.userID = r.userID and r.roleID = \'3\'', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+router.post('/update-Pm', verifyToken, async (request, response)=> {
+    const data = request.body;
+    console.log(data.v);
+    console.log(data.u.userID);
+
+    async function main() {
+        let transporter = nodemailer.createTransport({
+            service: "gmail",
+            auth: {
+                user: 'info.afisolve@gmail.com', // generated ethereal user
+                pass: 'codered09' // generated ethereal password
+            },
+        });
+
+        let info = await transporter.sendMail({
+            from: 'info.afisolve@gmail.com', // sender address
+            to: data.w, // list of receivers
+            subject: "Remove as Project Manager", // Subject line
+            text: "Dear Sir/Madam,\n" +
+                "    We discussed your problem which is working as project manager of the product Id "+ data.v + " product. Therefore, you have been removed as project manager of this product.\n" +
+                "\n" +
+                "    NOTE: If you have any issue, please contact the admin of the complaint management unit.\n" +
+                "\n" +
+                "    Best Regards,\n" +
+                "    afi-Solve Complaint Management Unit,\n" +
+                "    Afisol (Pvt) Ltd.   \n" +
+                " _________________________________________________________________________ \n" +
+                "    Disclaimer: This is a system-generated mail. For any queries, please contact the Company.\n"
+        });
+
+        let info1 = await transporter.sendMail({
+            from: 'info.afisolve@gmail.com', // sender address
+            to: data.u.userEmail, // list of receivers
+            subject: "New Approval", // Subject line
+            text: "Dear Sir/Madam,\n" +
+                "    You have been selected as the new project manager of Product ID "+ data.v + ". Please pay attention to provide solutions to complaints of this product.\n" +
+                "\n" +
+                "    NOTE: If you have any issue, please contact the admin of the complaint management unit.\n" +
+                "\n" +
+                "    Best Regards,\n" +
+                "    afi-Solve Complaint Management Unit,\n" +
+                "    Afisol (Pvt) Ltd.   \n" +
+                " _________________________________________________________________________ \n" +
+                "    Disclaimer: This is a system-generated mail. For any queries, please contact the Company.\n" +
+                "\n" });
+    }
+
+    main().catch(console.error);
+
+    try {
+        const pool = await poolPromise;
+        pool.request()
+            .input('_cbc', sql.Int, data.u.userID)
+            .input('_pdi', sql.Int, data.v)
+            .execute('updateProjectManger', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+
+});
+
+
+
+
+
+
+
 module.exports = router;
