@@ -5,6 +5,7 @@ const {poolPromise} = require('../helpers/mssql-server-connection');
 const {sql} = require('../helpers/mssql-server-connection');
 const {verifyToken} = require('../helpers/verifyToken');
 const {verifyDeveloper} = require('../helpers/verifyToken');
+const nodemailer = require("nodemailer");
 
 router.get('/', (req, res) => {
     res.send('From authentication route');
@@ -19,6 +20,29 @@ router.post('/get-Task-All-details', verifyToken, verifyDeveloper, async (reques
         pool.request()
            .input('_developerEmail', sql.VarChar(50), request.payload.username)
             .query("select t.taskID, p.productName, c.complaintID, c.subComplaintID, t.assignDate, t.deadline,t.task_status from TASK t,PRODUCT p,COMPLAINT c, USERS u where t.complaintID=c.complaintID AND t.subComplaintID=c.subComplaintID AND c.productID=p.productID AND t.developerID = u.userID AND u.userEmail=@_developerEmail", (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+//Get All task details
+router.post('/get-AccoorList', verifyToken, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query("select userEmail, firstName + ' ' + lastName as userName from Ayoma_AccountCoordinators", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -312,6 +336,74 @@ router.post('/get-selected-complaint-details', verifyToken,verifyDeveloper,  asy
     }
 });
 
+//-----------------------Send Mail to Account coordinator-----------------------------//
+router.post('/sendMailtoAccountCoo', verifyToken, async (request, response) => {
+    const data = request.body;
+    console.log(data)
+    const receiver= data.accoorEmail;
+    const taskID= data.taskID;
+    const subject = data.Subject;
+    let Messeage;
+    const senderEmail = request.payload.username;
+    console.log(receiver);
+    if(subject=='Task Completed'){
+        Messeage = 'Dear Sir/Madam, \n'+
+            'This is to inform you that Task' + taskID + 'is completed.\n' +
+            'Thank you!'+
+            "\n" +
+            "    Best Regards,\n" +
+            "    afi-Solve Complaint Management Unit,\n" +
+            "    Afisol (Pvt) Ltd.   \n" +
+            " _________________________________________________________________________ \n" +
+            "    Disclaimer: This is a system-generated mail. For any queries, please contact the relevant Developer.\n"
+    } else if(subject=='Unable to do the Task'){
+        Messeage = 'Dear Sir/Madam, \n'+
+            'This is in reference to the Task' + taskID + ". Unfortunately I won't be able to do the task. Please consider my request.\n" +
+            'Thank you!'+
+            "\n" +
+            "    Best Regards,\n" +
+            "    afi-Solve Complaint Management Unit,\n" +
+            "    Afisol (Pvt) Ltd.   \n" +
+            " _________________________________________________________________________ \n" +
+            "    Disclaimer: This is a system-generated mail. For any queries, please contact the relevent Developer.\n"
+
+    } else {
+        Messeage = 'Dear Sir/Madam, \n'+
+            'This is in reference to the Task' + taskID + 'I need more time to complete the task. Please consider my request.\n' +
+            'Thank you!'+
+            "\n" +
+            "    Best Regards,\n" +
+            "    afi-Solve Complaint Management Unit,\n" +
+            "    Afisol (Pvt) Ltd.   \n" +
+            " _________________________________________________________________________ \n" +
+            "    Disclaimer: This is a system-generated mail. For any queries, please contact the relevent Developer.\n"
+    }
+    // Nodemailer
+
+    // async..await is not allowed in global scope, must use a wrapper
+    async function main() {
+        let transporter = nodemailer.createTransport({
+            service: "gmail",
+            auth: {
+                user: 'info.afisolve@gmail.com', // generated ethereal user
+                pass: 'codered09', // generated ethereal password
+            },
+        });
+        // send mail with defined transport object
+        let info = await transporter.sendMail({
+            from:'info.afisolve@gmail.com', // sender address
+            to: receiver, // list of receivers
+            subject: subject, // Subject line
+            text: Messeage,
+        });
+    }
+    main().catch(console.error);
+    response.status(200).send({
+        status: true,
+
+    });
+
+});
 
 
 module.exports = router;
