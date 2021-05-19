@@ -39,7 +39,7 @@ router.post('/get-all-users-details', verifyToken, verifyAdmin, async (request, 
                         user.roleIDs = userRoles.filter(role => role.userID === user.userID).map(r => r.roleID);
                     }
 
-                    console.log(users);
+                    // console.log(users);
                     response.status(200).send({
                         status: true,
                         data: users,
@@ -89,6 +89,7 @@ router.post('/get-selected-user-profile-details', verifyToken, verifyAdmin, asyn
                         status: false
                     });
                 } else {
+                    // console.log(JSON.stringify(result));
                     if (result.returnValue === 0) {
                         // console.log(JSON.stringify(result) + ' 75 admin.js');
                         let img;
@@ -98,6 +99,16 @@ router.post('/get-selected-user-profile-details', verifyToken, verifyAdmin, asyn
                             img = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
                         }
 
+                        let productsDetails = [];
+                        for (let n = 3; n <= 6; n++) {
+                            if (result.recordsets[n]) {
+                                for (let i = 0; i < result.recordsets[n].length; i++) {
+                                    productsDetails.push(result.recordsets[n][i])
+                                }
+                            }
+                        }
+                        // console.log(productDetails);
+                        // console.log(JSON.stringify(productDetails));
                         response.status(200).send({
                             status: true,
                             firstname: result.recordsets[0][0].firstName,
@@ -109,7 +120,8 @@ router.post('/get-selected-user-profile-details', verifyToken, verifyAdmin, asyn
                             generalData: result.recordsets[0],
                             roles: result.recordsets[1],
                             defaultRoleID: result.recordsets[2][0].roleID,
-                            profilePhoto: img
+                            profilePhoto: img,
+                            productsDetails
                         })
 
                     } else {
@@ -248,11 +260,36 @@ router.post('/delete-selected-user', verifyToken, verifyAdmin, async (request, r
                             status: true,
                             message: 'User deleted succssfully!'
                         });
+                    } else if (result.returnValue === -2) {
+                        response.status(500).send({
+                            status: false,
+                            message: 'This user acting as a customer with a product or several products',
+                            productsDetails: result.recordsets[0]
+                        });
+                    } else if (result.returnValue === -3) {
+                        response.status(500).send({
+                            status: false,
+                            message: 'This user acting as a account-coordinator with a product or several products',
+                            productsDetails: result.recordsets[0]
+                        });
+                    } else if (result.returnValue === -4) {
+                        response.status(500).send({
+                            status: false,
+                            message: 'This user acting as a project-manager with a product or several products',
+                            productsDetails: result.recordsets[0]
+                        });
+                    } else if (result.returnValue === -5) {
+                        response.status(500).send({
+                            status: false,
+                            message: 'This user acting as a developer with a product or several products.',
+                            productsDetails: result.recordsets[0]
+                        });
                     } else {
                         console.log('return -1 ');
                         response.status(500).send({
-                            status:false,
-                            message: 'return value = -1'});
+                            status: false,
+                            message: 'Something went wrong!'
+                        });
                     }
                 }
             })
@@ -428,10 +465,10 @@ router.post('/delete-selected-complaint', verifyToken, verifyAdmin, async (reque
                         if (result.recordsets[0] && result.recordsets[0].length !== 0) {
                             for (let i = 0; i < result.recordsets[0].length; i++) {
                                 const path = './pictures/comment-pictures/' + result.recordsets[0][i].textOrImageName;
-                                try{
+                                try {
                                     fs.unlinkSync(path);
                                     //file removed
-                                }catch (error){
+                                } catch (error) {
                                     console.log(error);
                                 }
                             }
@@ -440,10 +477,10 @@ router.post('/delete-selected-complaint', verifyToken, verifyAdmin, async (reque
                         if (result.recordsets[1] && result.recordsets[1].length !== 0) {
                             for (let i = 0; i < result.recordsets[1].length; i++) {
                                 const path = './pictures/complaint-pictures/' + result.recordsets[1][i].imageName;
-                                try{
+                                try {
                                     fs.unlinkSync(path);
                                     //file removed
-                                }catch (error){
+                                } catch (error) {
                                     console.log(error);
                                 }
                             }
@@ -452,14 +489,13 @@ router.post('/delete-selected-complaint', verifyToken, verifyAdmin, async (reque
                             status: true,
                             message: 'Complaint deleted successfully!'
                         });
-                    }
-                    else if (result.returnValue === -2) {
+                    } else if (result.returnValue === -2) {
                         console.log('return -2 ');
                         response.status(500).send({
                             status: false,
                             message: 'Something went wrong! (return value = -2)'
-                            });
-                    }else {
+                        });
+                    } else {
                         console.log('return -1 ');
                         response.status(500).send({
                             status: false,
@@ -507,15 +543,15 @@ router.post('/register-product', verifyToken, verifyAdmin, async (request, respo
                     response.status(500).send({
                         status: false
                     });
-                }else if (result.returnValue === -1) {
+                } else if (result.returnValue === -1) {
                     console.log('registerProduct return -1')
                     response.status(500).send({
                         status: false,
                         message: ''
                     });
-                }else if (result.returnValue === -2) {
+                } else if (result.returnValue === -2) {
                     response.status(500).send({
-                        status:false,
+                        status: false,
                         message: 'Invalid customer!'
                     });
                 } else if (result.returnValue === -3) {
@@ -523,7 +559,7 @@ router.post('/register-product', verifyToken, verifyAdmin, async (request, respo
                         status: false,
                         message: 'Invalid account-coordinator!'
                     });
-                }  else if (result.returnValue === -4) {
+                } else if (result.returnValue === -4) {
                     response.status(500).send({
                         status: false,
                         message: 'Invalid project-manager'
@@ -544,7 +580,7 @@ router.post('/register-product', verifyToken, verifyAdmin, async (request, respo
         console.log(e);
         response.status(500).send(
             {status: false}
-            );
+        );
     }
 });
 
@@ -555,7 +591,7 @@ router.post('/get-all-developers', verifyToken, verifyAdmin, async (request, res
     try {
         pool.request()
             // .input('_customerEmail', sql.VarChar(50), request.payload.username)
-            .query('select userID, userEmail from Ayoma_Developers', (error, result) => {
+            .query('select userID, userEmail from developers', (error, result) => {
                 if (error) {
                     console.log(error);
                     response.status(500).send({
@@ -586,7 +622,7 @@ router.post('/get-all-products', verifyToken, verifyAdmin, async (request, respo
                         status: false
                     });
                 } else {
-                    console.log(JSON.stringify(result) + ' 507 admin.js');
+                    // console.log(JSON.stringify(result) + ' 507 admin.js');
                     let productElements = [];
                     for (let i = 0; i < result.recordsets[0].length; i++) {
                         productElements[i] = {
@@ -595,11 +631,11 @@ router.post('/get-all-products', verifyToken, verifyAdmin, async (request, respo
                             category: result.recordsets[0][i].category,
                             createdAt: result.recordsets[0][i].createdAt,
                             modifiedAt: result.recordsets[0][i].modifiedAt,
-                            customerEmail:  result.recordsets[1].filter(element => element.userID === result.recordsets[0][i].customerID).map(user => user.userEmail)[0],
-                            accountCoordinatorEmail:  result.recordsets[1].filter(element => element.userID === result.recordsets[0][i].accountCoordinatorID).map(user => user.userEmail)[0],
-                            projectManagerEmail:  result.recordsets[1].filter(element => element.userID === result.recordsets[0][i].projectManagerID).map(user => user.userEmail)[0],
-                            createdBy:  result.recordsets[1].filter(element => element.userID === result.recordsets[0][i].createdBy).map(user => user.userEmail)[0],
-                            modifiedBy:  result.recordsets[1].filter(element => element.userID === result.recordsets[0][i].modifiedBy).map(user => user.userEmail)[0]
+                            customerEmail: result.recordsets[1].filter(element => element.userID === result.recordsets[0][i].customerID).map(user => user.userEmail)[0],
+                            accountCoordinatorEmail: result.recordsets[1].filter(element => element.userID === result.recordsets[0][i].accountCoordinatorID).map(user => user.userEmail)[0],
+                            projectManagerEmail: result.recordsets[1].filter(element => element.userID === result.recordsets[0][i].projectManagerID).map(user => user.userEmail)[0],
+                            createdBy: result.recordsets[1].filter(element => element.userID === result.recordsets[0][i].createdBy).map(user => user.userEmail)[0],
+                            modifiedBy: result.recordsets[1].filter(element => element.userID === result.recordsets[0][i].modifiedBy).map(user => user.userEmail)[0]
                         }
                     }
                     console.log(productElements);
@@ -628,7 +664,8 @@ router.post('/get-selected-product-details', verifyToken, verifyAdmin, async (re
                     });
                 } else {
                     if (result.returnValue === 0) {
-                        console.log(JSON.stringify(result) + ' 434 admin.js');
+                        // console.log(JSON.stringify(result) + ' 434 admin.js');
+                        // console.log(result.recordsets[4]);
                         response.status(200).send({
                             status: true,
                             data: {
@@ -647,7 +684,8 @@ router.post('/get-selected-product-details', verifyToken, verifyAdmin, async (re
                                 productName: result.recordsets[0][0].productName,
                                 projectManagerEmail: result.recordsets[2][0].projectManagerEmail,
                                 projectManagerFirstName: result.recordsets[2][0].firstName,
-                                projectManagerLastName: result.recordsets[2][0].lastName
+                                projectManagerLastName: result.recordsets[2][0].lastName,
+                                complaintsDetails: result.recordsets[4]
                             }
                         })
                     } else {
@@ -687,10 +725,10 @@ router.post('/delete-selected-product', verifyToken, verifyAdmin, async (request
                         if (result.recordsets[0] && result.recordsets[0].length !== 0) {
                             for (let i = 0; i < result.recordsets[0].length; i++) {
                                 const path = './pictures/comment-pictures/' + result.recordsets[0][i].textOrImageName;
-                                try{
+                                try {
                                     fs.unlinkSync(path);
                                     //file removed
-                                }catch (error){
+                                } catch (error) {
                                     console.log(error);
                                 }
                             }
@@ -699,16 +737,16 @@ router.post('/delete-selected-product', verifyToken, verifyAdmin, async (request
                         if (result.recordsets[1] && result.recordsets[1].length !== 0) {
                             for (let i = 0; i < result.recordsets[1].length; i++) {
                                 const path = './pictures/complaint-pictures/' + result.recordsets[1][i].imageName;
-                                try{
+                                try {
                                     fs.unlinkSync(path);
                                     //file removed
-                                }catch (error){
+                                } catch (error) {
                                     console.log(error);
                                 }
                             }
                         }
                         response.status(200).send({
-                            status:true,
+                            status: true,
                             message: 'Product deleted successfully!'
                         });
                     } else {
@@ -811,6 +849,41 @@ router.post('/get-selected-feedback-details', verifyToken, verifyAdmin, async (r
     }
 });
 
+router.post('/delete-selected-feedback', verifyToken, verifyAdmin, async (request, response) => {
+
+    console.log(request.body.complaintID);
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .input('_complaintID', sql.Int, request.body.complaintID)
+            .query('DELETE FROM FEEDBACK where complaintID=@_complaintID ', (error, result) => {
+                if (error) {
+                    console.log(error);
+                    response.status(500).send({
+                        status: false,
+                        message: 'Something went wrong!'
+                    });
+                } else {
+                    // console.log('Feedback deleted successfully!');
+
+                    console.log(JSON.stringify(result));
+                    response.status(200).send({
+                        status: true,
+                        message: 'Feedback deleted successfully!'
+                    });
+                }
+            })
+        ;
+    } catch (e) {
+        console.log(e);
+        response.status(500).send(
+            {
+                status: false
+            }
+        )
+    }
+});
+
 //........................................... dashboard....................
 
 router.post('/get-all-user-count', verifyToken, verifyAdmin, async (request, response) => {
@@ -886,8 +959,7 @@ router.post('/get-all-complaints-count', verifyToken, verifyAdmin, async (reques
 
 // .........................chart..............
 
-
-//....................................... TIME EKT ANUWA COMPLAINT
+//.......................................  COMPLAINT RELEVANT TO TIME
 router.get('/get-month-count', verifyToken, async (request, response) => {
 
     const pool = await poolPromise;
@@ -943,37 +1015,37 @@ router.get('/get-month-count-users', verifyToken, async (request, response) => {
 
 router.get('/get-feedback-count', verifyToken, async (request, response) => {
 
-        const pool = await poolPromise;
-        try {
-            pool.request()
-                .execute('getFeedbackCount', (error, result) => {
-                    if (error) {
-                        console.log('cannot run getFeedbackCount');
-                        response.status(500).send({
-                            status: false
-                        });
-                    } else {
-                            response.status(200).send({
-                                status: true,
-                                data: {
-                                    sat1: result.recordsets[0][0].sat1,
-                                    sat2: result.recordsets[1][0].sat2,
-                                    sat3: result.recordsets[2][0].sat3,
-                                    sat4: result.recordsets[3][0].sat4,
-                                    sat5: result.recordsets[4][0].sat5
-                                },
-                            })
-                    }
-                })
-            ;
-        } catch (e) {
-            response.status(500).send(
-                {
-                    status: false
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .execute('getFeedbackCount', (error, result) => {
+                if (error) {
+                    console.log('cannot run getFeedbackCount');
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: {
+                            sat1: result.recordsets[0][0].sat1,
+                            sat2: result.recordsets[1][0].sat2,
+                            sat3: result.recordsets[2][0].sat3,
+                            sat4: result.recordsets[3][0].sat4,
+                            sat5: result.recordsets[4][0].sat5
+                        },
+                    })
                 }
-            )
-        }
-    });
+            })
+        ;
+    } catch (e) {
+        response.status(500).send(
+            {
+                status: false
+            }
+        )
+    }
+});
 
 
 router.post('/get-active-users', verifyToken, verifyAdmin, async (request, response) => {
@@ -998,7 +1070,7 @@ router.post('/get-active-users', verifyToken, verifyAdmin, async (request, respo
     }
 });
 
-router.post('/update-Ac', verifyToken, async (request, response)=> {
+router.post('/update-Ac', verifyToken, async (request, response) => {
     const data = request.body;
     console.log(data.v);
     console.log(data.u.userID);
@@ -1017,7 +1089,7 @@ router.post('/update-Ac', verifyToken, async (request, response)=> {
             to: data.w, // list of receivers
             subject: "Remove as Account Coordinator", // Subject line
             text: "Dear Sir/Madam,\n" +
-                "    We discussed your problem which is working as account coordinator of the product Id "+ data.v + "product. Therefore, you have been removed as account coordinator of this product.\n" +
+                "    We discussed your problem which is working as account coordinator of the product Id " + data.v + "product. Therefore, you have been removed as account coordinator of this product.\n" +
                 "\n" +
                 "    NOTE: If you have any issue, please contact the admin of the complaint management unit.\n" +
                 "\n" +
@@ -1033,7 +1105,7 @@ router.post('/update-Ac', verifyToken, async (request, response)=> {
             to: data.u.userEmail, // list of receivers
             subject: "New Approval", // Subject line
             text: "Dear Sir/Madam,\n" +
-                "    You have been selected as the new Account Coordinator of Product ID "+ data.v + ". Please pay attention to provide solutions to complaints of this product.\n" +
+                "    You have been selected as the new Account Coordinator of Product ID " + data.v + ". Please pay attention to provide solutions to complaints of this product.\n" +
                 "\n" +
                 "    NOTE: If you have any issue, please contact the admin of the complaint management unit.\n" +
                 "\n" +
@@ -1042,10 +1114,11 @@ router.post('/update-Ac', verifyToken, async (request, response)=> {
                 "    Afisol (Pvt) Ltd.   \n" +
                 " _________________________________________________________________________ \n" +
                 "    Disclaimer: This is a system-generated mail. For any queries, please contact the Company.\n" +
-                "\n" });
+                "\n"
+        });
     }
 
-   main().catch(console.error);
+    main().catch(console.error);
 
     try {
         const pool = await poolPromise;
@@ -1095,7 +1168,7 @@ router.post('/get-project-Manager-List', verifyToken, verifyAdmin, async (reques
     }
 });
 
-router.post('/update-Pm', verifyToken, async (request, response)=> {
+router.post('/update-Pm', verifyToken, async (request, response) => {
     const data = request.body;
     console.log(data.v);
     console.log(data.u.userID);
@@ -1114,7 +1187,7 @@ router.post('/update-Pm', verifyToken, async (request, response)=> {
             to: data.w, // list of receivers
             subject: "Remove as Project Manager", // Subject line
             text: "Dear Sir/Madam,\n" +
-                "    We discussed your problem which is working as project manager of the product Id "+ data.v + " product. Therefore, you have been removed as project manager of this product.\n" +
+                "    We discussed your problem which is working as project manager of the product Id " + data.v + " product. Therefore, you have been removed as project manager of this product.\n" +
                 "\n" +
                 "    NOTE: If you have any issue, please contact the admin of the complaint management unit.\n" +
                 "\n" +
@@ -1130,7 +1203,7 @@ router.post('/update-Pm', verifyToken, async (request, response)=> {
             to: data.u.userEmail, // list of receivers
             subject: "New Approval", // Subject line
             text: "Dear Sir/Madam,\n" +
-                "    You have been selected as the new project manager of Product ID "+ data.v + ". Please pay attention to provide solutions to complaints of this product.\n" +
+                "    You have been selected as the new project manager of Product ID " + data.v + ". Please pay attention to provide solutions to complaints of this product.\n" +
                 "\n" +
                 "    NOTE: If you have any issue, please contact the admin of the complaint management unit.\n" +
                 "\n" +
@@ -1139,7 +1212,8 @@ router.post('/update-Pm', verifyToken, async (request, response)=> {
                 "    Afisol (Pvt) Ltd.   \n" +
                 " _________________________________________________________________________ \n" +
                 "    Disclaimer: This is a system-generated mail. For any queries, please contact the Company.\n" +
-                "\n" });
+                "\n"
+        });
     }
 
     main().catch(console.error);
@@ -1167,11 +1241,5 @@ router.post('/update-Pm', verifyToken, async (request, response)=> {
     }
 
 });
-
-
-
-
-
-
 
 module.exports = router;

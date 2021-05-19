@@ -10,13 +10,6 @@ create type roles as table
 )
 go
 
-create table ACTIVE_SESSION
-(
-    userID     int,
-    lastActive bigint
-)
-go
-
 create table COMPLAINT_STATUS
 (
     statusName varchar(10),
@@ -54,7 +47,7 @@ create table USERS
         constraint USERS_pk
             primary key nonclustered,
     userEmail     varchar(50) not null,
-    password      varchar(20),
+    password      varchar(100),
     firstName     varchar(40),
     lastName      varchar(40),
     contactNumber varchar(20),
@@ -64,6 +57,15 @@ create table USERS
     createdAt     datetime,
     modifiedBy    varchar(50),
     modifiedAt    datetime
+)
+go
+
+create table ACTIVE_SESSION
+(
+    userID     int
+        constraint ACTIVE_SESSION_USERS_userID_fk
+            references USERS,
+    lastActive bigint
 )
 go
 
@@ -289,7 +291,7 @@ BEGIN
 END
 go
 
-CREATE procedure checkUser @userID int, @time bigint as
+CREATE procedure checkUserSession @userID int, @time bigint as
     if exists(select 1
               from ACTIVE_SESSION
               where userID = @userID)
@@ -297,6 +299,7 @@ CREATE procedure checkUser @userID int, @time bigint as
             declare @lastActive bigint
             select @lastActive = lastActive from ACTIVE_SESSION where userID = @userID
             if (@time - @lastActive < 7200000)
+--         if (@time - @lastActive < 10000)
                 begin
                     update ACTIVE_SESSION set lastActive = @time where userID = @userID
                     return 0;
@@ -310,6 +313,28 @@ CREATE procedure checkUser @userID int, @time bigint as
         begin
             return -1;
         end
+go
+
+CREATE procedure checkUsername @username varchar(50) as
+begin
+    if exists(select 1 from USERS where userEmail = @username)
+        begin
+            select r.roleName
+            from users u,
+                 ROLE r,
+                 USER_ROLE ur
+            where u.userEmail = @username
+              and u.userID = ur.userID
+              and r.roleID = ur.roleID
+              and ur.[default] = 1;
+            select userEmail username, password, userID, firstName, lastName from USERS where userEmail = @username;
+            return 0;
+        end
+    else
+        begin
+            return -1;
+        end
+end
 go
 
 CREATE PROCEDURE createFeedback @_complaintID int,
@@ -633,6 +658,12 @@ DECLARE
             RETURN -4;
         end
     if exists(select 1
+              from ACTIVE_SESSION
+              where userID = @userID)
+        begin
+            DELETE from ACTIVE_SESSION where userID = @userID
+        end
+    if exists(select 1
               from USERS
               where userEmail = @_username)
         begin
@@ -663,7 +694,7 @@ DECLARE
 go
 
 CREATE PROCEDURE forgotPasswordChange @_email VARCHAR(50),
-                                      @_newPassword VARCHAR(20),
+                                      @_newPassword VARCHAR(100),
                                       @_clientOtp INT,
                                       @_generatedOtpID INT
 AS
@@ -1071,6 +1102,7 @@ as
                      JOIN PRODUCT P3 on USR.userID = P3.accountCoordinatorID
             where P3.productID = @_productID
 
+            select complaintID, submittedDate from COMPLAINT where productID = @_productID and subComplaintID = 0
             RETURN 0;
         end
     else
@@ -1097,6 +1129,12 @@ where userEmail = @_username;
             select * from USERS where userEmail = @_username
             select ur.roleID from USER_ROLE ur where ur.userID = @userID;
             select ur.roleID from USER_ROLE ur where ur.userID = @userID and ur.[default] = 'true';
+
+            select productID, 'Customer' as roleName from PRODUCT where customerID = @userID
+            select productID, 'Project Manager' as roleName from PRODUCT where projectManagerID = @userID
+            select productID, 'Account Coordinator' as roleName from PRODUCT where accountCoordinatorID = @userID
+            select productID, 'Developer' as roleName from ALLOCATION where developerID = @userID
+
             RETURN 0;
         end
     else
@@ -1218,26 +1256,37 @@ FROM USERS
 where userEmail = @_email;
     if exists(select 1
               from USERS
-              where userEmail = @_email
-                and password = @_password)
+              where userEmail = @_email)
         begin
-            select r.roleName
-            from ROLE r,
-                 USER_ROLE ur
-            where ur.userID = @userID
-              and r.roleID = ur.roleID
-              and ur.[default] = 1;
-            select userEmail username, userID, firstName, lastName from USERS where userEmail = @_email;
+            if exists(select 1
+                      from USERS
+                      where userEmail = @_email
+                        and password = @_password)
+                begin
+                    select r.roleName
+                    from ROLE r,
+                         USER_ROLE ur
+                    where ur.userID = @userID
+                      and r.roleID = ur.roleID
+                      and ur.[default] = 1;
+                    select userEmail username, userID, firstName, lastName from USERS where userEmail = @_email;
 
-            update USERS SET lastLogin = GETDATE() where userEmail = @_email
-            IF @@ROWCOUNT = 0 GOTO errorHandler;
+                    update USERS SET lastLogin = GETDATE() where userEmail = @_email
+                    IF @@ROWCOUNT = 0 GOTO errorHandler;
 
-            COMMIT TRANSACTION
-            return 0;
+                    COMMIT TRANSACTION
+                    return 0;
+                end
+            else
+                begin
+                    ROLLBACK TRANSACTION
+                    RETURN -3;
+                end
         end
     else
         begin
-            GOTO errorHandler;
+            ROLLBACK TRANSACTION
+            RETURN -2;
         end
     errorHandler:
     ROLLBACK TRANSACTION
@@ -1408,7 +1457,7 @@ go
 CREATE PROCEDURE registerUser @_firstname VARCHAR(40),
                               @_lastname VARCHAR(40),
                               @_email VARCHAR(50),
-                              @_password VARCHAR(20),
+                              @_password VARCHAR(100),
                               @_roles roles READONLY,
                               @_contactNumber VARCHAR(20),
                               @_defaultRole INT,
@@ -1599,19 +1648,27 @@ begin
 end
 go
 
-CREATE procedure updateLogin @userID int, @lastActive BIGINT as
+CREATE procedure updateOrCreateSession @userID int,
+                                       @lastActive BIGINT as
     begin transaction
     if (exists(select 1
                from ACTIVE_SESSION
                where userID = @userID))
         begin
             update ACTIVE_SESSION set lastActive = @lastActive where userID = @userID
+            IF @@ROWCOUNT = 0 GOTO errorHandler;
         end
     else
         begin
             insert into ACTIVE_SESSION values (@userID, @lastActive)
+            IF @@ROWCOUNT = 0 GOTO errorHandler;
         end
     commit transaction
+    return 0;
+
+    errorHandler:
+    ROLLBACK TRANSACTION
+    RETURN -1;
 go
 
 CREATE procedure updateProjectManger @_cbc INT,
