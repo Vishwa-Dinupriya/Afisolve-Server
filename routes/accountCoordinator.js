@@ -395,6 +395,29 @@ router.post('/get-complaintIDlist', verifyToken,verifyAccountCoordinator, async 
         response.status(500).send({status: false});
     }
 });
+//---------------------------Complaint Id list--------------------------------------------------------//
+router.post('/get-subComplaintIDlist', verifyToken,verifyAccountCoordinator, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            // .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
+            .query("select distinct subComplaintID from COMPLAINT", (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
 
 //------------------------------Customer list----------------------------------//
 
