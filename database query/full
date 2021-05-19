@@ -291,6 +291,47 @@ BEGIN
 END
 go
 
+CREATE PROCEDURE changePasswordOfUser @_email VARCHAR(50),
+                                      @_newPassword VARCHAR(100),
+                                      @_clientOtp INT,
+                                      @_generatedOtpID INT
+AS
+    BEGIN TRANSACTION
+DECLARE @userID int, @role INT, @generatedOTPValue int;
+
+SELECT @generatedOTPValue = otpCode
+FROM OTP
+where otpID = @_generatedOtpID;
+    -- delete otp record from the OTP table
+Delete
+from OTP
+where otpID = @_generatedOtpID
+    IF @@ROWCOUNT = 0 GOTO errorHandler;
+
+    if (@_clientOtp != @generatedOTPValue)
+        begin
+            ROLLBACK TRANSACTION
+            return -2;
+        end
+    else
+        if not exists(select 1 from USERS where userEmail = @_email)
+            begin
+                ROLLBACK TRANSACTION
+                return -3;
+            end
+UPDATE USERS
+SET password = @_newPassword
+where userEmail = @_email
+    IF @@ROWCOUNT = 0 GOTO errorHandler;
+
+    COMMIT TRANSACTION;
+    RETURN 0;
+
+    errorHandler:
+    ROLLBACK TRANSACTION
+    RETURN -1;
+go
+
 CREATE procedure checkUserSession @userID int, @time bigint as
     if exists(select 1
               from ACTIVE_SESSION
@@ -688,47 +729,6 @@ DECLARE
         begin
             GOTO errorHandler;
         end
-    errorHandler:
-    ROLLBACK TRANSACTION
-    RETURN -1;
-go
-
-CREATE PROCEDURE forgotPasswordChange @_email VARCHAR(50),
-                                      @_newPassword VARCHAR(100),
-                                      @_clientOtp INT,
-                                      @_generatedOtpID INT
-AS
-    BEGIN TRANSACTION
-DECLARE @userID int, @role INT, @generatedOTPValue int;
-
-SELECT @generatedOTPValue = otpCode
-FROM OTP
-where otpID = @_generatedOtpID;
-    -- delete otp record from the OTP table
-Delete
-from OTP
-where otpID = @_generatedOtpID
-    IF @@ROWCOUNT = 0 GOTO errorHandler;
-
-    if (@_clientOtp != @generatedOTPValue)
-        begin
-            ROLLBACK TRANSACTION
-            return -2;
-        end
-    else
-        if not exists(select 1 from USERS where userEmail = @_email)
-            begin
-                ROLLBACK TRANSACTION
-                return -3;
-            end
-UPDATE USERS
-SET password = @_newPassword
-where userEmail = @_email
-    IF @@ROWCOUNT = 0 GOTO errorHandler;
-
-    COMMIT TRANSACTION;
-    RETURN 0;
-
     errorHandler:
     ROLLBACK TRANSACTION
     RETURN -1;
@@ -1694,7 +1694,6 @@ CREATE procedure updateSelectedUserDetails @_oldEmail VARCHAR(50),
                                            @_firstname VARCHAR(40),
                                            @_lastname VARCHAR(40),
                                            @_newEmail VARCHAR(50),
-                                           @_password VARCHAR(20),
                                            @_roles roles READONLY,
                                            @_contactNumber VARCHAR(20),
                                            @_defaultRole INT,
@@ -1751,7 +1750,6 @@ UPDATE USERS
 SET userEmail    = @_newEmail,
     firstName    = @_firstname,
     lastName     = @_lastname,
-    password     = @_password,
     contactNumber= @_contactNumber,
     modifiedBy   = @_modifiedAdmin,
     modifiedAt   = GETDATE()

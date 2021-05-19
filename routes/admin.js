@@ -163,7 +163,6 @@ router.post('/update-selected-user-profile-details', verifyToken, verifyAdmin, a
             .input('_firstname', sql.VarChar(40), data.firstName)
             .input('_lastname', sql.VarChar(40), data.lastName)
             .input('_newEmail', sql.VarChar(50), data.email)
-            .input('_password', sql.VarChar(20), data.passwordGroup.password)
             .input('_roles', roles)
             .input('_defaultRole', sql.Int, data.defaultRole)
             .input('_contactNumber', sql.VarChar(20), data.contactNumber)
@@ -238,6 +237,129 @@ router.post('/update-selected-user-profile-details', verifyToken, verifyAdmin, a
         });
     }
 
+});
+
+router.post('/change-selected-user-password', verifyToken, verifyAdmin, async (request, response) => {
+    console.log(request.body);
+
+    const data = request.body.userData;
+    const image = request.body.userData.profilePicture;
+    const adminEmail = request.payload.username;
+    const otpClient = request.body.otp;
+    const generatedOtpID = request.body.otpID;
+
+    try {
+        const roles = new sql.Table('roles');
+        roles.columns.add('role', sql.Int);
+
+        for (const role of data.roles) {
+            roles.rows.add(role);
+        }
+
+        bcrypt.hash(data.passwordGroup.password, 10, async (error, hash) => {
+            if (error) {
+                console.log(error);
+                response.status(500).send({
+                    status: false,
+                    message: 'Something went wrong!'
+                });
+            } else {
+                const pool = await poolPromise;
+                await pool.request()
+                    .input('_firstname', sql.VarChar(40), data.firstName)
+                    .input('_lastname', sql.VarChar(40), data.lastName)
+                    .input('_email', sql.VarChar(50), data.email)
+                    .input('_password', sql.VarChar(100), hash)
+                    .input('_roles', roles)
+                    .input('_defaultRole', sql.Int, data.defaultRole)
+                    .input('_contactNumber', sql.VarChar(20), data.contactNumber)
+                    .input('_createdAdmin', sql.VarChar(50), adminEmail)
+                    .input('_clientOtp', sql.Int, otpClient)
+                    .input('_generatedOtpID', sql.Int, generatedOtpID)
+                    .execute('registerUser', (error, result) => {
+                        if (error) {
+                            console.log(error);
+                            if (error.number === 2627) {
+                                response.status(500).send({
+                                    status: false,
+                                    message: 'Entered email already exists'
+                                });
+                            } else {//query Error..!
+                                response.status(500).send({
+                                    status: false,
+                                    message: 'something might went wrong..!'
+                                });
+                            }
+                        } else {
+
+                            if (result.returnValue === 0) {
+                                try {
+                                    if (!image) {
+                                        console.log('Data Successfully Entered! Image not found!!');
+                                        response.status(200).send({
+                                            status: false,
+                                            message: 'Data Successfully Entered! Image not found!!',
+                                            image: fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'})
+                                        });
+                                    } else {
+                                        console.log('Data Successfully Entered!');
+
+                                        //encoding and save the picture to the local memory
+                                        const path = './pictures/profile-pictures/' + request.body.userData.email + '.png';
+                                        const base64Data = image.replace(/^data:([A-Za-z-+/]+);base64,/, '');
+                                        fs.writeFileSync(path, base64Data, {encoding: 'base64'});
+
+                                        //get the picture to 'img' from local memory
+                                        let img;
+                                        try {
+                                            img = fs.readFileSync('./pictures/profile-pictures/' + request.body.userData.email + '.png', {encoding: 'base64'});
+                                        } catch (error) {
+                                            img = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
+                                        }
+                                        response.status(200).send({
+                                            status: true,
+                                            message: 'Data Successfully Entered!',
+                                            image: img
+                                        });
+                                    }
+                                } catch (error) {
+                                    console.log(error);
+                                    response.status(500).send({
+                                        status: false,
+                                        message: 'Server Error!'
+                                    });
+                                }
+                            } else if (result.returnValue === -2) {
+                                console.log('otp not equal')
+                                response.status(500).send({
+                                    status: false,
+                                    message: 'invalid OTP(one-time-password) code!'
+                                });
+                            } else if (result.returnValue === -3) {
+                                console.log('existing user')
+                                response.status(500).send({
+                                    status: false,
+                                    message: 'Entered email already exists!'
+                                });
+                            } else {
+                                response.status(500).send({
+                                    status: false,
+                                    message: 'error! but not from error handler'
+                                });
+                            }
+                        }
+                    });
+
+            }
+
+        });
+    } catch (error) {
+        console.log(error);
+        response.status(500).send({
+            status: false,
+            message: 'DB connection Error..!'
+        });
+    }
 });
 
 router.post('/delete-selected-user', verifyToken, verifyAdmin, async (request, response) => {
@@ -329,7 +451,7 @@ router.post('/get-complaints-details-brief', verifyToken, verifyAdmin, async (re
     }
 });
 
-router.post('/get-all-complaints', verifyToken, verifyAdmin, async (request, response) => {
+router.post('/get-all-complaints', verifyToken, verifyAdmin, async (request, response) =>  {
 
     const pool = await poolPromise;
     try {
@@ -622,7 +744,8 @@ router.post('/get-all-products', verifyToken, verifyAdmin, async (request, respo
                         status: false
                     });
                 } else {
-                    // console.log(JSON.stringify(result) + ' 507 admin.js');
+                    // console.log(JSON.stringify(result) + ' 625 admin.js');
+
                     let productElements = [];
                     for (let i = 0; i < result.recordsets[0].length; i++) {
                         productElements[i] = {
@@ -638,7 +761,7 @@ router.post('/get-all-products', verifyToken, verifyAdmin, async (request, respo
                             modifiedBy: result.recordsets[1].filter(element => element.userID === result.recordsets[0][i].modifiedBy).map(user => user.userEmail)[0]
                         }
                     }
-                    console.log(productElements);
+                    // console.log(productElements);
                     response.status(200).send({
                         status: true,
                         data: productElements
