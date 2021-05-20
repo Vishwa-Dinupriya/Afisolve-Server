@@ -3,10 +3,9 @@ const jwt = require('jsonwebtoken')
 const router = express.Router();
 const {poolPromise} = require('../helpers/mssql-server-connection');
 const {sql} = require('../helpers/mssql-server-connection');
-const {verifyToken} = require('../helpers/verifyToken');
 const {verifyAccountCoordinator} = require('../helpers/verifyToken');
 const nodemailer = require("nodemailer");
-
+const {verifyToken} = require('../helpers/verifyToken');
 
 router.get('/', (req, res) => {
     res.send('From authentication route');
@@ -85,8 +84,9 @@ router.post('/update-complaint-status', verifyToken, verifyAccountCoordinator, a
                         status: true
                     });
                 }
-            });
-    } catch (e) {
+            })
+    }
+    catch (e) {
         response.status(500).send({status: false});
     }
 });
@@ -206,7 +206,7 @@ router.post('/get-pending-accoorcomplaints-details', verifyToken, async (request
     try {
         pool.request()
             .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
-            .query("select c.complaintID,c.subComplaintID,c.finishedDate,c.lastDateOfPending,c.submittedDate,c.wipStartDate,s.statusName,p.productName, p.category , c.productID from COMPLAINT c,COMPLAINT_STATUS s, PRODUCT p, Ayoma_AccountCoordinators aa where c.status=s.statusID AND c.productID= p.productID AND aa.userID=p.accountCoordinatorID AND aa.userEmail = @_accountCoordinatorEmail AND s.statusName = 'Pending' order by c.complaintID", (error, result) => {
+            .query("select c.complaintID,c.subComplaintID,c.finishedDate,c.lastDateOfPending,c.submittedDate,c.wipStartDate,s.statusName,p.productName, p.category , c.productID from COMPLAINT c,COMPLAINT_STATUS s, PRODUCT p, Ayoma_AccountCoordinators aa where c.status=s.statusID AND c.productID= p.productID AND aa.userID=p.accountCoordinatorID AND aa.userEmail = @_accountCoordinatorEmail AND s.statusName = 'Pending' AND acViewedStatus = 0 order by c.complaintID", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -355,7 +355,79 @@ router.post('/get-DeveloperList', verifyToken, async (request, response) => {
     try {
         pool.request()
            // .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
-            .query("select userEmail as developerEmail from Ayoma_Developers", (error, result) => {
+            .query("select userEmail as developerEmail, firstName + ' ' + lastName as developerName from Ayoma_Developers", (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+//---------------------------Complaint Id list--------------------------------------------------------//
+router.post('/get-complaintIDlist', verifyToken,verifyAccountCoordinator, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            // .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
+            .query("select distinct complaintID from COMPLAINT", (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+//---------------------------Complaint Id list--------------------------------------------------------//
+router.post('/get-subComplaintIDlist', verifyToken,verifyAccountCoordinator, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            // .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
+            .query("select distinct subComplaintID from COMPLAINT", (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+//------------------------------Customer list----------------------------------//
+
+router.post('/get-CustomerList', verifyToken,verifyAccountCoordinator, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            // .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
+            .query("select userEmail as customerEmail, firstName + ' ' + lastName as customerName from Ayoma_Customers", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -373,6 +445,7 @@ router.post('/get-DeveloperList', verifyToken, async (request, response) => {
 });
 
 //-----------------------------------------------------------------------------------//
+
 //Get All task details
 router.post('/get-Task-All-details', verifyToken, async (request, response) => {
 
@@ -608,7 +681,7 @@ router.post('/sendMail', verifyToken, async (request, response) => {
 
         // send mail with defined transport object
         let info = await transporter.sendMail({
-            from: '"Senders Name" <foo@example.com>', // sender address
+            from:senderEmail, // sender address
             to: receiver, // list of receivers
             subject: subject, // Subject line
             text: message, // plain text body
@@ -630,6 +703,163 @@ router.post('/sendMail', verifyToken, async (request, response) => {
     });
 
 });
+
+//-----------------------Send Mail to Customer-----------------------------//
+router.post('/sendMailtoCustomer', verifyToken, async (request, response) => {
+    const data = request.body;
+    console.log(data)
+    const receiver= data.customerEmail;
+    const compID= data.complaintID;
+    const subject = data.cusSubject;
+    let Messeage;
+    const senderEmail = request.payload.username;
+    console.log(receiver);
+if(subject=='Complaint is in progress'){
+    Messeage = 'Dear Sir/Madam, \n'+
+               'This is in reference to the Complaint' + compID + 'that you have lodged. We got your complaint under supervision and currently the solving process is in progress.\n' +
+               'Thank you!'+
+        "\n" +
+    "    Best Regards,\n" +
+    "    afi-Solve Complaint Management Unit,\n" +
+    "    Afisol (Pvt) Ltd.   \n" +
+    " _________________________________________________________________________ \n" +
+    "    Disclaimer: This is a system-generated mail. For any queries, please contact the Company.\n"
+} else if(subject=='Complaint Resolved'){
+    Messeage = 'Dear Sir/Madam, \n'+
+        'This is in reference to the Complaint' + compID + 'that you have lodged. We happy to inform that the resolving process is completed. We are looking forward for your feedback.\n' +
+        'Thank you!'+
+        "\n" +
+        "    Best Regards,\n" +
+        "    afi-Solve Complaint Management Unit,\n" +
+        "    Afisol (Pvt) Ltd.   \n" +
+        " _________________________________________________________________________ \n" +
+        "    Disclaimer: This is a system-generated mail. For any queries, please contact the Company.\n"
+} else if(subject=='Complaint Closed'){
+    Messeage = 'Dear Sir/Madam, \n'+
+        'This is in reference to the Complaint' + compID + 'that you have lodged. We have closed your complaint as there were no further issues from your side.\n' +
+        'Thank you!'+
+        "\n" +
+        "    Best Regards,\n" +
+        "    afi-Solve Complaint Management Unit,\n" +
+        "    Afisol (Pvt) Ltd.   \n" +
+        " _________________________________________________________________________ \n" +
+        "    Disclaimer: This is a system-generated mail. For any queries, please contact the Company.\n"
+} else {
+    Messeage = 'Dear Sir/Madam, \n'+
+        'This is in reference to the Complaint' + compID + 'that you have lodged. We need some clarifications regarding to your complaint. Please check the comment section in afisolve app.\n' +
+        'Thank you!'+
+        "\n" +
+        "    Best Regards,\n" +
+        "    afi-Solve Complaint Management Unit,\n" +
+        "    Afisol (Pvt) Ltd.   \n" +
+        " _________________________________________________________________________ \n" +
+        "    Disclaimer: This is a system-generated mail. For any queries, please contact the Company.\n"
+}
+    // Nodemailer
+
+    // async..await is not allowed in global scope, must use a wrapper
+    async function main() {
+    let transporter = nodemailer.createTransport({
+        service: "gmail",
+        auth: {
+                user: 'info.afisolve@gmail.com', // generated ethereal user
+                pass: 'codered09', // generated ethereal password
+            },
+        });
+    // send mail with defined transport object
+        let info = await transporter.sendMail({
+            from:'info.afisolve@gmail.com', // sender address
+            to: receiver, // list of receivers
+            subject: subject, // Subject line
+            text: Messeage,
+        });
+}
+main().catch(console.error);
+    response.status(200).send({
+        status: true,
+
+    });
+
+});
+
+//-----------------------Send Mail to Developer-----------------------------//
+router.post('/sendMailtoDeveloper', verifyToken, async (request, response) => {
+    const data = request.body;
+    console.log(data)
+    const receiver= data.developerEmail;
+    const taskID= data.taskID;
+    const subject = data.devSubject;
+    let Messeage;
+    const senderEmail = request.payload.username;
+    console.log(receiver);
+    if(subject=='Overdue Task'){
+        Messeage = 'Dear Sir/Madam, \n'+
+            'This is in reference to the Task' + taskID +'. Please pay your attention to complete the task ASAP.\n' +
+            'Thank you!'+
+            "\n" +
+            "    Best Regards,\n" +
+            "    afi-Solve Complaint Management Unit,\n" +
+            "    Afisol (Pvt) Ltd.   \n" +
+            " _________________________________________________________________________ \n" +
+            "    Disclaimer: This is a system-generated mail. For any queries, please contact the relevant Account Coordinator.\n"
+    } else if(subject=='New Task'){
+        Messeage = 'Dear Sir/Madam, \n'+
+            'You are assigned to the Task' + taskID + '. Please go through the task and complete before the deadline.\n' +
+            'Thank you!'+
+            "\n" +
+            "    Best Regards,\n" +
+            "    afi-Solve Complaint Management Unit,\n" +
+            "    Afisol (Pvt) Ltd.   \n" +
+            " _________________________________________________________________________ \n" +
+            "    Disclaimer: This is a system-generated mail. For any queries, please contact the relevant Account Coordinator.\n"
+    } else if(subject=='Urgent Task'){
+        Messeage = 'Dear Sir/Madam, \n'+
+            'This is in reference to the Task' + taskID + '. Please pay your attention to speedup your work.\n' +
+            'Thank you!'+
+            "\n" +
+            "    Best Regards,\n" +
+            "    afi-Solve Complaint Management Unit,\n" +
+            "    Afisol (Pvt) Ltd.   \n" +
+            " _________________________________________________________________________ \n" +
+            "    Disclaimer: This is a system-generated mail. For any queries, please contact the relevant Account Coordinator.\n"
+    } else {
+        Messeage = 'Dear Sir/Madam, \n'+
+            'This is in reference to the Task' + taskID + '. Please go through the task againg as there is some issues related to the solution.\n' +
+            'Thank you!'+
+            "\n" +
+            "    Best Regards,\n" +
+            "    afi-Solve Complaint Management Unit,\n" +
+            "    Afisol (Pvt) Ltd.   \n" +
+            " _________________________________________________________________________ \n" +
+            "    Disclaimer: This is a system-generated mail. For any queries, please contact the relevant Account Coordinator.\n"
+    }
+    // Nodemailer
+
+    // async..await is not allowed in global scope, must use a wrapper
+    async function main() {
+        let transporter = nodemailer.createTransport({
+            service: "gmail",
+            auth: {
+                user: 'info.afisolve@gmail.com', // generated ethereal user
+                pass: 'codered09', // generated ethereal password
+            },
+        });
+        // send mail with defined transport object
+        let info = await transporter.sendMail({
+            from:'info.afisolve@gmail.com', // sender address
+            to: receiver, // list of receivers
+            subject: subject, // Subject line
+            text: Messeage,
+        });
+    }
+    main().catch(console.error);
+    response.status(200).send({
+        status: true,
+
+    });
+
+});
+
 
 //-------------------------------------------------customer-comments---------------------------------------------------------------------------------------------------------
 
@@ -730,6 +960,7 @@ router.put('/save-comment_', verifyToken, verifyAccountCoordinator, async (reque
     }
 
 })
+
 
 //////////////////////////////////////////////////////////////////////////////////////
 /*
