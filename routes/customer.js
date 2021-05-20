@@ -356,21 +356,26 @@ router.get('/get-feedback-countcus', verifyToken, async (request, response) => {
     const pool = await poolPromise;
     try {
         pool.request()
-            .query('SELECT  count(*) as num, satisfaction\n' +
-                '                FROM FEEDBACK\n' +
-                '                GROUP BY satisfaction\n' +
-                '                order by 2 DESC', (error, result) => {
+            .execute('getFeedbackCount', (error, result) => {
                 if (error) {
+                    console.log('cannot run getFeedbackCount');
                     response.status(500).send({
                         status: false
                     });
                 } else {
                     response.status(200).send({
                         status: true,
-                        data: result.recordset
-                    });
+                        data: {
+                            sat1: result.recordsets[0][0].sat1,
+                            sat2: result.recordsets[1][0].sat2,
+                            sat3: result.recordsets[2][0].sat3,
+                            sat4: result.recordsets[3][0].sat4,
+                            sat5: result.recordsets[4][0].sat5
+                        },
+                    })
                 }
-            });
+            })
+        ;
     } catch (e) {
         response.status(500).send({status: false});
     }
@@ -384,126 +389,29 @@ router.get('/get-full-count', verifyToken, verifyCustomer, async (request, respo
     try {
         pool.request()
             .input('_pmEmail', sql.VarChar(50), request.payload.username)
-            .query('\n' +
-                'select COUNT(*) as count from COMPLAINT c , PRODUCT p \n' +
-                'where p.productID = c.productID and p.customerID= (select userID from USERS where userEmail= @_pmEmail )', (error, result) => {
+            .execute('getComplaintCountForCustomer', (error, result) => {
                 if (error) {
+                    console.log('cannot run getComplaintCount');
                     response.status(500).send({
                         status: false
                     });
                 } else {
                     response.status(200).send({
                         status: true,
-                        data: result.recordset
-                    });
+                        data: {
+                            alll: result.recordsets[0][0].alll,
+                            pen: result.recordsets[1][0].pen,
+                            work: result.recordsets[2][0].work,
+                            fin: result.recordsets[3][0].fin,
+                            clos: result.recordsets[4][0].clos
+                        },
+                    })
                 }
-            });
-
+            })
+        ;
     } catch (e) {
         response.status(500).send({status: false});
     }
 });
-
-router.get('/get-pending-count', verifyToken, verifyCustomer, async (request, response) => {
-
-    const pool = await poolPromise;
-    try {
-        pool.request()
-            .input('_pmEmail', sql.VarChar(50), request.payload.username)
-            .query('\n' +
-                'select COUNT(*) as count from COMPLAINT c , PRODUCT p \n' +
-                'where p.productID = c.productID and p.customerID= (select userID from USERS where userEmail= @_pmEmail) and c.status=\'0\' ', (error, result) => {
-                if (error) {
-                    response.status(500).send({
-                        status: false
-                    });
-                } else {
-                    response.status(200).send({
-                        status: true,
-                        data: result.recordset
-                    });
-                }
-            });
-    } catch (e) {
-        response.status(500).send({status: false});
-    }
-});
-
-router.get('/get-working-count', verifyToken, verifyCustomer, async (request, response) => {
-
-    const pool = await poolPromise;
-    try {
-        pool.request()
-            .input('_pmEmail', sql.VarChar(50), request.payload.username)
-            .query('\n' +
-                'select COUNT(*) as count from COMPLAINT c , PRODUCT p \n' +
-                'where p.productID = c.productID and p.customerID= (select userID from USERS where userEmail= @_pmEmail) and c.status=\'1\' ', (error, result) => {
-                if (error) {
-                    response.status(500).send({
-                        status: false
-                    });
-                } else {
-                    response.status(200).send({
-                        status: true,
-                        data: result.recordset
-                    });
-                }
-            });
-    } catch (e) {
-        response.status(500).send({status: false});
-    }
-});
-
-router.get('/get-finish-count', verifyToken, verifyCustomer, async (request, response) => {
-
-    const pool = await poolPromise;
-    try {
-        pool.request()
-            .input('_pmEmail', sql.VarChar(50), request.payload.username)
-            .query('\n' +
-                'select COUNT(*) as count from COMPLAINT c , PRODUCT p \n' +
-                'where p.productID = c.productID and p.customerID= (select userID from USERS where userEmail= @_pmEmail) and c.status=\'2\' ', (error, result) => {
-                if (error) {
-                    response.status(500).send({
-                        status: false
-                    });
-                } else {
-                    response.status(200).send({
-                        status: true,
-                        data: result.recordset
-                    });
-                }
-            });
-    } catch (e) {
-        response.status(500).send({status: false});
-    }
-});
-
-router.get('/get-closed-count', verifyToken, verifyCustomer, async (request, response) => {
-
-    const pool = await poolPromise;
-    try {
-        pool.request()
-            .input('_pmEmail', sql.VarChar(50), request.payload.username)
-            .query('\n' +
-                'select COUNT(*) as count from COMPLAINT c , PRODUCT p \n' +
-                'where p.productID = c.productID and p.customerID= (select userID from USERS where userEmail= @_pmEmail) and c.status=\'3\' ', (error, result) => {
-                if (error) {
-                    response.status(500).send({
-                        status: false
-                    });
-                } else {
-                    response.status(200).send({
-                        status: true,
-                        data: result.recordset
-                    });
-                }
-            });
-    } catch (e) {
-        response.status(500).send({status: false});
-    }
-});
-
-
 
 module.exports = router;

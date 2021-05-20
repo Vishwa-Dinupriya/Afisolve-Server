@@ -1088,11 +1088,7 @@ router.get('/get-month-count', verifyToken, async (request, response) => {
     const pool = await poolPromise;
     try {
         pool.request()
-            .query('\n' +
-                'SELECT TOP 5 count(*) as num, format(submittedDate, \'yyyy-MM\') as month\n' +
-                'FROM COMPLAINT\n' +
-                'GROUP BY format(submittedDate, \'yyyy-MM\')\n' +
-                'order by 2 DESC', (error, result) => {
+            .execute('getMonthComplaintCount', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -1100,7 +1096,18 @@ router.get('/get-month-count', verifyToken, async (request, response) => {
                 } else {
                     response.status(200).send({
                         status: true,
-                        data: result.recordset
+                        data: {
+                            first: result.recordsets[0][0].num,
+                            second: result.recordsets[1][0].num,
+                            third: result.recordsets[2][0].num,
+                            fourth: result.recordsets[3][0].num,
+                            fifth: result.recordsets[4][0].num,
+                            firstm: result.recordsets[0][0].month,
+                            secondm: result.recordsets[1][0].month,
+                            thirdm: result.recordsets[2][0].month,
+                            fourthm: result.recordsets[3][0].month,
+                            fifthm: result.recordsets[4][0].month
+                        }
                     });
                 }
             });
@@ -1116,10 +1123,7 @@ router.get('/get-month-count-users', verifyToken, async (request, response) => {
     const pool = await poolPromise;
     try {
         pool.request()
-            .query('SELECT TOP 5 count(*) as num, format(createdAt, \'yyyy-MM\') as month\n' +
-                '                FROM USERS\n' +
-                '                GROUP BY format(createdAt, \'yyyy-MM\')\n' +
-                '                order by 2 DESC', (error, result) => {
+            .execute('getMonthUsersCount', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -1127,7 +1131,18 @@ router.get('/get-month-count-users', verifyToken, async (request, response) => {
                 } else {
                     response.status(200).send({
                         status: true,
-                        data: result.recordset
+                        data: {
+                            first: result.recordsets[0][0].num,
+                            second: result.recordsets[1][0].num,
+                            third: result.recordsets[2][0].num,
+                            fourth: result.recordsets[3][0].num,
+                            fifth: result.recordsets[4][0].num,
+                            firstm: result.recordsets[0][0].month,
+                            secondm: result.recordsets[1][0].month,
+                            thirdm: result.recordsets[2][0].month,
+                            fourthm: result.recordsets[3][0].month,
+                            fifthm: result.recordsets[4][0].month
+                        }
                     });
                 }
             });
