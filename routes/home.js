@@ -84,7 +84,6 @@ router.post('/get-my-profile-details', verifyToken, async (request, response) =>
                                 firstname: result.recordsets[0][0].firstName,
                                 lastname: result.recordsets[0][0].lastName,
                                 userEmail: result.recordsets[0][0].userEmail,
-                                password: result.recordsets[0][0].password,
                                 contactNumber: result.recordsets[0][0].contactNumber,
                                 activeStatus: result.recordsets[0][0].ativeStatus,
                                 generalData: result.recordsets[0],
@@ -121,7 +120,7 @@ router.post('/update-own-profile-details', verifyToken, async (request, response
         const roles = new sql.Table('roles');
         roles.columns.add('role', sql.Int);
 
-        for (const role of data.roles) {
+        for (const role of request.body.roles) {
             roles.rows.add(role);
         }
 
@@ -131,7 +130,6 @@ router.post('/update-own-profile-details', verifyToken, async (request, response
             .input('_firstname', sql.VarChar(40), data.firstName)
             .input('_lastname', sql.VarChar(40), data.lastName)
             .input('_newEmail', sql.VarChar(50), data.email)
-            .input('_password', sql.VarChar(20), data.passwordGroup.password)
             .input('_roles', roles)
             .input('_defaultRole', sql.Int, data.defaultRole)
             .input('_contactNumber', sql.VarChar(20), data.contactNumber)
@@ -210,45 +208,37 @@ router.post('/update-own-profile-details', verifyToken, async (request, response
 });
 
 router.get('/get-reminder-notification', verifyToken, async (request, response) => {
-    console.log(request.payload.username);
+    console.log(request.payload.role);
     console.log("awa awa awa");
     const pool = await poolPromise;
-    try {
-        pool.request()
-            .input('_username', sql.VarChar(50), request.payload.username)
-            .execute('getNotification', (error, result) => {
-                if (error) {
-                    response.status(500).send({
-                        status: false
-                    });
-                } else {
-                    for(let i=0; i<result.recordset.length;i++) {
-                        if (result.recordset[i].preAcID == result.returnValue) {
-                            result.recordset[i].action = 'Removel from Position'
-                        } else if (result.recordset[i].newAcID == result.returnValue){
-                            result.recordset[i].action = 'New Appoinment'
+        try {
+                pool.request()
+                    .input('_username', sql.VarChar(50), request.payload.username)
+                    .input('_role', sql.VarChar(50), request.payload.role)
+                    .execute('getNotification', (error, result) => {
+                        if (error) {
+                            response.status(500).send({
+                                status: false
+                            });
                         } else {
-                            console.log("awlk ne");
+                                response.status(200).send({
+                                    status: true,
+                                    data: result.recordset
+                                });
                         }
-                    }
-                    response.status(200).send({
-                        status: true,
-                        data: result.recordset
                     });
-                }
-            });
-    } catch (e) {
-        response.status(500).send({status: false});
-    }
+        } catch (e) {
+            response.status(500).send({status: false});
+        }
 });
 
 router.post('/update-reading-status', verifyToken, async (request, response) => {
     const data = request.body;
-    console.log(data.submittedtime)
+    console.log(data.submittedTime)
     const pool = await poolPromise;
     try {
         pool.request()
-            .input('_time', sql.VarChar(50),data.submittedtime )
+            .input('_time', sql.VarChar(50),data.submittedTime )
             .execute('updateReadStatus', (error, result) => {
                 if (error) {
                     response.status(500).send({
@@ -261,6 +251,7 @@ router.post('/update-reading-status', verifyToken, async (request, response) => 
                     });
                 }
             });
+
     } catch (e) {
         response.status(500).send({status: false});
     }

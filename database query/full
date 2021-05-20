@@ -10,13 +10,6 @@ create type roles as table
 )
 go
 
-create table ACTIVE_SESSION
-(
-    userID     int,
-    lastActive bigint
-)
-go
-
 create table COMPLAINT_STATUS
 (
     statusName varchar(10),
@@ -54,7 +47,7 @@ create table USERS
         constraint USERS_pk
             primary key nonclustered,
     userEmail     varchar(50) not null,
-    password      varchar(20),
+    password      varchar(100),
     firstName     varchar(40),
     lastName      varchar(40),
     contactNumber varchar(20),
@@ -64,6 +57,15 @@ create table USERS
     createdAt     datetime,
     modifiedBy    varchar(50),
     modifiedAt    datetime
+)
+go
+
+create table ACTIVE_SESSION
+(
+    userID     int
+        constraint ACTIVE_SESSION_USERS_userID_fk
+            references USERS,
+    lastActive bigint
 )
 go
 
@@ -138,6 +140,7 @@ create table COMPLAINT
         constraint COMPLAINT_PRODUCT_productID_fk
             references PRODUCT
             on update cascade,
+    acViewedStatus    bit,
     constraint COMPLAINT_pk
         primary key nonclustered (complaintID, subComplaintID)
 )
@@ -288,7 +291,48 @@ BEGIN
 END
 go
 
-CREATE procedure checkUser @userID int, @time bigint as
+CREATE PROCEDURE changePasswordOfUser @_email VARCHAR(50),
+                                      @_newPassword VARCHAR(100),
+                                      @_clientOtp INT,
+                                      @_generatedOtpID INT
+AS
+    BEGIN TRANSACTION
+DECLARE @userID int, @role INT, @generatedOTPValue int;
+
+SELECT @generatedOTPValue = otpCode
+FROM OTP
+where otpID = @_generatedOtpID;
+    -- delete otp record from the OTP table
+Delete
+from OTP
+where otpID = @_generatedOtpID
+    IF @@ROWCOUNT = 0 GOTO errorHandler;
+
+    if (@_clientOtp != @generatedOTPValue)
+        begin
+            ROLLBACK TRANSACTION
+            return -2;
+        end
+    else
+        if not exists(select 1 from USERS where userEmail = @_email)
+            begin
+                ROLLBACK TRANSACTION
+                return -3;
+            end
+UPDATE USERS
+SET password = @_newPassword
+where userEmail = @_email
+    IF @@ROWCOUNT = 0 GOTO errorHandler;
+
+    COMMIT TRANSACTION;
+    RETURN 0;
+
+    errorHandler:
+    ROLLBACK TRANSACTION
+    RETURN -1;
+go
+
+CREATE procedure checkUserSession @userID int, @time bigint as
     if exists(select 1
               from ACTIVE_SESSION
               where userID = @userID)
@@ -296,6 +340,7 @@ CREATE procedure checkUser @userID int, @time bigint as
             declare @lastActive bigint
             select @lastActive = lastActive from ACTIVE_SESSION where userID = @userID
             if (@time - @lastActive < 7200000)
+--         if (@time - @lastActive < 10000)
                 begin
                     update ACTIVE_SESSION set lastActive = @time where userID = @userID
                     return 0;
@@ -309,6 +354,28 @@ CREATE procedure checkUser @userID int, @time bigint as
         begin
             return -1;
         end
+go
+
+CREATE procedure checkUsername @username varchar(50) as
+begin
+    if exists(select 1 from USERS where userEmail = @username)
+        begin
+            select r.roleName
+            from users u,
+                 ROLE r,
+                 USER_ROLE ur
+            where u.userEmail = @username
+              and u.userID = ur.userID
+              and r.roleID = ur.roleID
+              and ur.[default] = 1;
+            select userEmail username, password, userID, firstName, lastName from USERS where userEmail = @username;
+            return 0;
+        end
+    else
+        begin
+            return -1;
+        end
+end
 go
 
 CREATE PROCEDURE createFeedback @_complaintID int,
@@ -589,12 +656,58 @@ CREATE procedure deleteSelectedUser @_username VARCHAR(50)
 as
     BEGIN TRANSACTION
 DECLARE @userIDTemp int, @roleIDTemp int, @userID int
+SELECT @userID = userID
+FROM USERS
+where userEmail = @_username;
+DECLARE
+    cursor_email CURSOR LOCAL FOR SELECT userID, roleID
+                                  FROM USER_ROLE
+                                  WHERE userID = @userID
+    if exists(select 1
+              from PRODUCT
+              where customerID = @userID)
+        begin
+            select productID, productName from PRODUCT where customerID = @userID
+            ROLLBACK TRANSACTION
+            RETURN -2;
+        end
+    if exists(select 1
+              from PRODUCT
+              where accountCoordinatorID = @userID)
+        begin
+            select productID, productName from PRODUCT where accountCoordinatorID = @userID
+            ROLLBACK TRANSACTION
+            RETURN -3;
+        end
+    if exists(select 1
+              from PRODUCT
+              where projectManagerID = @userID)
+        begin
+            select productID, productName from PRODUCT where projectManagerID = @userID
+            ROLLBACK TRANSACTION
+            RETURN -4;
+        end
+    if exists(select 1
+              from ALLOCATION
+              where developerID = @userID)
+        begin
+            select P.productID, productName
+            from ALLOCATION A
+                     join PRODUCT P on P.productID = A.productID
+            where developerID = @userID
+            ROLLBACK TRANSACTION
+            RETURN -4;
+        end
+    if exists(select 1
+              from ACTIVE_SESSION
+              where userID = @userID)
+        begin
+            DELETE from ACTIVE_SESSION where userID = @userID
+        end
     if exists(select 1
               from USERS
               where userEmail = @_username)
         begin
-            SELECT @userID = userID FROM USERS where userEmail = @_username;
-            DECLARE cursor_email CURSOR LOCAL FOR SELECT userID, roleID FROM USER_ROLE WHERE userID = @userID
 
             OPEN cursor_email
             fetch next from cursor_email into @userIDTemp, @roleIDTemp
@@ -616,47 +729,6 @@ DECLARE @userIDTemp int, @roleIDTemp int, @userID int
         begin
             GOTO errorHandler;
         end
-    errorHandler:
-    ROLLBACK TRANSACTION
-    RETURN -1;
-go
-
-CREATE PROCEDURE forgotPasswordChange @_email VARCHAR(50),
-                                      @_newPassword VARCHAR(20),
-                                      @_clientOtp INT,
-                                      @_generatedOtpID INT
-AS
-    BEGIN TRANSACTION
-DECLARE @userID int, @role INT, @generatedOTPValue int;
-
-SELECT @generatedOTPValue = otpCode
-FROM OTP
-where otpID = @_generatedOtpID;
-    -- delete otp record from the OTP table
-Delete
-from OTP
-where otpID = @_generatedOtpID
-    IF @@ROWCOUNT = 0 GOTO errorHandler;
-
-    if (@_clientOtp != @generatedOTPValue)
-        begin
-            ROLLBACK TRANSACTION
-            return -2;
-        end
-    else
-        if not exists(select 1 from USERS where userEmail = @_email)
-            begin
-                ROLLBACK TRANSACTION
-                return -3;
-            end
-UPDATE USERS
-SET password = @_newPassword
-where userEmail = @_email
-    IF @@ROWCOUNT = 0 GOTO errorHandler;
-
-    COMMIT TRANSACTION;
-    RETURN 0;
-
     errorHandler:
     ROLLBACK TRANSACTION
     RETURN -1;
@@ -747,7 +819,7 @@ where userEmail = @_customerEmail;
                                  JOIN PRODUCT P ON C.productID = P.productID
                         where C.subComplaintID != 0
                           and P.customerID = @customerID
-                          and C.status = 0
+
                         select *
                         from COMPLAINT C
                                  JOIN PRODUCT P ON C.productID = P.productID
@@ -764,7 +836,7 @@ where userEmail = @_customerEmail;
                                      JOIN PRODUCT P ON C.productID = P.productID
                             where C.subComplaintID != 0
                               and P.customerID = @customerID
-                              and C.status = 1
+
                             select *
                             from COMPLAINT C
                                      JOIN PRODUCT P ON C.productID = P.productID
@@ -781,7 +853,7 @@ where userEmail = @_customerEmail;
                                          JOIN PRODUCT P ON C.productID = P.productID
                                 where C.subComplaintID != 0
                                   and P.customerID = @customerID
-                                  and C.status = 2
+
                                 select *
                                 from COMPLAINT C
                                          JOIN PRODUCT P ON C.productID = P.productID
@@ -798,7 +870,7 @@ where userEmail = @_customerEmail;
                                              JOIN PRODUCT P ON C.productID = P.productID
                                     where C.subComplaintID != 0
                                       and P.customerID = @customerID
-                                      and C.status = 3
+
                                     select *
                                     from COMPLAINT C
                                              JOIN PRODUCT P ON C.productID = P.productID
@@ -1030,6 +1102,7 @@ as
                      JOIN PRODUCT P3 on USR.userID = P3.accountCoordinatorID
             where P3.productID = @_productID
 
+            select complaintID, submittedDate from COMPLAINT where productID = @_productID and subComplaintID = 0
             RETURN 0;
         end
     else
@@ -1056,6 +1129,12 @@ where userEmail = @_username;
             select * from USERS where userEmail = @_username
             select ur.roleID from USER_ROLE ur where ur.userID = @userID;
             select ur.roleID from USER_ROLE ur where ur.userID = @userID and ur.[default] = 'true';
+
+            select productID, 'Customer' as roleName from PRODUCT where customerID = @userID
+            select productID, 'Project Manager' as roleName from PRODUCT where projectManagerID = @userID
+            select productID, 'Account Coordinator' as roleName from PRODUCT where accountCoordinatorID = @userID
+            select productID, 'Developer' as roleName from ALLOCATION where developerID = @userID
+
             RETURN 0;
         end
     else
@@ -1102,7 +1181,8 @@ VALUES (@complaintID,
         (SELECT DATEADD(day, 2, GETDATE()) AS DateAdd),
         null,
         null,
-        @_productID)
+        @_productID,
+        0)
     IF @@ROWCOUNT = 0 GOTO errorHandler;
 
 DECLARE @i int;
@@ -1135,8 +1215,8 @@ AS
     BEGIN TRANSACTION
 DECLARE
     @subComplaintID int;
-    SET @subComplaintID = ((SELECT MAX(@subComplaintID)
-                            from COMPLAIN
+    SET @subComplaintID = ((SELECT MAX(subComplaintID)
+                            from COMPLAINT
                             where complaintID = @_complaintID) + 1);
 
 INSERT INTO COMPLAINT
@@ -1148,11 +1228,14 @@ VALUES (@_complaintID,
         (SELECT DATEADD(day, 2, GETDATE()) AS DateAdd),
         null,
         null,
-        (SELECT productID from COMPLAINT where complaintID = @_complaintID and subComplaintID = 0))
+        (SELECT productID from COMPLAINT where complaintID = @_complaintID and subComplaintID = 0),
+        0)
     IF @@ROWCOUNT = 0 GOTO errorHandler;
+
 UPDATE COMPLAINT
 SET status = 0
 where complaintID = @_complaintID
+  and subComplaintID = 0
     IF @@ROWCOUNT = 0 GOTO errorHandler;
 
     COMMIT TRANSACTION;
@@ -1173,26 +1256,37 @@ FROM USERS
 where userEmail = @_email;
     if exists(select 1
               from USERS
-              where userEmail = @_email
-                and password = @_password)
+              where userEmail = @_email)
         begin
-            select r.roleName
-            from ROLE r,
-                 USER_ROLE ur
-            where ur.userID = @userID
-              and r.roleID = ur.roleID
-              and ur.[default] = 1;
-            select userEmail username, userID, firstName, lastName from USERS where userEmail = @_email;
+            if exists(select 1
+                      from USERS
+                      where userEmail = @_email
+                        and password = @_password)
+                begin
+                    select r.roleName
+                    from ROLE r,
+                         USER_ROLE ur
+                    where ur.userID = @userID
+                      and r.roleID = ur.roleID
+                      and ur.[default] = 1;
+                    select userEmail username, userID, firstName, lastName from USERS where userEmail = @_email;
 
-            update USERS SET lastLogin = GETDATE() where userEmail = @_email
-            IF @@ROWCOUNT = 0 GOTO errorHandler;
+                    update USERS SET lastLogin = GETDATE() where userEmail = @_email
+                    IF @@ROWCOUNT = 0 GOTO errorHandler;
 
-            COMMIT TRANSACTION
-            return 0;
+                    COMMIT TRANSACTION
+                    return 0;
+                end
+            else
+                begin
+                    ROLLBACK TRANSACTION
+                    RETURN -3;
+                end
         end
     else
         begin
-            GOTO errorHandler;
+            ROLLBACK TRANSACTION
+            RETURN -2;
         end
     errorHandler:
     ROLLBACK TRANSACTION
@@ -1291,16 +1385,18 @@ SELECT @createdAdminID = userID
 FROM USERS
 where userEmail = @_createdAdmin;
 
-
 DECLARE
-    @productID int;
+    developer_cursor CURSOR LOCAL FOR SELECT *
+                                      FROM @_developers
+
+DECLARE @productID int, @developerIDTemp INT;
     SET @productID = ((SELECT MAX(productID)
                        from PRODUCT) + 1);
 
     if (not exists(select 1
                    from USER_ROLE
                    where userID = @customerID
-                     and roleID = 1))
+                     and roleID = 0))
         begin
             ROLLBACK TRANSACTION
             RETURN -2;
@@ -1308,7 +1404,7 @@ DECLARE
     if (not exists(select 1
                    from USER_ROLE
                    where userID = @accountCoordinatorID
-                     and roleID = 3))
+                     and roleID = 1))
         begin
             ROLLBACK TRANSACTION
             RETURN -3;
@@ -1316,7 +1412,7 @@ DECLARE
     if (not exists(select 1
                    from USER_ROLE
                    where userID = @projectManagerID
-                     and roleID = 2))
+                     and roleID = 3))
         begin
             ROLLBACK TRANSACTION
             RETURN -4;
@@ -1331,18 +1427,22 @@ VALUES (iif(@productID is null, 1, @productID),
         GETDATE(),
         @createdAdminID, null, null)
     IF @@ROWCOUNT = 0 GOTO errorHandler;
-DECLARE @developerID INT ;
-
-DECLARE
-    developer_cursor CURSOR LOCAL FOR SELECT *
-                                      FROM @_developers
 
     OPEN developer_cursor
-    FETCH NEXT FROM developer_cursor INTO @developerID
+    FETCH NEXT FROM developer_cursor INTO @developerIDTemp
     WHILE @@FETCH_STATUS = 0
         BEGIN
-            INSERT INTO ALLOCATION VALUES (@developerID, @productID);
-            FETCH NEXT FROM developer_cursor INTO @developerID
+            if (not exists(select 1
+                           from USER_ROLE
+                           where userID = @developerIDTemp
+                             and roleID = 2))
+                begin
+                    ROLLBACK TRANSACTION
+                    RETURN -5;
+                end
+            INSERT INTO ALLOCATION VALUES (@developerIDTemp, @productID);
+            IF @@ROWCOUNT = 0 GOTO errorHandler;
+            FETCH NEXT FROM developer_cursor INTO @developerIDTemp
         END
     CLOSE developer_cursor
 
@@ -1357,7 +1457,7 @@ go
 CREATE PROCEDURE registerUser @_firstname VARCHAR(40),
                               @_lastname VARCHAR(40),
                               @_email VARCHAR(50),
-                              @_password VARCHAR(20),
+                              @_password VARCHAR(100),
                               @_roles roles READONLY,
                               @_contactNumber VARCHAR(20),
                               @_defaultRole INT,
@@ -1548,19 +1648,27 @@ begin
 end
 go
 
-CREATE procedure updateLogin @userID int, @lastActive BIGINT as
+CREATE procedure updateOrCreateSession @userID int,
+                                       @lastActive BIGINT as
     begin transaction
     if (exists(select 1
                from ACTIVE_SESSION
                where userID = @userID))
         begin
             update ACTIVE_SESSION set lastActive = @lastActive where userID = @userID
+            IF @@ROWCOUNT = 0 GOTO errorHandler;
         end
     else
         begin
             insert into ACTIVE_SESSION values (@userID, @lastActive)
+            IF @@ROWCOUNT = 0 GOTO errorHandler;
         end
     commit transaction
+    return 0;
+
+    errorHandler:
+    ROLLBACK TRANSACTION
+    RETURN -1;
 go
 
 CREATE procedure updateProjectManger @_cbc INT,
@@ -1586,7 +1694,6 @@ CREATE procedure updateSelectedUserDetails @_oldEmail VARCHAR(50),
                                            @_firstname VARCHAR(40),
                                            @_lastname VARCHAR(40),
                                            @_newEmail VARCHAR(50),
-                                           @_password VARCHAR(20),
                                            @_roles roles READONLY,
                                            @_contactNumber VARCHAR(20),
                                            @_defaultRole INT,
@@ -1643,7 +1750,6 @@ UPDATE USERS
 SET userEmail    = @_newEmail,
     firstName    = @_firstname,
     lastName     = @_lastname,
-    password     = @_password,
     contactNumber= @_contactNumber,
     modifiedBy   = @_modifiedAdmin,
     modifiedAt   = GETDATE()
