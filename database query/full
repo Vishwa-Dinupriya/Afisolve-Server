@@ -69,6 +69,19 @@ create table ACTIVE_SESSION
 )
 go
 
+create table NOTIFICATION
+(
+    receiverID    int
+        constraint NOTIFICATION_USERS_userID_fk
+            references USERS
+            on delete cascade,
+    description   varchar(100),
+    submittedTime datetime,
+    readStatus    bit,
+    role          varchar(20)
+)
+go
+
 create table PRODUCT
 (
     productID            int not null
@@ -194,14 +207,15 @@ go
 
 create table TASK
 (
-    taskID               varchar(10) not null
+    taskID               int default 0 not null
         constraint TASK_pk
             primary key nonclustered,
     complaintID          int,
     subComplaintID       int,
     assignDate           datetime,
     deadline             datetime,
-    completed            bit,
+    task_status          varchar(20),
+    task_description     varchar(200),
     accountCoordinatorID int
         constraint TASK_USERS_userID_fk
             references USERS,
@@ -231,6 +245,100 @@ create table USER_ROLE
 )
 go
 
+create view AyomaView_Users_And_UserRole AS
+select u.userID,
+       u.userEmail,
+       u.firstName,
+       u.lastName,
+       u.contactNumber,
+       u.activeStatus,
+       u.password,
+       ur.roleID,
+       ur.[default],
+       r.roleName
+from USERS u,
+     USER_ROLE ur,
+     Role r
+where u.userID = ur.userID
+  AND ur.roleID = r.roleID
+go
+
+create view Ayoma_AccountCoordinators AS
+select u.userID,
+       u.userEmail,
+       u.firstName,
+       u.lastName,
+       u.contactNumber,
+       u.activeStatus,
+       u.password,
+       ur.roleID,
+       ur.[default],
+       r.roleName
+from USERS u,
+     USER_ROLE ur,
+     Role r
+where u.userID = ur.userID
+  AND ur.roleID = r.roleID
+  AND r.roleName = 'account-coordinator'
+go
+
+create view Ayoma_Customers AS
+select u.userID,
+       u.userEmail,
+       u.firstName,
+       u.lastName,
+       u.contactNumber,
+       u.activeStatus,
+       u.password,
+       ur.roleID,
+       ur.[default],
+       r.roleName
+from USERS u,
+     USER_ROLE ur,
+     Role r
+where u.userID = ur.userID
+  AND ur.roleID = r.roleID
+  AND r.roleName = 'customer'
+go
+
+create view Ayoma_Developers AS
+select u.userID,
+       u.userEmail,
+       u.firstName,
+       u.lastName,
+       u.contactNumber,
+       u.activeStatus,
+       u.password,
+       ur.roleID,
+       ur.[default],
+       r.roleName
+from USERS u,
+     USER_ROLE ur,
+     Role r
+where u.userID = ur.userID
+  AND ur.roleID = r.roleID
+  AND r.roleName = 'developer'
+go
+
+create view Ayoma_ProjectManagers AS
+select u.userID,
+       u.userEmail,
+       u.firstName,
+       u.lastName,
+       u.contactNumber,
+       u.activeStatus,
+       u.password,
+       ur.roleID,
+       ur.[default],
+       r.roleName
+from USERS u,
+     USER_ROLE ur,
+     Role r
+where u.userID = ur.userID
+  AND ur.roleID = r.roleID
+  AND r.roleName = 'project-manager'
+go
+
 create view Ayoma_Developers AS
 select u.userID,
        u.userEmail,
@@ -256,6 +364,36 @@ from USERS u,
      USER_ROLE r
 where u.userID = r.userID
   and r.roleID = '1'
+go
+
+CREATE PROCEDURE AccCoordinatoraddComplaint @_productID int,
+                                            @_description varchar(5000)
+AS
+    BEGIN TRANSACTION
+DECLARE @currentMaxComplaintID int;
+DECLARE @complaintID int;
+    SET @currentMaxComplaintID = (SELECT MAX(complaintID)
+                                  from COMPLAINT) ;
+    SET @complaintID = iif(@currentMaxComplaintID is null, 1, @currentMaxComplaintID + 1);
+INSERT INTO COMPLAINT
+VALUES (@complaintID,
+        0,
+        @_description,
+        0,
+        GETDATE(),
+        (SELECT DATEADD(day, 2, GETDATE()) AS DateAdd),
+        null,
+        null,
+        @_productID,
+        0)
+    IF @@ROWCOUNT = 0 GOTO errorHandler;
+
+    COMMIT TRANSACTION;
+    RETURN 0;
+
+    errorHandler:
+    ROLLBACK TRANSACTION
+    RETURN -1;
 go
 
 CREATE function SelectRole(@role_input varchar)
@@ -404,24 +542,57 @@ where complaintID = @_complaintID
     RETURN -1;
 go
 
+CREATE PROCEDURE createTask @_complaintID int,
+                            @_subComplaintID int,
+                            @_deadline datetime,
+                            @_taskdescription varchar(200),
+                            @_accountCoordinatorEmail varchar(50),
+                            @_developerEmail varchar(50)
+AS
+    BEGIN TRANSACTION
+DECLARE @currentMaxtaskID int;
+DECLARE @taskID int;
+    SET @currentMaxtaskID = (SELECT MAX(taskID)
+                             from TASK) ;
+    SET @taskID = iif(@currentMaxtaskID is null, 1, @currentMaxtaskID + 1);
+INSERT INTO TASK
+VALUES (@taskID,
+        @_complaintID,
+        @_subComplaintID,
+        GETDATE(),
+        @_deadline,
+        'Pending',
+        @_taskdescription,
+        (select userID from USERS where userEmail = @_accountCoordinatorEmail),
+        (select userID from USERS where userEmail = @_developerEmail))
+    IF @@ROWCOUNT = 0 GOTO errorHandler;
+
+    COMMIT TRANSACTION;
+    RETURN 0;
+
+    errorHandler:
+    ROLLBACK TRANSACTION
+    RETURN -1;
+go
+
 CREATE procedure deleteSelectedComplaint @_complaintID int
 as
     BEGIN TRANSACTION
-DECLARE @complaintIDTemp int, @subComplaintIDTemp int, @commentIDTemp int, @imageIndexTemp int, @taskIDTemp int
+DECLARE @subComplaintIDTemp int, @commentIDTemp int, @imageIndexTemp int, @taskIDTemp int
 DECLARE
-    comments_cursor CURSOR LOCAL FOR SELECT complaintID, commentID
+    comments_cursor CURSOR LOCAL FOR SELECT commentID
                                      FROM COMMENT
                                      WHERE complaintID = @_complaintID
 DECLARE
-    complaintAttachment_cursor CURSOR LOCAL FOR SELECT complaintID, imageIndex
+    complaintAttachment_cursor CURSOR LOCAL FOR SELECT imageIndex
                                                 FROM COMPLAINT_ATTACHMENT_DETAILS
                                                 WHERE complaintID = @_complaintID
 DECLARE
-    tasks_cursor CURSOR LOCAL FOR SELECT taskID, complaintID
+    tasks_cursor CURSOR LOCAL FOR SELECT taskID
                                   FROM TASK
                                   WHERE complaintID = @_complaintID
 DECLARE
-    complaints_cursor CURSOR LOCAL FOR SELECT complaintID, subComplaintID
+    complaints_cursor CURSOR LOCAL FOR SELECT subComplaintID
                                        FROM COMPLAINT
                                        WHERE complaintID = @_complaintID
     if exists(select 1
@@ -436,13 +607,13 @@ DECLARE
                     select * from COMMENT where complaintID = @_complaintID and isImage = 1
 
                     OPEN comments_cursor
-                    fetch next from comments_cursor into @complaintIDTemp, @commentIDTemp
+                    fetch next from comments_cursor into @commentIDTemp
 
                     while @@fetch_status = 0
                         begin
-                            delete from COMMENT where complaintID = @complaintIDTemp AND commentID = @commentIDTemp
+                            delete from COMMENT where complaintID = @_complaintID AND commentID = @commentIDTemp
                             IF @@ROWCOUNT = 0 GOTO errorHandler;
-                            fetch next from comments_cursor into @complaintIDTemp, @commentIDTemp
+                            fetch next from comments_cursor into @commentIDTemp
                         end
                     CLOSE comments_cursor
 
@@ -455,15 +626,15 @@ DECLARE
                     SELECT * from COMPLAINT_ATTACHMENT_DETAILS where complaintID = @_complaintID
 
                     OPEN complaintAttachment_cursor
-                    fetch next from complaintAttachment_cursor into @complaintIDTemp, @imageIndexTemp
+                    fetch next from complaintAttachment_cursor into @imageIndexTemp
 
                     while @@fetch_status = 0
                         begin
                             delete
                             from COMPLAINT_ATTACHMENT_DETAILS
-                            where complaintID = @complaintIDTemp AND imageIndex = @imageIndexTemp
+                            where complaintID = @_complaintID AND imageIndex = @imageIndexTemp
                             IF @@ROWCOUNT = 0 GOTO errorHandler;
-                            fetch next from complaintAttachment_cursor into @complaintIDTemp, @imageIndexTemp
+                            fetch next from complaintAttachment_cursor into @imageIndexTemp
                         end
                     CLOSE complaintAttachment_cursor
 
@@ -483,26 +654,26 @@ DECLARE
                 begin
 
                     OPEN tasks_cursor
-                    fetch next from tasks_cursor into @taskIDTemp ,@complaintIDTemp
+                    fetch next from tasks_cursor into @taskIDTemp
 
                     while @@fetch_status = 0
                         begin
-                            delete from TASK where taskID = @taskIDTemp AND complaintID = @complaintIDTemp
+                            delete from TASK where taskID = @taskIDTemp AND complaintID = @_complaintID
                             IF @@ROWCOUNT = 0 GOTO errorHandler;
-                            fetch next from tasks_cursor into @taskIDTemp, @complaintIDTemp
+                            fetch next from tasks_cursor into @taskIDTemp
                         end
                     CLOSE tasks_cursor
 
                 end
 
             OPEN complaints_cursor
-            fetch next from complaints_cursor into @complaintIDTemp, @subComplaintIDTemp
+            fetch next from complaints_cursor into @subComplaintIDTemp
 
             while @@fetch_status = 0
                 begin
-                    delete from COMPLAINT where complaintID = @complaintIDTemp AND subComplaintID = @subComplaintIDTemp
+                    delete from COMPLAINT where complaintID = @_complaintID AND subComplaintID = @subComplaintIDTemp
                     IF @@ROWCOUNT = 0 GOTO errorHandler;
-                    fetch next from complaints_cursor into @complaintIDTemp, @subComplaintIDTemp
+                    fetch next from complaints_cursor into @subComplaintIDTemp
                 end
             CLOSE complaints_cursor
             COMMIT TRANSACTION
@@ -522,7 +693,7 @@ CREATE procedure deleteSelectedProduct @_productID int
 as
     BEGIN TRANSACTION
 DECLARE
-    @_complaintID int, @complaintIDTemp int, @subComplaintIDTemp int, @commentIDTemp int, @imageIndexTemp int, @taskIDTemp int, @productIDTemp int, @developerIDTemp int
+    @complaintIDTemp int, @subComplaintIDTemp int, @commentIDTemp int, @imageIndexTemp int, @taskIDTemp int, @productIDTemp int, @developerIDTemp int
 DECLARE
     allocations_cursor CURSOR LOCAL FOR SELECT developerID, productID
                                         FROM ALLOCATION
@@ -534,96 +705,106 @@ DECLARE
               from COMPLAINT
               where productID = @_productID)
         begin
-            SELECT @_complaintID = complaintID FROM COMPLAINT where productID = @_productID
-            DECLARE comments_cursor CURSOR LOCAL FOR SELECT complaintID, commentID
-                                                     FROM COMMENT
-                                                     WHERE complaintID = @_complaintID
-            DECLARE complaintAttachment_cursor CURSOR LOCAL FOR SELECT complaintID, imageIndex
-                                                                FROM COMPLAINT_ATTACHMENT_DETAILS
-                                                                WHERE complaintID = @_complaintID
-            DECLARE tasks_cursor CURSOR LOCAL FOR SELECT taskID, complaintID FROM TASK WHERE complaintID = @_complaintID
-            DECLARE complaints_cursor CURSOR LOCAL FOR SELECT complaintID, subComplaintID
-                                                       FROM COMPLAINT
-                                                       WHERE complaintID = @_complaintID
+            DECLARE complaints_cursor CURSOR LOCAL FOR SELECT complaintID FROM COMPLAINT WHERE productID = @_productID
+            OPEN complaints_cursor
+            fetch next from complaints_cursor into @complaintIDTemp
 
-            if exists(select 1
-                      from COMMENT
-                      where complaintID = @_complaintID)
+            DECLARE @comments_cursor CURSOR;
+            DECLARE @complaintAttachment_cursor CURSOR;
+            DECLARE @tasks_cursor CURSOR;
+            DECLARE @complaintWithsubComplaints_cursor CURSOR;
+
+            while @@fetch_status = 0
                 begin
+                    SET @comments_cursor =
+                            CURSOR LOCAL FOR SELECT commentID FROM COMMENT WHERE complaintID = @complaintIDTemp
+                    SET @complaintAttachment_cursor = CURSOR LOCAL FOR SELECT imageIndex
+                                                                       FROM COMPLAINT_ATTACHMENT_DETAILS
+                                                                       WHERE complaintID = @complaintIDTemp
+                    SET @tasks_cursor = CURSOR LOCAL FOR SELECT taskID FROM TASK WHERE complaintID = @complaintIDTemp
+                    SET @complaintWithsubComplaints_cursor =
+                            CURSOR LOCAL FOR SELECT subComplaintID FROM COMPLAINT WHERE complaintID = @complaintIDTemp
 
-                    select * from COMMENT where complaintID = @_complaintID and isImage = 1
+                    -------------------------------------------------------------------------------------------------------------------------------------------------------------
+                    select * from COMMENT where complaintID = @complaintIDTemp and isImage = 1
 
-                    OPEN comments_cursor
-                    fetch next from comments_cursor into @complaintIDTemp, @commentIDTemp
+                    OPEN @comments_cursor
+                    fetch next from @comments_cursor into @commentIDTemp
 
                     while @@fetch_status = 0
                         begin
                             delete from COMMENT where complaintID = @complaintIDTemp AND commentID = @commentIDTemp
                             IF @@ROWCOUNT = 0 GOTO errorHandler;
-                            fetch next from comments_cursor into @complaintIDTemp, @commentIDTemp
+                            fetch next from @comments_cursor into @commentIDTemp
                         end
-                    CLOSE comments_cursor
+                    CLOSE @comments_cursor
 
-                end
+                    -------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-            if exists(select 1
-                      from COMPLAINT_ATTACHMENT_DETAILS
-                      where complaintID = @_complaintID)
-                begin
-                    SELECT * from COMPLAINT_ATTACHMENT_DETAILS where complaintID = @_complaintID
+                    SELECT * from COMPLAINT_ATTACHMENT_DETAILS where complaintID = @complaintIDTemp
 
-                    OPEN complaintAttachment_cursor
-                    fetch next from complaintAttachment_cursor into @complaintIDTemp, @imageIndexTemp
+                    OPEN @complaintAttachment_cursor
+                    fetch next from @complaintAttachment_cursor into @imageIndexTemp
 
                     while @@fetch_status = 0
                         begin
-                            delete
+                            select *
                             from COMPLAINT_ATTACHMENT_DETAILS
                             where complaintID = @complaintIDTemp AND imageIndex = @imageIndexTemp
+                            delete from COMPLAINT_ATTACHMENT_DETAILS where complaintID = @complaintIDTemp
+                                                                       AND imageIndex = @imageIndexTemp
                             IF @@ROWCOUNT = 0 GOTO errorHandler;
-                            fetch next from complaintAttachment_cursor into @complaintIDTemp, @imageIndexTemp
+                            fetch next from @complaintAttachment_cursor into @imageIndexTemp
                         end
-                    CLOSE complaintAttachment_cursor
+                    CLOSE @complaintAttachment_cursor
 
-                end
+                    -------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-            if exists(select 1
-                      from FEEDBACK
-                      where complaintID = @_complaintID)
-                begin
-                    Delete from FEEDBACK where complaintID = @_complaintID
-                    IF @@ROWCOUNT = 0 GOTO errorHandler;
-                end
+                    if exists(select 1
+                              from FEEDBACK
+                              where complaintID = @complaintIDTemp)
+                        begin
+                            Delete from FEEDBACK where complaintID = @complaintIDTemp
+                            IF @@ROWCOUNT = 0 GOTO errorHandler;
+                        end
 
-            if exists(select 1
-                      from TASK
-                      where complaintID = @_complaintID)
-                begin
+                    -------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-                    OPEN tasks_cursor
-                    fetch next from tasks_cursor into @taskIDTemp ,@complaintIDTemp
+
+                    OPEN @tasks_cursor
+                    fetch next from @tasks_cursor into @taskIDTemp
 
                     while @@fetch_status = 0
                         begin
                             delete from TASK where taskID = @taskIDTemp AND complaintID = @complaintIDTemp
                             IF @@ROWCOUNT = 0 GOTO errorHandler;
-                            fetch next from tasks_cursor into @taskIDTemp, @complaintIDTemp
+                            fetch next from @tasks_cursor into @taskIDTemp
                         end
-                    CLOSE tasks_cursor
+                    CLOSE @tasks_cursor
 
+                    -------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+                    OPEN @complaintWithsubComplaints_cursor
+                    fetch next from @complaintWithsubComplaints_cursor into @subComplaintIDTemp
+
+                    while @@fetch_status = 0
+                        begin
+                            delete
+                            from COMPLAINT
+                            where complaintID = @complaintIDTemp AND subComplaintID = @subComplaintIDTemp
+                            IF @@ROWCOUNT = 0 GOTO errorHandler;
+                            fetch next from @complaintWithsubComplaints_cursor into @subComplaintIDTemp
+                        end
+                    CLOSE @complaintWithsubComplaints_cursor
+                    -------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+                    fetch next from complaints_cursor into @complaintIDTemp
                 end
-
-            OPEN complaints_cursor
-            fetch next from complaints_cursor into @complaintIDTemp, @subComplaintIDTemp
-
-            while @@fetch_status = 0
-                begin
-                    delete from COMPLAINT where complaintID = @complaintIDTemp AND subComplaintID = @subComplaintIDTemp
-                    IF @@ROWCOUNT = 0 GOTO errorHandler;
-                    fetch next from complaints_cursor into @complaintIDTemp, @subComplaintIDTemp
-                end
+            --after delete all complaints with its all childs
             CLOSE complaints_cursor
+
         end
+
     -- end of the if statenment
     if exists(select 1
               from ALLOCATION
@@ -746,6 +927,46 @@ begin
 end
 go
 
+CREATE procedure getComplaintCountForCustomer(@_pmEmail VARCHAR(50))
+as
+begin
+    select COUNT(*) as alll
+    from COMPLAINT c,
+         PRODUCT p
+    where p.productID = c.productID
+      and p.customerID = (select userID from USERS where userEmail = @_pmEmail)
+
+    select COUNT(*) as pen
+    from COMPLAINT c,
+         PRODUCT p
+    where p.productID = c.productID
+      and p.customerID = (select userID from USERS where userEmail = @_pmEmail)
+      and c.status = '0'
+
+    select COUNT(*) as work
+    from COMPLAINT c,
+         PRODUCT p
+    where p.productID = c.productID
+      and p.customerID = (select userID from USERS where userEmail = @_pmEmail)
+      and c.status = '1'
+
+    select COUNT(*) as fin
+    from COMPLAINT c,
+         PRODUCT p
+    where p.productID = c.productID
+      and p.customerID = (select userID from USERS where userEmail = @_pmEmail)
+      and c.status = '2'
+
+    select COUNT(*) as clos
+    from COMPLAINT c,
+         PRODUCT p
+    where p.productID = c.productID
+      and p.customerID = (select userID from USERS where userEmail = @_pmEmail)
+      and c.status = '3'
+    return 0;
+end
+go
+
 CREATE procedure getComplaintCountForPM(@_pmEmail VARCHAR(50))
 as
 begin
@@ -782,6 +1003,49 @@ begin
     where p.productID = c.productID
       and p.projectManagerID = (select userID from USERS where userEmail = @_pmEmail)
       and c.status = '3'
+    return 0;
+end
+go
+
+CREATE procedure getComplaintCountMonthForPM(@_pmEmail VARCHAR(50))
+as
+begin
+
+    SELECT COUNT(*) as num, format(EOMONTH(DATEADD(month, 0, Current_timestamp)), 'yyyy-MM') as month
+    from COMPLAINT c,
+         PRODUCT p
+    where format(submittedDate, 'yyyy-MM') = format(EOMONTH(DATEADD(month, 0, Current_timestamp)), 'yyyy-MM')
+      and c.productID = p.productID
+      and p.projectManagerID = (select userID from USERS where userEmail = @_pmEmail)
+
+    SELECT COUNT(*) as num, format(EOMONTH(DATEADD(month, -1, Current_timestamp)), 'yyyy-MM') as month
+    from COMPLAINT c,
+         PRODUCT p
+    where format(submittedDate, 'yyyy-MM') = format(EOMONTH(DATEADD(month, -1, Current_timestamp)), 'yyyy-MM')
+      and c.productID = p.productID
+      and p.projectManagerID = (select userID from USERS where userEmail = @_pmEmail)
+
+    SELECT COUNT(*) as num, format(EOMONTH(DATEADD(month, -2, Current_timestamp)), 'yyyy-MM') as month
+    from COMPLAINT c,
+         PRODUCT p
+    where format(submittedDate, 'yyyy-MM') = format(EOMONTH(DATEADD(month, -2, Current_timestamp)), 'yyyy-MM')
+      and c.productID = p.productID
+      and p.projectManagerID = (select userID from USERS where userEmail = @_pmEmail)
+
+    SELECT COUNT(*) as num, format(EOMONTH(DATEADD(month, -3, Current_timestamp)), 'yyyy-MM') as month
+    from COMPLAINT c,
+         PRODUCT p
+    where format(submittedDate, 'yyyy-MM') = format(EOMONTH(DATEADD(month, -3, Current_timestamp)), 'yyyy-MM')
+      and c.productID = p.productID
+      and p.projectManagerID = (select userID from USERS where userEmail = @_pmEmail)
+
+    SELECT COUNT(*) as num, format(EOMONTH(DATEADD(month, -4, Current_timestamp)), 'yyyy-MM') as month
+    from COMPLAINT c,
+         PRODUCT p
+    where format(submittedDate, 'yyyy-MM') = format(EOMONTH(DATEADD(month, -4, Current_timestamp)), 'yyyy-MM')
+      and c.productID = p.productID
+      and p.projectManagerID = (select userID from USERS where userEmail = @_pmEmail)
+
     return 0;
 end
 go
@@ -899,7 +1163,62 @@ begin
 end
 go
 
-CREATE procedure getNotification @_username VARCHAR(50)
+CREATE procedure getMonthComplaintCount
+as
+begin
+    SELECT COUNT(*) as num, format(EOMONTH(DATEADD(month, 0, Current_timestamp)), 'yyyy-MM') as month
+    from COMPLAINT
+    where format(submittedDate, 'yyyy-MM') = format(EOMONTH(DATEADD(month, 0, Current_timestamp)), 'yyyy-MM')
+
+    SELECT COUNT(*) as num, format(EOMONTH(DATEADD(month, -1, Current_timestamp)), 'yyyy-MM') as month
+    from COMPLAINT
+    where format(submittedDate, 'yyyy-MM') = format(EOMONTH(DATEADD(month, -1, Current_timestamp)), 'yyyy-MM')
+
+    SELECT COUNT(*) as num, format(EOMONTH(DATEADD(month, -2, Current_timestamp)), 'yyyy-MM') as month
+    from COMPLAINT
+    where format(submittedDate, 'yyyy-MM') = format(EOMONTH(DATEADD(month, -2, Current_timestamp)), 'yyyy-MM')
+
+    SELECT COUNT(*) as num, format(EOMONTH(DATEADD(month, -3, Current_timestamp)), 'yyyy-MM') as month
+    from COMPLAINT
+    where format(submittedDate, 'yyyy-MM') = format(EOMONTH(DATEADD(month, -3, Current_timestamp)), 'yyyy-MM')
+
+    SELECT COUNT(*) as num, format(EOMONTH(DATEADD(month, -4, Current_timestamp)), 'yyyy-MM') as month
+    from COMPLAINT
+    where format(submittedDate, 'yyyy-MM') = format(EOMONTH(DATEADD(month, -4, Current_timestamp)), 'yyyy-MM')
+
+    return 0;
+end
+go
+
+CREATE procedure getMonthUsersCount
+as
+begin
+    SELECT COUNT(*) as num, format(EOMONTH(DATEADD(month, 0, Current_timestamp)), 'yyyy-MM') as month
+    from USERS
+    where format(createdAt, 'yyyy-MM') = format(EOMONTH(DATEADD(month, 0, Current_timestamp)), 'yyyy-MM')
+
+    SELECT COUNT(*) as num, format(EOMONTH(DATEADD(month, -1, Current_timestamp)), 'yyyy-MM') as month
+    from USERS
+    where format(createdAt, 'yyyy-MM') = format(EOMONTH(DATEADD(month, -1, Current_timestamp)), 'yyyy-MM')
+
+    SELECT COUNT(*) as num, format(EOMONTH(DATEADD(month, -2, Current_timestamp)), 'yyyy-MM') as month
+    from USERS
+    where format(createdAt, 'yyyy-MM') = format(EOMONTH(DATEADD(month, -2, Current_timestamp)), 'yyyy-MM')
+
+    SELECT COUNT(*) as num, format(EOMONTH(DATEADD(month, -3, Current_timestamp)), 'yyyy-MM') as month
+    from USERS
+    where format(createdAt, 'yyyy-MM') = format(EOMONTH(DATEADD(month, -3, Current_timestamp)), 'yyyy-MM')
+
+    SELECT COUNT(*) as num, format(EOMONTH(DATEADD(month, -4, Current_timestamp)), 'yyyy-MM') as month
+    from USERS
+    where format(createdAt, 'yyyy-MM') = format(EOMONTH(DATEADD(month, -4, Current_timestamp)), 'yyyy-MM')
+
+    return 0;
+end
+go
+
+CREATE procedure getNotification @_username VARCHAR(50),
+                                 @_role VARCHAR(50)
 as
 DECLARE @userID int;
 SELECT @userID = userID
@@ -907,12 +1226,44 @@ FROM USERS
 where userEmail = @_username;
 begin
     select *
-    from CHANGINGHISTORY
-    where (exAcID = @userID OR preAcID = @userID OR newAcID = @userID)
-      AND readStatus = 'false'
+    from NOTIFICATION
+    where readStatus = 'false'
+      AND receiverID = @userID
+      AND role = @_role
     order by submittedtime DESC
-    return @userID;
 end
+go
+
+CREATE procedure getSelectedAccComplaintDetailsCurrent(@_complaintID int,
+                                                       @_subComplaintID int)
+as
+    if exists(select 1
+              from COMPLAINT
+              where complaintID = @_complaintID
+                and subComplaintID = @_subComplaintID)
+        begin
+            select * from COMPLAINT where complaintID = @_complaintID AND subComplaintID = @_subComplaintID
+            select *
+            from Ayoma_ProjectManagers ap,
+                 PRODUCT p
+            where ap.userID = p.projectManagerID
+            select *
+            from COMPLAINT_ATTACHMENT_DETAILS
+            where complaintID = @_complaintID
+              and subComplaintID = @_subComplaintID
+
+            return 0;
+        end
+    else
+        begin
+            GOTO errorHandler;
+        end
+    COMMIT TRANSACTION;
+    RETURN 0;
+
+    errorHandler:
+    ROLLBACK TRANSACTION
+    RETURN -1
 go
 
 CREATE procedure getSelectedComplaintDetailsAdmin(@_complaintID int,
@@ -1111,6 +1462,32 @@ as
         end
 go
 
+CREATE procedure getSelectedTaskDetails(@_taskID int)
+as
+    if exists(select 1
+              from TASK
+              where taskID = @_taskID)
+        begin
+            select * from TASK where taskID = @_taskID
+            select u.contactNumber, u.userEmail
+            from USERS u,
+                 TASK t
+            where u.userID = t.developerID
+
+            return 0;
+        end
+    else
+        begin
+            GOTO errorHandler;
+        end
+    COMMIT TRANSACTION;
+    RETURN 0;
+
+    errorHandler:
+    ROLLBACK TRANSACTION
+    RETURN -1
+go
+
 CREATE procedure getSelectedUserDetails @_username VARCHAR(50)
 as
 DECLARE @userID int;
@@ -1168,10 +1545,16 @@ AS
 
 DECLARE @currentMaxComplaintID int;
 DECLARE @complaintID int;
+DECLARE @accountCoordinatorID int;
+DECLARE @_prod varchar(10);
     SET @currentMaxComplaintID = (SELECT MAX(complaintID)
                                   from COMPLAINT) ;
     SET @complaintID = iif(@currentMaxComplaintID is null, 1, @currentMaxComplaintID + 1);
 
+    SET @accountCoordinatorID = (SELECT accountCoordinatorID
+                                 FROM PRODUCT
+                                 WHERE productID = @_productID)
+SELECT @_prod = CAST(@_productID as varchar(10))
 INSERT INTO COMPLAINT
 VALUES (@complaintID,
         0,
@@ -1201,6 +1584,11 @@ FROM COMPLAINT_ATTACHMENT_DETAILS
 WHERE complaintID = @complaintID
   and subComplaintID = 0;
 
+begin
+    INSERT INTO NOTIFICATION
+    VALUES (@accountCoordinatorID, 'The consumer raises another question about the product ID ' + @_prod + ' product.',
+            GETDATE(), 'false', 'account-coordinator')
+end
     COMMIT TRANSACTION;
     RETURN 0;
 
@@ -1215,10 +1603,17 @@ AS
     BEGIN TRANSACTION
 DECLARE
     @subComplaintID int;
+DECLARE @accountCoordinatorID int;
+DECLARE @_cid varchar(10);
     SET @subComplaintID = ((SELECT MAX(subComplaintID)
                             from COMPLAINT
                             where complaintID = @_complaintID) + 1);
-
+    SET @accountCoordinatorID = (SELECT accountCoordinatorID
+                                 FROM PRODUCT p,
+                                      COMPLAINT c
+                                 WHERE complaintID = @_complaintID
+                                   and p.productID = c.productID);
+SELECT @_cid = CAST(@_complaintID as varchar(10));
 INSERT INTO COMPLAINT
 VALUES (@_complaintID,
         iif(@subComplaintID is null, 1, @subComplaintID),
@@ -1236,58 +1631,18 @@ UPDATE COMPLAINT
 SET status = 0
 where complaintID = @_complaintID
   and subComplaintID = 0
+
+begin
+    INSERT INTO NOTIFICATION
+    VALUES (@accountCoordinatorID,
+            'The consumer raises another sub complaint about the complaint ID ' + @_cid + ' complaint.', GETDATE(),
+            'false', 'account-coordinator')
+end
     IF @@ROWCOUNT = 0 GOTO errorHandler;
 
     COMMIT TRANSACTION;
     RETURN 0;
 
-    errorHandler:
-    ROLLBACK TRANSACTION
-    RETURN -1;
-go
-
-CREATE procedure login @_email VARCHAR(50),
-                       @_password VARCHAR(20)
-as
-    BEGIN TRANSACTION
-DECLARE @userID int;
-SELECT @userID = userID
-FROM USERS
-where userEmail = @_email;
-    if exists(select 1
-              from USERS
-              where userEmail = @_email)
-        begin
-            if exists(select 1
-                      from USERS
-                      where userEmail = @_email
-                        and password = @_password)
-                begin
-                    select r.roleName
-                    from ROLE r,
-                         USER_ROLE ur
-                    where ur.userID = @userID
-                      and r.roleID = ur.roleID
-                      and ur.[default] = 1;
-                    select userEmail username, userID, firstName, lastName from USERS where userEmail = @_email;
-
-                    update USERS SET lastLogin = GETDATE() where userEmail = @_email
-                    IF @@ROWCOUNT = 0 GOTO errorHandler;
-
-                    COMMIT TRANSACTION
-                    return 0;
-                end
-            else
-                begin
-                    ROLLBACK TRANSACTION
-                    RETURN -3;
-                end
-        end
-    else
-        begin
-            ROLLBACK TRANSACTION
-            RETURN -2;
-        end
     errorHandler:
     ROLLBACK TRANSACTION
     RETURN -1;
@@ -1303,28 +1658,56 @@ CREATE procedure newhistory @_pon INT,
                             @_newton VARCHAR(40),
                             @_newsec VARCHAR(40)
 AS
+DECLARE @_prod varchar(10);
+SELECT @_prod = CAST(@_pon as varchar(10))
 begin
-    INSERT INTO [dbo].[CHANGINGHISTORY]
-    ( [productID]
-    , [submittedTime]
-    , [preAcID]
-    , [newAcID]
-    , [doneBy]
-    , [action]
-    , [preAcName]
-    , [newAcName]
-    , [readStatus])
-    VALUES ( @_pon
-           , getdate()
-           , @_toni
-           , @_newtoni
-           , @_ban
-           , @_dan
-           , (@_ton + ' ' + @_sec)
-           , (@_newton + ' ' + @_newsec)
-           , 'false')
-
-
+    begin
+        INSERT INTO [dbo].[CHANGINGHISTORY]
+        ( [productID]
+        , [submittedTime]
+        , [preAcID]
+        , [newAcID]
+        , [doneBy]
+        , [action]
+        , [preAcName]
+        , [newAcName]
+        , [readStatus])
+        VALUES ( @_pon
+               , getdate()
+               , @_toni
+               , @_newtoni
+               , @_ban
+               , @_dan
+               , (@_ton + ' ' + @_sec)
+               , (@_newton + ' ' + @_newsec)
+               , 'false')
+    end
+    begin
+        INSERT INTO [dbo].[NOTIFICATION]
+        ( [receiverID]
+        , [description]
+        , [submittedTime]
+        , [readStatus]
+        , [role])
+        values ( @_toni
+               , ('You have been removed as account coordinator of product id ' + @_prod + ' product.')
+               , GETDATE()
+               , 'false'
+               , 'account-coordinator')
+    end
+    begin
+        INSERT INTO [dbo].[NOTIFICATION]
+        ( [receiverID]
+        , [description]
+        , [submittedTime]
+        , [readStatus]
+        , [role])
+        values ( @_newtoni
+               , ('You have been selected as the new Account Coordinator of Product ID ' + @_prod + ' product.')
+               , GETDATE()
+               , 'false'
+               , 'account-coordinator')
+    end
 end
 go
 
@@ -1440,7 +1823,7 @@ VALUES (iif(@productID is null, 1, @productID),
                     ROLLBACK TRANSACTION
                     RETURN -5;
                 end
-            INSERT INTO ALLOCATION VALUES (@developerIDTemp, @productID);
+            INSERT INTO ALLOCATION VALUES (@developerIDTemp, iif(@productID is null, 1, @productID));
             IF @@ROWCOUNT = 0 GOTO errorHandler;
             FETCH NEXT FROM developer_cursor INTO @developerIDTemp
         END
@@ -1648,6 +2031,77 @@ begin
 end
 go
 
+CREATE procedure updateComplaintStatusDetailsByAccoor(@_ID INT, @_subID INT, @_Status varchar(10))
+AS
+    BEGIN TRANSACTION
+    if @_Status = 'InProgress'
+        begin
+            UPDATE COMPLAINT
+            SET status         = (select statusID from COMPLAINT_STATUS where statusName = @_Status),
+                wipStartDate   = GETDATE(),
+                acViewedStatus = 1
+            WHERE complaintID = @_ID
+              AND subComplaintID = @_subID
+        end
+    else
+        if @_Status = 'Completed'
+            begin
+                UPDATE COMPLAINT
+                SET status         = (select statusID from COMPLAINT_STATUS where statusName = @_Status),
+                    finishedDate   = GETDATE(),
+                    acViewedStatus = 1
+                WHERE complaintID = @_ID
+                  AND subComplaintID = @_subID
+            end
+        else
+            begin
+                UPDATE COMPLAINT
+                SET status         = (select statusID from COMPLAINT_STATUS where statusName = @_Status),
+                    acViewedStatus = 1
+                WHERE complaintID = @_ID
+                  AND subComplaintID = @_subID
+            end
+    IF @@ROWCOUNT = 0 GOTO errorHandler;
+    COMMIT TRANSACTION;
+    RETURN 0;
+
+    errorHandler:
+    ROLLBACK TRANSACTION
+    RETURN -1;
+go
+
+CREATE procedure updateDevTaskStatus(@_taskID INT, @_task_status varchar(20))
+AS
+    BEGIN TRANSACTION
+UPDATE TASK
+SET task_status = @_task_status
+WHERE taskID = @_taskID;
+    IF @@ROWCOUNT = 0 GOTO errorHandler;
+    COMMIT TRANSACTION;
+    RETURN 0;
+
+    errorHandler:
+    ROLLBACK TRANSACTION
+    RETURN -1;
+go
+
+CREATE procedure updateDeveloperByAccoor(@_taskID INT, @_developerEmail varchar(50), @_deadline datetime)
+AS
+    BEGIN TRANSACTION
+UPDATE TASK
+SET developerID = (select userID from USERS where userEmail = @_developerEmail),
+    task_status = 'Pending',
+    deadline=@_deadline
+WHERE taskID = @_taskID
+    IF @@ROWCOUNT = 0 GOTO errorHandler;
+    COMMIT TRANSACTION;
+    RETURN 0;
+
+    errorHandler:
+    ROLLBACK TRANSACTION
+    RETURN -1;
+go
+
 CREATE procedure updateOrCreateSession @userID int,
                                        @lastActive BIGINT as
     begin transaction
@@ -1684,7 +2138,7 @@ CREATE procedure updateReadStatus @_time varchar(50)
 AS
 
 begin
-    UPDATE [dbo].[CHANGINGHISTORY]
+    UPDATE [dbo].[NOTIFICATION]
     SET [readStatus] ='true'
     where submittedtime = @_time
 end

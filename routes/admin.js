@@ -844,30 +844,34 @@ router.post('/delete-selected-product', verifyToken, verifyAdmin, async (request
                     // console.log('Product deleted successfully!');
                     if (result.returnValue === 0) {
                         console.log(JSON.stringify(result));
-                        // delete comment attachments from local memory
-                        if (result.recordsets[0] && result.recordsets[0].length !== 0) {
-                            for (let i = 0; i < result.recordsets[0].length; i++) {
-                                const path = './pictures/comment-pictures/' + result.recordsets[0][i].textOrImageName;
-                                try {
-                                    fs.unlinkSync(path);
-                                    //file removed
-                                } catch (error) {
-                                    console.log(error);
+
+                        for(let k = 0; k < result.recordsets.length; k++){
+                            // delete comment attachments from local memory
+                            if (result.recordsets[k] && result.recordsets[k].length !== 0) {
+                                for (let i = 0; i < result.recordsets[k].length; i++) {
+                                    const path = './pictures/comment-pictures/' + result.recordsets[k][i].textOrImageName;
+                                    try {
+                                        fs.unlinkSync(path);
+                                        //file removed
+                                    } catch (error) {
+                                        console.log(error);
+                                    }
+                                }
+                            }
+                            // delete complaint attachments from local memory
+                            if (result.recordsets[k+1] && result.recordsets[k+1].length !== 0) {
+                                for (let i = 0; i < result.recordsets[k+1].length; i++) {
+                                    const path = './pictures/complaint-pictures/' + result.recordsets[k+1][i].imageName;
+                                    try {
+                                        fs.unlinkSync(path);
+                                        //file removed
+                                    } catch (error) {
+                                        console.log(error);
+                                    }
                                 }
                             }
                         }
-                        // delete complaint attachments from local memory
-                        if (result.recordsets[1] && result.recordsets[1].length !== 0) {
-                            for (let i = 0; i < result.recordsets[1].length; i++) {
-                                const path = './pictures/complaint-pictures/' + result.recordsets[1][i].imageName;
-                                try {
-                                    fs.unlinkSync(path);
-                                    //file removed
-                                } catch (error) {
-                                    console.log(error);
-                                }
-                            }
-                        }
+
                         response.status(200).send({
                             status: true,
                             message: 'Product deleted successfully!'
@@ -1088,11 +1092,7 @@ router.get('/get-month-count', verifyToken, async (request, response) => {
     const pool = await poolPromise;
     try {
         pool.request()
-            .query('\n' +
-                'SELECT TOP 5 count(*) as num, format(submittedDate, \'yyyy-MM\') as month\n' +
-                'FROM COMPLAINT\n' +
-                'GROUP BY format(submittedDate, \'yyyy-MM\')\n' +
-                'order by 2 DESC', (error, result) => {
+            .execute('getMonthComplaintCount', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -1100,7 +1100,18 @@ router.get('/get-month-count', verifyToken, async (request, response) => {
                 } else {
                     response.status(200).send({
                         status: true,
-                        data: result.recordset
+                        data: {
+                            first: result.recordsets[0][0].num,
+                            second: result.recordsets[1][0].num,
+                            third: result.recordsets[2][0].num,
+                            fourth: result.recordsets[3][0].num,
+                            fifth: result.recordsets[4][0].num,
+                            firstm: result.recordsets[0][0].month,
+                            secondm: result.recordsets[1][0].month,
+                            thirdm: result.recordsets[2][0].month,
+                            fourthm: result.recordsets[3][0].month,
+                            fifthm: result.recordsets[4][0].month
+                        }
                     });
                 }
             });
@@ -1116,10 +1127,7 @@ router.get('/get-month-count-users', verifyToken, async (request, response) => {
     const pool = await poolPromise;
     try {
         pool.request()
-            .query('SELECT TOP 5 count(*) as num, format(createdAt, \'yyyy-MM\') as month\n' +
-                '                FROM USERS\n' +
-                '                GROUP BY format(createdAt, \'yyyy-MM\')\n' +
-                '                order by 2 DESC', (error, result) => {
+            .execute('getMonthUsersCount', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -1127,7 +1135,18 @@ router.get('/get-month-count-users', verifyToken, async (request, response) => {
                 } else {
                     response.status(200).send({
                         status: true,
-                        data: result.recordset
+                        data: {
+                            first: result.recordsets[0][0].num,
+                            second: result.recordsets[1][0].num,
+                            third: result.recordsets[2][0].num,
+                            fourth: result.recordsets[3][0].num,
+                            fifth: result.recordsets[4][0].num,
+                            firstm: result.recordsets[0][0].month,
+                            secondm: result.recordsets[1][0].month,
+                            thirdm: result.recordsets[2][0].month,
+                            fourthm: result.recordsets[3][0].month,
+                            fifthm: result.recordsets[4][0].month
+                        }
                     });
                 }
             });
