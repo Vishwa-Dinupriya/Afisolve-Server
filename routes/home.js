@@ -251,6 +251,7 @@ router.post('/update-reading-status', verifyToken, async (request, response) => 
                     });
                 }
             });
+
     } catch (e) {
         response.status(500).send({status: false});
     }

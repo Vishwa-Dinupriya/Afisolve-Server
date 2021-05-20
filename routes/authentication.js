@@ -204,7 +204,7 @@ router.post('/login', async (request, response) => {
                                         message: 'Invalid Password!'
                                     });
                                 } else {
-                                    console.log('login successful..! password matched with hash. ');
+                                    console.log('Password matched with hash successfully!. ');
                                     let payload = {
                                         userID: result.recordsets[1][0].userID,
                                         username: result.recordsets[1][0].username,
@@ -228,7 +228,7 @@ router.post('/login', async (request, response) => {
                                         .input('lastActive', sql.BigInt, +new Date())
                                         .execute('updateOrCreateSession', (error, result) => {
                                             if (error) {
-                                                response.status(200).send({
+                                                response.status(500).send({
                                                     status: false,
                                                     message: 'Server error'
                                                 });
