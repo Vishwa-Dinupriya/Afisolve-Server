@@ -204,7 +204,7 @@ router.post('/login', async (request, response) => {
                                         message: 'Invalid Password!'
                                     });
                                 } else {
-                                    console.log('login successful..! password matched with hash. ');
+                                    console.log('email exists and password also matched with hash. ');
                                     let payload = {
                                         userID: result.recordsets[1][0].userID,
                                         username: result.recordsets[1][0].username,
