@@ -84,7 +84,6 @@ router.post('/get-my-profile-details', verifyToken, async (request, response) =>
                                 firstname: result.recordsets[0][0].firstName,
                                 lastname: result.recordsets[0][0].lastName,
                                 userEmail: result.recordsets[0][0].userEmail,
-                                password: result.recordsets[0][0].password,
                                 contactNumber: result.recordsets[0][0].contactNumber,
                                 activeStatus: result.recordsets[0][0].ativeStatus,
                                 generalData: result.recordsets[0],
@@ -121,7 +120,7 @@ router.post('/update-own-profile-details', verifyToken, async (request, response
         const roles = new sql.Table('roles');
         roles.columns.add('role', sql.Int);
 
-        for (const role of data.roles) {
+        for (const role of request.body.roles) {
             roles.rows.add(role);
         }
 
@@ -131,7 +130,6 @@ router.post('/update-own-profile-details', verifyToken, async (request, response
             .input('_firstname', sql.VarChar(40), data.firstName)
             .input('_lastname', sql.VarChar(40), data.lastName)
             .input('_newEmail', sql.VarChar(50), data.email)
-            .input('_password', sql.VarChar(20), data.passwordGroup.password)
             .input('_roles', roles)
             .input('_defaultRole', sql.Int, data.defaultRole)
             .input('_contactNumber', sql.VarChar(20), data.contactNumber)

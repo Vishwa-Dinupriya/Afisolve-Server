@@ -11,3 +11,17 @@ values  (N'Pending', 0),
         (N'InProgress', 1),
         (N'Completed', 2),
         (N'Closed', 3);
+
+insert into dbo.USERS (userID, userEmail, password, firstName, lastName, contactNumber, activeStatus, lastLogin, createdBy, createdAt, modifiedBy, modifiedAt)
+values (1,
+        N'admin@gmail.com',
+        N'$2b$10$D4TaMb5z4qRoxMJKSB8GhuRgHysKpvooi8hV2NCwtL94JehZkp.Ae',
+        N'Vishwa',
+        N'Dinupriya',
+        N'124678765',
+        0,
+        N'2021-05-18 21:58:42.520',
+        null,
+        N'2021-04-21 16:35:08.740',
+        N'admin@gmail.com',
+        N'2021-05-19 18:31:54.000');
