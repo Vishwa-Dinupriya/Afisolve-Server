@@ -206,7 +206,7 @@ router.post('/get-pending-accoorcomplaints-details', verifyToken, async (request
     try {
         pool.request()
             .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
-            .query("select c.complaintID,c.subComplaintID,c.finishedDate,c.lastDateOfPending,c.submittedDate,c.wipStartDate,s.statusName,p.productName, p.category , c.productID from COMPLAINT c,COMPLAINT_STATUS s, PRODUCT p, Ayoma_AccountCoordinators aa where c.status=s.statusID AND c.productID= p.productID AND aa.userID=p.accountCoordinatorID AND aa.userEmail = @_accountCoordinatorEmail AND s.statusName = 'Pending' order by c.complaintID", (error, result) => {
+            .query("select c.complaintID,c.subComplaintID,c.finishedDate,c.lastDateOfPending,c.submittedDate,c.wipStartDate,s.statusName,p.productName, p.category , c.productID from COMPLAINT c,COMPLAINT_STATUS s, PRODUCT p, Ayoma_AccountCoordinators aa where c.status=s.statusID AND c.productID= p.productID AND aa.userID=p.accountCoordinatorID AND aa.userEmail = @_accountCoordinatorEmail AND s.statusName = 'Pending' AND acViewedStatus = 0 order by c.complaintID", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
