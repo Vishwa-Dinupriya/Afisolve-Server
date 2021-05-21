@@ -808,7 +808,8 @@ router.post('/get-selected-product-details', verifyToken, verifyAdmin, async (re
                                 projectManagerEmail: result.recordsets[2][0].projectManagerEmail,
                                 projectManagerFirstName: result.recordsets[2][0].firstName,
                                 projectManagerLastName: result.recordsets[2][0].lastName,
-                                complaintsDetails: result.recordsets[4]
+                                complaintsDetails: result.recordsets[4],
+                                dev: result.recordsets[5]
                             }
                         })
                     } else {
@@ -1378,6 +1379,28 @@ router.post('/update-Pm', verifyToken, async (request, response) => {
         response.status(500).send({status: false});
     }
 
+});
+
+router.post('/get-developer-List', verifyToken, verifyAdmin, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query('select u.userID as devID, u.firstName as devFirst, u.lastName as devLast  from USERS u, USER_ROLE ur where u.userID = ur.userID and ur.roleID = \'2\'', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
 });
 
 module.exports = router;
