@@ -28,7 +28,7 @@ router.post('/user-toolbar-display-details', verifyToken, async (request, respon
                         status: false
                     });
                 } else {
-                    console.log(JSON.stringify(result));
+                    // console.log(JSON.stringify(result));
                     let img;
                     try {//get the picture to 'img' from local memory
                         img = fs.readFileSync('./pictures/profile-pictures/' + request.payload.userID + '.png', {encoding: 'base64'})
@@ -144,7 +144,7 @@ router.post('/update-own-profile-details', verifyToken, async (request, response
                         message: 'something might went wrong..!'
                     });
                 } else {
-                    console.log(result);
+                    // console.log(result);
                     if (result.returnValue === 0) {
                         try {
                             if(!newProfilePhoto) {
@@ -208,8 +208,6 @@ router.post('/update-own-profile-details', verifyToken, async (request, response
 });
 
 router.get('/get-reminder-notification', verifyToken, async (request, response) => {
-    console.log(request.payload.role);
-    console.log("awa awa awa");
     const pool = await poolPromise;
         try {
                 pool.request()
@@ -234,7 +232,6 @@ router.get('/get-reminder-notification', verifyToken, async (request, response) 
 
 router.post('/update-reading-status', verifyToken, async (request, response) => {
     const data = request.body;
-    console.log(data.submittedTime)
     const pool = await poolPromise;
     try {
         pool.request()

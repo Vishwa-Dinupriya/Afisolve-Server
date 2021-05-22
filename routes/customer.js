@@ -69,20 +69,22 @@ router.post('/get-complaints-by-statusID', verifyToken, verifyCustomer, async (r
                 } else {
                     // console.log(JSON.stringify(result) + ' 56 customer.js');
                     let complaintElements = [];
-                    for (let i = 0; i < result.recordsets[1].length; i++) {
-                        complaintElements[i] = {
-                            complaintID: result.recordsets[1][i].complaintID,
-                            description: result.recordsets[1][i].description,
-                            finishedDate: result.recordsets[1][i].finishedDate,
-                            lastDateOfPending: result.recordsets[1][i].lastDateOfPending,
-                            productID: result.recordsets[1][i].productID[0],
-                            status: result.recordsets[1][i].status,
-                            subComplaintID: result.recordsets[1][i].subComplaintID,
-                            submittedDate: result.recordsets[1][i].submittedDate,
-                            wipStartDate: result.recordsets[1][i].wipStartDate,
-                            subComplaints: result.recordsets[0].filter(function (element) {
-                                return element.complaintID === result.recordsets[1][i].complaintID;
-                            })
+                    if(result.recordsets[1]){
+                        for (let i = 0; i < result.recordsets[1].length; i++) {
+                            complaintElements[i] = {
+                                complaintID: result.recordsets[1][i].complaintID,
+                                description: result.recordsets[1][i].description,
+                                finishedDate: result.recordsets[1][i].finishedDate,
+                                lastDateOfPending: result.recordsets[1][i].lastDateOfPending,
+                                productID: result.recordsets[1][i].productID[0],
+                                status: result.recordsets[1][i].status,
+                                subComplaintID: result.recordsets[1][i].subComplaintID,
+                                submittedDate: result.recordsets[1][i].submittedDate,
+                                wipStartDate: result.recordsets[1][i].wipStartDate,
+                                subComplaints: result.recordsets[0].filter(function (element) {
+                                    return element.complaintID === result.recordsets[1][i].complaintID;
+                                })
+                            }
                         }
                     }
                     // console.log(complaintElements);
@@ -147,7 +149,9 @@ router.post('/get-selected-complaint-details', verifyToken, verifyCustomer, asyn
                                 projectManagerLastName: result.recordsets[3][0].lastName,
                                 accountCoordinatorEmail: result.recordsets[4][0].userEmail,
                                 accountCoordinatorFirstName: result.recordsets[4][0].firstName,
-                                accountCoordinatorLastName: result.recordsets[4][0].lastName
+                                accountCoordinatorLastName: result.recordsets[4][0].lastName,
+                                feedbackSatisfaction: (result.recordsets[7]? result.recordsets[7][0].satisfaction: undefined) ,
+                                feedbackDescription: (result.recordsets[7]? result.recordsets[7][0].description: undefined)
                             },
                             images: images
                         })

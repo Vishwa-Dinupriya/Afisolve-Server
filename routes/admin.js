@@ -114,7 +114,6 @@ router.post('/get-selected-user-profile-details', verifyToken, verifyAdmin, asyn
                             firstname: result.recordsets[0][0].firstName,
                             lastname: result.recordsets[0][0].lastName,
                             userEmail: result.recordsets[0][0].userEmail,
-                            password: result.recordsets[0][0].password,
                             contactNumber: result.recordsets[0][0].contactNumber,
                             activeStatus: result.recordsets[0][0].ativeStatus,
                             generalData: result.recordsets[0],
@@ -451,7 +450,7 @@ router.post('/get-complaints-details-brief', verifyToken, verifyAdmin, async (re
     }
 });
 
-router.post('/get-all-complaints', verifyToken, verifyAdmin, async (request, response) =>  {
+router.post('/get-all-complaints', verifyToken, verifyAdmin, async (request, response) => {
 
     const pool = await poolPromise;
     try {
@@ -513,7 +512,7 @@ router.post('/get-selected-complaint-details', verifyToken, verifyAdmin, async (
                     });
                 } else {
                     if (result.returnValue === 0) {
-                        // console.log(JSON.stringify(result) + ' 322 admin.js');
+                        console.log(JSON.stringify(result) + ' 322 admin.js');
                         let images = [];
                         const nImages = result.recordsets[6].length;
                         for (let i = 0; i < nImages; i++) {
@@ -547,7 +546,10 @@ router.post('/get-selected-complaint-details', verifyToken, verifyAdmin, async (
                                 accountCoordinatorLastName: result.recordsets[4][0].lastName,
                                 customerEmail: result.recordsets[5][0].userEmail,
                                 customerFirstName: result.recordsets[5][0].firstName,
-                                customerLastName: result.recordsets[5][0].lastName
+                                customerLastName: result.recordsets[5][0].lastName,
+                                feedbackSatisfaction: (result.recordsets[7][0]? result.recordsets[7][0].satisfaction: undefined) ,
+                                feedbackDescription: (result.recordsets[7][0]? result.recordsets[7][0].description: undefined)
+
                             },
                             images: images
                         })
@@ -707,23 +709,28 @@ router.post('/register-product', verifyToken, verifyAdmin, async (request, respo
 });
 
 //------------------------------------------get developers for-products------------------------------------------------------------------------------------------
-router.post('/get-all-developers', verifyToken, verifyAdmin, async (request, response) => {
+router.post('/get-user-details-register-product', verifyToken, verifyAdmin, async (request, response) => {
 
     const pool = await poolPromise;
     try {
         pool.request()
-            // .input('_customerEmail', sql.VarChar(50), request.payload.username)
-            .query('select userID, userEmail from developers', (error, result) => {
+            .query('select firstName, lastName, userID, userEmail from customersView \n' +
+                ' select firstName, lastName, userID, userEmail from accountCoordinatorsView  \n' +
+                ' select firstName, lastName, userID, userEmail from projectManagersView  \n' +
+                ' select firstName, lastName, userID, userEmail from developersView  \n', (error, result) => {
                 if (error) {
                     console.log(error);
                     response.status(500).send({
                         status: false
                     });
                 } else {
-                    console.log(JSON.stringify(result) + ' 75 admin.js');
+                    // console.log(JSON.stringify(result) + ' 75 admin.js');
                     response.status(200).send({
                         status: true,
-                        data: result.recordset,
+                        customers: result.recordsets[0],
+                        accountCoordinators: result.recordsets[1],
+                        projectManagers: result.recordsets[2],
+                        developers: result.recordsets[3],
                     });
                 }
             });
@@ -845,7 +852,7 @@ router.post('/delete-selected-product', verifyToken, verifyAdmin, async (request
                     if (result.returnValue === 0) {
                         console.log(JSON.stringify(result));
 
-                        for(let k = 0; k < result.recordsets.length; k++){
+                        for (let k = 0; k < result.recordsets.length; k++) {
                             // delete comment attachments from local memory
                             if (result.recordsets[k] && result.recordsets[k].length !== 0) {
                                 for (let i = 0; i < result.recordsets[k].length; i++) {
@@ -859,9 +866,9 @@ router.post('/delete-selected-product', verifyToken, verifyAdmin, async (request
                                 }
                             }
                             // delete complaint attachments from local memory
-                            if (result.recordsets[k+1] && result.recordsets[k+1].length !== 0) {
-                                for (let i = 0; i < result.recordsets[k+1].length; i++) {
-                                    const path = './pictures/complaint-pictures/' + result.recordsets[k+1][i].imageName;
+                            if (result.recordsets[k + 1] && result.recordsets[k + 1].length !== 0) {
+                                for (let i = 0; i < result.recordsets[k + 1].length; i++) {
+                                    const path = './pictures/complaint-pictures/' + result.recordsets[k + 1][i].imageName;
                                     try {
                                         fs.unlinkSync(path);
                                         //file removed
@@ -1214,8 +1221,8 @@ router.post('/get-active-users', verifyToken, verifyAdmin, async (request, respo
 
 router.post('/update-Ac', verifyToken, async (request, response) => {
     const data = request.body;
-    console.log(data.v);
-    console.log(data.u.userID);
+    console.log(data.productID);
+    console.log(data.selectedNewAccountCoordinator.userID);
 
     async function main() {
         let transporter = nodemailer.createTransport({
@@ -1265,8 +1272,8 @@ router.post('/update-Ac', verifyToken, async (request, response) => {
     try {
         const pool = await poolPromise;
         pool.request()
-            .input('_cbc', sql.Int, data.u.userID)
-            .input('_pdi', sql.Int, data.v)
+            .input('_newAcID', sql.Int, data.selectedNewAccountCoordinator.userID)
+            .input('_productID', sql.Int, data.productID)
             .execute('updateAccountCoordinator', (error, result) => {
                 if (error) {
                     response.status(500).send({
@@ -1312,8 +1319,8 @@ router.post('/get-project-Manager-List', verifyToken, verifyAdmin, async (reques
 
 router.post('/update-Pm', verifyToken, async (request, response) => {
     const data = request.body;
-    console.log(data.v);
-    console.log(data.u.userID);
+    console.log(data.productID);
+    console.log(data.selectedNewProjectManager.userID);
 
     async function main() {
         let transporter = nodemailer.createTransport({
@@ -1363,8 +1370,8 @@ router.post('/update-Pm', verifyToken, async (request, response) => {
     try {
         const pool = await poolPromise;
         pool.request()
-            .input('_cbc', sql.Int, data.u.userID)
-            .input('_pdi', sql.Int, data.v)
+            .input('_newPmID', sql.Int, data.selectedNewProjectManager.userID)
+            .input('_productID', sql.Int, data.productID)
             .execute('updateProjectManger', (error, result) => {
                 if (error) {
                     response.status(500).send({
