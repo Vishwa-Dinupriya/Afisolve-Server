@@ -866,7 +866,8 @@ router.post('/sendMailtoDeveloper', verifyToken, async (request, response) => {
 
 
 //--get comments for requested complaint ID
-router.get('/get-comments', verifyToken, verifyAccountCoordinator, async (request, response) => {
+// i removed verifyAccountCoordinator middleware function from this route  because of refreshNeeded subject problem. (i should have to learn websocket)
+router.get('/get-comments', verifyToken, async (request, response) => {
     const pool = await poolPromise;
     try {
         pool.request()
@@ -880,7 +881,6 @@ router.get('/get-comments', verifyToken, verifyAccountCoordinator, async (reques
                     status: false
                 });
             } else {
-                console.log(JSON.stringify(result) + ' : 268 customer');
                 let comments = [];
                 let textOrImage;
                 let avatarPicture;

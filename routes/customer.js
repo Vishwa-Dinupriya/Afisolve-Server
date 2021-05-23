@@ -256,20 +256,22 @@ router.post('/create-feedback', verifyToken, verifyCustomer, async (request, res
 //-------------------------------------------------customer-comments---------------------------------------------------------------------------------------------------------
 
 //--get comments for requested complaint ID
-router.get('/get-comments', verifyToken, verifyCustomer, async (request, response) => {
+// i removed verufyCustomer middleware function from this route  because of refreshNeeded subject problem. (i should have to learn websocket)
+router.get('/get-comments', verifyToken, async (request, response) => {
     const pool = await poolPromise;
     try {
         pool.request()
             .input('_complaintID', sql.Int, request.query.complaintID)
             .input('_reqSenderUname', sql.VarChar(50), request.payload.username)
             .query('SELECT * FROM COMMENT C WHERE complaintID=@_complaintID ORDER BY C.submittedTime \n'+
-                ' select userID from USERS U WHERE userEmail=@_reqSenderUname', (error, result) => {                if (error) {
+                ' select userID from USERS U WHERE userEmail=@_reqSenderUname', (error, result) => {
+                if (error) {
                     console.log(error);
                     response.status(500).send({
                         status: false
                     });
                 } else {
-                    console.log(JSON.stringify(result) + ' : 268 customer');
+                    // console.log(JSON.stringify(result) + ' : 268 customer');
                     let comments = [];
                     let textOrImage;
                     let avatarPicture;
