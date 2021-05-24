@@ -24,7 +24,8 @@ router.post('/get-all-users-details', verifyToken, verifyAdmin, async (request, 
         pool.request()
             .input('_username', sql.VarChar(50), request.payload.username)
             .query('select userID, roleID from USER_ROLE' +
-                ' select * from  USERS  where userEmail != @_username \n', (error, result) => {
+                ' select * from  USERS  where userEmail != @_username \n' +
+                ' select * from  ACTIVE_SESSION \n', (error, result) => {
                 if (error) {
                     console.log(error);
                     response.status(500).send({
@@ -34,9 +35,14 @@ router.post('/get-all-users-details', verifyToken, verifyAdmin, async (request, 
                     // console.log(JSON.stringify(result));
                     const users = result.recordsets[1];
                     const userRoles = result.recordsets[0];
+                    const timeStamps = result.recordsets[2];
 
                     for (let user of users) {
                         user.roleIDs = userRoles.filter(role => role.userID === user.userID).map(r => r.roleID);
+                    }
+
+                    for (let user of users) {
+                        user.activeAgo = timeStamps.filter(timeStamp => timeStamp.userID === user.userID).map(t =>+new Date()- t.lastActive)[0];
                     }
 
                     // console.log(users);
@@ -815,7 +821,8 @@ router.post('/get-selected-product-details', verifyToken, verifyAdmin, async (re
                                 projectManagerEmail: result.recordsets[2][0].projectManagerEmail,
                                 projectManagerFirstName: result.recordsets[2][0].firstName,
                                 projectManagerLastName: result.recordsets[2][0].lastName,
-                                complaintsDetails: result.recordsets[4]
+                                complaintsDetails: result.recordsets[4],
+                                developersDetails: result.recordsets[5]
                             }
                         })
                     } else {
