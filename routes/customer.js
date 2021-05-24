@@ -69,20 +69,22 @@ router.post('/get-complaints-by-statusID', verifyToken, verifyCustomer, async (r
                 } else {
                     // console.log(JSON.stringify(result) + ' 56 customer.js');
                     let complaintElements = [];
-                    for (let i = 0; i < result.recordsets[1].length; i++) {
-                        complaintElements[i] = {
-                            complaintID: result.recordsets[1][i].complaintID,
-                            description: result.recordsets[1][i].description,
-                            finishedDate: result.recordsets[1][i].finishedDate,
-                            lastDateOfPending: result.recordsets[1][i].lastDateOfPending,
-                            productID: result.recordsets[1][i].productID[0],
-                            status: result.recordsets[1][i].status,
-                            subComplaintID: result.recordsets[1][i].subComplaintID,
-                            submittedDate: result.recordsets[1][i].submittedDate,
-                            wipStartDate: result.recordsets[1][i].wipStartDate,
-                            subComplaints: result.recordsets[0].filter(function (element) {
-                                return element.complaintID === result.recordsets[1][i].complaintID;
-                            })
+                    if(result.recordsets[1]){
+                        for (let i = 0; i < result.recordsets[1].length; i++) {
+                            complaintElements[i] = {
+                                complaintID: result.recordsets[1][i].complaintID,
+                                description: result.recordsets[1][i].description,
+                                finishedDate: result.recordsets[1][i].finishedDate,
+                                lastDateOfPending: result.recordsets[1][i].lastDateOfPending,
+                                productID: result.recordsets[1][i].productID[0],
+                                status: result.recordsets[1][i].status,
+                                subComplaintID: result.recordsets[1][i].subComplaintID,
+                                submittedDate: result.recordsets[1][i].submittedDate,
+                                wipStartDate: result.recordsets[1][i].wipStartDate,
+                                subComplaints: result.recordsets[0].filter(function (element) {
+                                    return element.complaintID === result.recordsets[1][i].complaintID;
+                                })
+                            }
                         }
                     }
                     // console.log(complaintElements);
@@ -147,7 +149,9 @@ router.post('/get-selected-complaint-details', verifyToken, verifyCustomer, asyn
                                 projectManagerLastName: result.recordsets[3][0].lastName,
                                 accountCoordinatorEmail: result.recordsets[4][0].userEmail,
                                 accountCoordinatorFirstName: result.recordsets[4][0].firstName,
-                                accountCoordinatorLastName: result.recordsets[4][0].lastName
+                                accountCoordinatorLastName: result.recordsets[4][0].lastName,
+                                feedbackSatisfaction: (result.recordsets[7]? result.recordsets[7][0].satisfaction: undefined) ,
+                                feedbackDescription: (result.recordsets[7]? result.recordsets[7][0].description: undefined)
                             },
                             images: images
                         })
@@ -252,20 +256,22 @@ router.post('/create-feedback', verifyToken, verifyCustomer, async (request, res
 //-------------------------------------------------customer-comments---------------------------------------------------------------------------------------------------------
 
 //--get comments for requested complaint ID
-router.get('/get-comments', verifyToken, verifyCustomer, async (request, response) => {
+// i removed verufyCustomer middleware function from this route  because of refreshNeeded subject problem. (i should have to learn websocket)
+router.get('/get-comments', verifyToken, async (request, response) => {
     const pool = await poolPromise;
     try {
         pool.request()
             .input('_complaintID', sql.Int, request.query.complaintID)
             .input('_reqSenderUname', sql.VarChar(50), request.payload.username)
             .query('SELECT * FROM COMMENT C WHERE complaintID=@_complaintID ORDER BY C.submittedTime \n'+
-                ' select userID from USERS U WHERE userEmail=@_reqSenderUname', (error, result) => {                if (error) {
+                ' select userID from USERS U WHERE userEmail=@_reqSenderUname', (error, result) => {
+                if (error) {
                     console.log(error);
                     response.status(500).send({
                         status: false
                     });
                 } else {
-                    console.log(JSON.stringify(result) + ' : 268 customer');
+                    // console.log(JSON.stringify(result) + ' : 268 customer');
                     let comments = [];
                     let textOrImage;
                     let avatarPicture;
@@ -356,21 +362,26 @@ router.get('/get-feedback-countcus', verifyToken, async (request, response) => {
     const pool = await poolPromise;
     try {
         pool.request()
-            .query('SELECT  count(*) as num, satisfaction\n' +
-                '                FROM FEEDBACK\n' +
-                '                GROUP BY satisfaction\n' +
-                '                order by 2 DESC', (error, result) => {
+            .execute('getFeedbackCount', (error, result) => {
                 if (error) {
+                    console.log('cannot run getFeedbackCount');
                     response.status(500).send({
                         status: false
                     });
                 } else {
                     response.status(200).send({
                         status: true,
-                        data: result.recordset
-                    });
+                        data: {
+                            sat1: result.recordsets[0][0].sat1,
+                            sat2: result.recordsets[1][0].sat2,
+                            sat3: result.recordsets[2][0].sat3,
+                            sat4: result.recordsets[3][0].sat4,
+                            sat5: result.recordsets[4][0].sat5
+                        },
+                    })
                 }
-            });
+            })
+        ;
     } catch (e) {
         response.status(500).send({status: false});
     }
@@ -384,126 +395,29 @@ router.get('/get-full-count', verifyToken, verifyCustomer, async (request, respo
     try {
         pool.request()
             .input('_pmEmail', sql.VarChar(50), request.payload.username)
-            .query('\n' +
-                'select COUNT(*) as count from COMPLAINT c , PRODUCT p \n' +
-                'where p.productID = c.productID and p.customerID= (select userID from USERS where userEmail= @_pmEmail )', (error, result) => {
+            .execute('getComplaintCountForCustomer', (error, result) => {
                 if (error) {
+                    console.log('cannot run getComplaintCount');
                     response.status(500).send({
                         status: false
                     });
                 } else {
                     response.status(200).send({
                         status: true,
-                        data: result.recordset
-                    });
+                        data: {
+                            alll: result.recordsets[0][0].alll,
+                            pen: result.recordsets[1][0].pen,
+                            work: result.recordsets[2][0].work,
+                            fin: result.recordsets[3][0].fin,
+                            clos: result.recordsets[4][0].clos
+                        },
+                    })
                 }
-            });
-
+            })
+        ;
     } catch (e) {
         response.status(500).send({status: false});
     }
 });
-
-router.get('/get-pending-count', verifyToken, verifyCustomer, async (request, response) => {
-
-    const pool = await poolPromise;
-    try {
-        pool.request()
-            .input('_pmEmail', sql.VarChar(50), request.payload.username)
-            .query('\n' +
-                'select COUNT(*) as count from COMPLAINT c , PRODUCT p \n' +
-                'where p.productID = c.productID and p.customerID= (select userID from USERS where userEmail= @_pmEmail) and c.status=\'0\' ', (error, result) => {
-                if (error) {
-                    response.status(500).send({
-                        status: false
-                    });
-                } else {
-                    response.status(200).send({
-                        status: true,
-                        data: result.recordset
-                    });
-                }
-            });
-    } catch (e) {
-        response.status(500).send({status: false});
-    }
-});
-
-router.get('/get-working-count', verifyToken, verifyCustomer, async (request, response) => {
-
-    const pool = await poolPromise;
-    try {
-        pool.request()
-            .input('_pmEmail', sql.VarChar(50), request.payload.username)
-            .query('\n' +
-                'select COUNT(*) as count from COMPLAINT c , PRODUCT p \n' +
-                'where p.productID = c.productID and p.customerID= (select userID from USERS where userEmail= @_pmEmail) and c.status=\'1\' ', (error, result) => {
-                if (error) {
-                    response.status(500).send({
-                        status: false
-                    });
-                } else {
-                    response.status(200).send({
-                        status: true,
-                        data: result.recordset
-                    });
-                }
-            });
-    } catch (e) {
-        response.status(500).send({status: false});
-    }
-});
-
-router.get('/get-finish-count', verifyToken, verifyCustomer, async (request, response) => {
-
-    const pool = await poolPromise;
-    try {
-        pool.request()
-            .input('_pmEmail', sql.VarChar(50), request.payload.username)
-            .query('\n' +
-                'select COUNT(*) as count from COMPLAINT c , PRODUCT p \n' +
-                'where p.productID = c.productID and p.customerID= (select userID from USERS where userEmail= @_pmEmail) and c.status=\'2\' ', (error, result) => {
-                if (error) {
-                    response.status(500).send({
-                        status: false
-                    });
-                } else {
-                    response.status(200).send({
-                        status: true,
-                        data: result.recordset
-                    });
-                }
-            });
-    } catch (e) {
-        response.status(500).send({status: false});
-    }
-});
-
-router.get('/get-closed-count', verifyToken, verifyCustomer, async (request, response) => {
-
-    const pool = await poolPromise;
-    try {
-        pool.request()
-            .input('_pmEmail', sql.VarChar(50), request.payload.username)
-            .query('\n' +
-                'select COUNT(*) as count from COMPLAINT c , PRODUCT p \n' +
-                'where p.productID = c.productID and p.customerID= (select userID from USERS where userEmail= @_pmEmail) and c.status=\'3\' ', (error, result) => {
-                if (error) {
-                    response.status(500).send({
-                        status: false
-                    });
-                } else {
-                    response.status(200).send({
-                        status: true,
-                        data: result.recordset
-                    });
-                }
-            });
-    } catch (e) {
-        response.status(500).send({status: false});
-    }
-});
-
-
 
 module.exports = router;

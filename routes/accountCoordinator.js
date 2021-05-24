@@ -882,56 +882,59 @@ router.post('/sendMailtoDeveloper', verifyToken, async (request, response) => {
 
 //-------------------------------------------------customer-comments---------------------------------------------------------------------------------------------------------
 
-router.get('/get-comments', verifyToken, verifyAccountCoordinator, async (request, response) => {
+//--get comments for requested complaint ID
+// i removed verufyCustomer middleware function from this route  because of refreshNeeded subject problem. (i should have to learn websocket)
+router.get('/get-comments', verifyToken, async (request, response) => {
     const pool = await poolPromise;
     try {
         pool.request()
             .input('_complaintID', sql.Int, request.query.complaintID)
             .input('_reqSenderUname', sql.VarChar(50), request.payload.username)
             .query('SELECT * FROM COMMENT C WHERE complaintID=@_complaintID ORDER BY C.submittedTime \n'+
-                ' select userID from USERS U WHERE userEmail=@_reqSenderUname', (error, result) => {if (error) {
-                console.log(error);
-                response.status(500).send({
-                    status: false
-                });
-            } else {
-                console.log(JSON.stringify(result) + ' : 268 customer');
-                let comments = [];
-                let textOrImage;
-                let avatarPicture;
-                const nComments = result.recordsets[0].length;
-                for (let i = 0; i < nComments; i++) {
-                    if (result.recordsets[0][i].isImage == true) {
-                        try {//get the picture to 'img' from local memory
-                            textOrImage = fs.readFileSync('./pictures/comment-pictures/' + result.recordsets[0][i].textOrImageName, {encoding: 'base64'})
-                        } catch (error) {
-                            textOrImage = fs.readFileSync('./pictures/comment-pictures/default-comment-picture.png', {encoding: 'base64'});
+                ' select userID from USERS U WHERE userEmail=@_reqSenderUname', (error, result) => {
+                if (error) {
+                    console.log(error);
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    // console.log(JSON.stringify(result) + ' : 268 customer');
+                    let comments = [];
+                    let textOrImage;
+                    let avatarPicture;
+                    const nComments = result.recordsets[0].length;
+                    for (let i = 0; i < nComments; i++) {
+                        if (result.recordsets[0][i].isImage == true) {
+                            try {//get the picture to 'img' from local memory
+                                textOrImage = fs.readFileSync('./pictures/comment-pictures/' + result.recordsets[0][i].textOrImageName, {encoding: 'base64'})
+                            } catch (error) {
+                                textOrImage = fs.readFileSync('./pictures/comment-pictures/default-comment-picture.png', {encoding: 'base64'});
+                            }
+                        } else { // when comment is not an image
+                            textOrImage = result.recordsets[0][i].textOrImageName
                         }
-                    } else { // when comment is not an image
-                        textOrImage = result.recordsets[0][i].textOrImageName
-                    }
-                    if (result.recordsets[0][i].senderID !== request.payload.userID) {
-                        // console.log(result.recordsets[0][i]);
-                        try {//get the picture to 'img' from local memory
-                            avatarPicture = fs.readFileSync('./pictures/profile-pictures/' + result.recordsets[0][i].senderID + '.png', {encoding: 'base64'})
-                        } catch (error) {
-                            avatarPicture = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
+                        if (result.recordsets[0][i].senderID !== request.payload.userID) {
+                            // console.log(result.recordsets[0][i]);
+                            try {//get the picture to 'img' from local memory
+                                avatarPicture = fs.readFileSync('./pictures/profile-pictures/' + result.recordsets[0][i].senderID + '.png', {encoding: 'base64'})
+                            } catch (error) {
+                                avatarPicture = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
+                            }
+                        } else {
+                            avatarPicture = null;
                         }
-                    } else {
-                        avatarPicture = null;
+                        comments[i] = {
+                            IsImage: result.recordsets[0][i].isImage,
+                            content: textOrImage,
+                            senderID: result.recordsets[0][i].senderID,
+                            senderAvatarPicture: avatarPicture
+                        }
                     }
-                    comments[i] = {
-                        IsImage: result.recordsets[0][i].isImage,
-                        content: textOrImage,
-                        senderID: result.recordsets[0][i].senderID,
-                        senderAvatarPicture: avatarPicture
-                    }
+                    response.status(200).send({
+                        status: true,
+                        data: comments
+                    });
                 }
-                response.status(200).send({
-                    status: true,
-                    data: comments
-                });
-            }
             });
     } catch (e) {
         response.status(500).send({status: false});
@@ -939,7 +942,7 @@ router.get('/get-comments', verifyToken, verifyAccountCoordinator, async (reques
 })
 
 //--save comments for requested complaint ID
-router.put('/save-comment_', verifyToken, verifyAccountCoordinator, async (request, response) => {
+router.put('/save-comment_', verifyToken, verifyCustomer, async (request, response) => {
     console.log(request.payload.username);
     console.log('nOfImages: ' + request.body.images.length);
     console.log('text' + request.body.text);
@@ -980,50 +983,49 @@ router.put('/save-comment_', verifyToken, verifyAccountCoordinator, async (reque
 
 })
 
-
 //////////////////////////////////////////////////////////////////////////////////////
-/*
-router.post('/get-edit-task-details', verifyToken,verifyAccountCoordinator, async (request, response) => {
+    /*
+    router.post('/get-edit-task-details', verifyToken,verifyAccountCoordinator, async (request, response) => {
 
-    const pool = await poolPromise;
-    console.log(' taskID: '+ request.body.taskID);
-    try {
-        pool.request()
-            .input('_taskID', sql.Int, request.body.taskID)
-            .execute('getSelectedTaskDetails', (error, result) => {
-                if (error) {
-                    console.log('cannot run getSelectedTaskDetails');
-                    response.status(500).send({
-                        status: false
-                    });
-                } else {
-                    if (result.returnValue === 0) {
-                        console.log(JSON.stringify(result));
-                        response.status(200).send({
-                            status: true,
-                            data: {
-                                developerEmail: result.recordsets[1][1].userEmail,
-                                deadline: result.recordsets[0][0].deadline,
-                                task_description: result.recordsets[0][0].task_description,
-                            }
-                        })
+        const pool = await poolPromise;
+        console.log(' taskID: '+ request.body.taskID);
+        try {
+            pool.request()
+                .input('_taskID', sql.Int, request.body.taskID)
+                .execute('getSelectedTaskDetails', (error, result) => {
+                    if (error) {
+                        console.log('cannot run getSelectedTaskDetails');
+                        response.status(500).send({
+                            status: false
+                        });
                     } else {
-                        console.log('getSelectedTaskDetails return -1');
-                        response.status(500).send({message: 'return value = -1'});
+                        if (result.returnValue === 0) {
+                            console.log(JSON.stringify(result));
+                            response.status(200).send({
+                                status: true,
+                                data: {
+                                    developerEmail: result.recordsets[1][1].userEmail,
+                                    deadline: result.recordsets[0][0].deadline,
+                                    task_description: result.recordsets[0][0].task_description,
+                                }
+                            })
+                        } else {
+                            console.log('getSelectedTaskDetails return -1');
+                            response.status(500).send({message: 'return value = -1'});
+                        }
                     }
+                })
+            ;
+        } catch (e) {
+            response.status(500).send(
+                {
+                    status: false
                 }
-            })
-        ;
-    } catch (e) {
-        response.status(500).send(
-            {
-                status: false
-            }
-        )
-    }
-});
+            )
+        }
+    });
 
-*/
+    */
 
 //////////////////////////////////////////////////////////////////////////////////////
 module.exports = router;

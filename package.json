@@ -19,6 +19,7 @@
     "pug": "2.0.0-beta11"
   },
   "devDependencies": {
+    "bcrypt": "^5.0.1",
     "cors": "^2.8.5",
     "mssql": "^6.2.3",
     "nodemailer": "^6.5.0",
