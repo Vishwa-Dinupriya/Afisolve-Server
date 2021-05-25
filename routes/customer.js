@@ -69,20 +69,22 @@ router.post('/get-complaints-by-statusID', verifyToken, verifyCustomer, async (r
                 } else {
                     // console.log(JSON.stringify(result) + ' 56 customer.js');
                     let complaintElements = [];
-                    for (let i = 0; i < result.recordsets[1].length; i++) {
-                        complaintElements[i] = {
-                            complaintID: result.recordsets[1][i].complaintID,
-                            description: result.recordsets[1][i].description,
-                            finishedDate: result.recordsets[1][i].finishedDate,
-                            lastDateOfPending: result.recordsets[1][i].lastDateOfPending,
-                            productID: result.recordsets[1][i].productID[0],
-                            status: result.recordsets[1][i].status,
-                            subComplaintID: result.recordsets[1][i].subComplaintID,
-                            submittedDate: result.recordsets[1][i].submittedDate,
-                            wipStartDate: result.recordsets[1][i].wipStartDate,
-                            subComplaints: result.recordsets[0].filter(function (element) {
-                                return element.complaintID === result.recordsets[1][i].complaintID;
-                            })
+                    if(result.recordsets[1]){
+                        for (let i = 0; i < result.recordsets[1].length; i++) {
+                            complaintElements[i] = {
+                                complaintID: result.recordsets[1][i].complaintID,
+                                description: result.recordsets[1][i].description,
+                                finishedDate: result.recordsets[1][i].finishedDate,
+                                lastDateOfPending: result.recordsets[1][i].lastDateOfPending,
+                                productID: result.recordsets[1][i].productID[0],
+                                status: result.recordsets[1][i].status,
+                                subComplaintID: result.recordsets[1][i].subComplaintID,
+                                submittedDate: result.recordsets[1][i].submittedDate,
+                                wipStartDate: result.recordsets[1][i].wipStartDate,
+                                subComplaints: result.recordsets[0].filter(function (element) {
+                                    return element.complaintID === result.recordsets[1][i].complaintID;
+                                })
+                            }
                         }
                     }
                     // console.log(complaintElements);
@@ -147,7 +149,9 @@ router.post('/get-selected-complaint-details', verifyToken, verifyCustomer, asyn
                                 projectManagerLastName: result.recordsets[3][0].lastName,
                                 accountCoordinatorEmail: result.recordsets[4][0].userEmail,
                                 accountCoordinatorFirstName: result.recordsets[4][0].firstName,
-                                accountCoordinatorLastName: result.recordsets[4][0].lastName
+                                accountCoordinatorLastName: result.recordsets[4][0].lastName,
+                                feedbackSatisfaction: (result.recordsets[7]? result.recordsets[7][0].satisfaction: undefined) ,
+                                feedbackDescription: (result.recordsets[7]? result.recordsets[7][0].description: undefined)
                             },
                             images: images
                         })
@@ -252,20 +256,22 @@ router.post('/create-feedback', verifyToken, verifyCustomer, async (request, res
 //-------------------------------------------------customer-comments---------------------------------------------------------------------------------------------------------
 
 //--get comments for requested complaint ID
-router.get('/get-comments', verifyToken, verifyCustomer, async (request, response) => {
+// i removed verufyCustomer middleware function from this route  because of refreshNeeded subject problem. (i should have to learn websocket)
+router.get('/get-comments', verifyToken, async (request, response) => {
     const pool = await poolPromise;
     try {
         pool.request()
             .input('_complaintID', sql.Int, request.query.complaintID)
             .input('_reqSenderUname', sql.VarChar(50), request.payload.username)
             .query('SELECT * FROM COMMENT C WHERE complaintID=@_complaintID ORDER BY C.submittedTime \n'+
-                ' select userID from USERS U WHERE userEmail=@_reqSenderUname', (error, result) => {                if (error) {
+                ' select userID from USERS U WHERE userEmail=@_reqSenderUname', (error, result) => {
+                if (error) {
                     console.log(error);
                     response.status(500).send({
                         status: false
                     });
                 } else {
-                    console.log(JSON.stringify(result) + ' : 268 customer');
+                    // console.log(JSON.stringify(result) + ' : 268 customer');
                     let comments = [];
                     let textOrImage;
                     let avatarPicture;
