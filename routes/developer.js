@@ -405,5 +405,45 @@ router.post('/sendMailtoAccountCoo', verifyToken, async (request, response) => {
 
 });
 
+router.get('/get-dev-task-count', verifyToken, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .input('_devEmail', sql.VarChar(50), request.payload.username)
+            .execute('getComplaintCountDev', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: {
+                            first: result.recordsets[0][0].num,
+                            second: result.recordsets[1][0].num,
+                            third: result.recordsets[2][0].num,
+                            fourth: result.recordsets[3][0].num,
+                            fifth: result.recordsets[4][0].num,
+                            firstm: result.recordsets[0][0].month,
+                            secondm: result.recordsets[1][0].month,
+                            thirdm: result.recordsets[2][0].month,
+                            fourthm: result.recordsets[3][0].month,
+                            fifthm: result.recordsets[4][0].month,
+                            alll: result.recordsets[5][0].alll,
+                            pen: result.recordsets[6][0].pen,
+                            work: result.recordsets[7][0].wor,
+                            fin: result.recordsets[8][0].fin,
+                            latet: result.recordsets[9][0].count,
+                            clos: result.recordsets[10][0].clos
+                        }
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
 
 module.exports = router;
