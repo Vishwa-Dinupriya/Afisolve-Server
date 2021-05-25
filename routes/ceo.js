@@ -257,7 +257,7 @@ router.post('/update-name', verifyToken, async (request, response)=> {
         pool.request()
             .input('_cbc', sql.Int, data.b.userID)
             .input('_pdi', sql.Int, data.a.productID )
-            .execute('updateAccountCoordinator', (error, result) => {
+            .execute('updateAccountCoordinatorForCEO', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -332,7 +332,7 @@ router.post('/update-reminder', verifyToken, async (request, response)=> {
             .input('_aoni', sql.Int, data.accountCoordinatorID)
             .input('_kan', sql.VarChar(20), charithe)
             .input('_wan', sql.VarChar(20), whaction)
-            .execute('newreminder', (error, result) => {
+            .execute('newreminderForCEO', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false

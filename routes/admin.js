@@ -1403,4 +1403,39 @@ router.post('/get-developer-List', verifyToken, verifyAdmin, async (request, res
     }
 });
 
+router.post('/update-Dev', verifyToken, verifyAdmin, async (request, response) => {
+console.log('wertyuiop mdddndndndjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj');
+    const data = request.body;
+    try {
+        const developers = new sql.Table('developers');
+        developers.columns.add('developer', sql.Int);
+
+        for (const developer of data.c) {
+            developers.rows.add(developer);
+        }
+        // console.log(developers);
+        const pool = await poolPromise;
+        pool.request()
+            .input('_prodID', sql.Int, data.d)
+            .input('_developers', developers)
+            .execute('updateDevelopersByAdmin', (error, result) => {
+                if (error) {
+                    console.log(error);
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        console.log(e);
+        response.status(500).send(
+            {status: false}
+        );
+    }
+});
 module.exports = router;
