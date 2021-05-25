@@ -822,7 +822,8 @@ router.post('/get-selected-product-details', verifyToken, verifyAdmin, async (re
                                 projectManagerFirstName: result.recordsets[2][0].firstName,
                                 projectManagerLastName: result.recordsets[2][0].lastName,
                                 complaintsDetails: result.recordsets[4],
-                                developersDetails: result.recordsets[5]
+                                dev: result.recordsets[5]
+
                             }
                         })
                     } else {
@@ -1398,4 +1399,61 @@ router.post('/update-Pm', verifyToken, async (request, response) => {
 
 });
 
+router.post('/get-developer-List', verifyToken, verifyAdmin, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .query('select u.userID as devID, u.firstName as devFirst, u.lastName as devLast  from USERS u, USER_ROLE ur where u.userID = ur.userID and ur.roleID = \'2\'', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+router.post('/update-Dev', verifyToken, verifyAdmin, async (request, response) => {
+console.log('wertyuiop mdddndndndjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj');
+    const data = request.body;
+    try {
+        const developers = new sql.Table('developers');
+        developers.columns.add('developer', sql.Int);
+
+        for (const developer of data.c) {
+            developers.rows.add(developer);
+        }
+        // console.log(developers);
+        const pool = await poolPromise;
+        pool.request()
+            .input('_prodID', sql.Int, data.d)
+            .input('_developers', developers)
+            .execute('updateDevelopersByAdmin', (error, result) => {
+                if (error) {
+                    console.log(error);
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        console.log(e);
+        response.status(500).send(
+            {status: false}
+        );
+    }
+});
 module.exports = router;
