@@ -53,23 +53,7 @@ router.get('/get-complaint-details', verifyToken, async (request, response) => {
     const pool = await poolPromise;
     try {
          pool.request()
-            .query('select c.complaintID, p.productID\n' +
-                '                       ,c.description\n' +
-                '                       ,c.submittedDate\n' +
-                '                      , c.lastDateOfPending\n' +
-                '                      ,u.firstName\n' +
-                '                      ,u.lastName\n' +
-                '                     , u.userEmail\n' +
-                '                      , p.accountCoordinatorID\n' +
-                '                from COMPLAINT c\n' +
-                '                     ,PRODUCT p\n' +
-                '                     ,COMPLAINT_STATUS s\n' +
-                '                     ,USERS u\n' +
-                '                where c.productID = p.productID\n' +
-                '                  and c.status = s.statusID\n' +
-                '                  and u.userID = p.accountCoordinatorID\n' +
-                '                  and c.status = \'0\'\n' +
-                '                  and c.lastDateOfPending < GETDATE()', (error, result) => {
+            .execute('getOverdueComplaintsForCeo', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
