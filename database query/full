@@ -71,14 +71,17 @@ go
 
 create table NOTIFICATION
 (
-    receiverID    int
+    receiverID     int
         constraint NOTIFICATION_USERS_userID_fk
             references USERS
             on delete cascade,
-    description   varchar(100),
-    submittedTime datetime,
-    readStatus    bit,
-    role          varchar(20)
+    description    varchar(100),
+    submittedTime  datetime,
+    readStatus     bit,
+    role           varchar(20),
+    notificationID int identity
+        constraint NOTIFICATION_pk
+            primary key nonclustered
 )
 go
 
@@ -339,23 +342,52 @@ where u.userID = ur.userID
   AND r.roleName = 'project-manager'
 go
 
-create view Ayoma_Developers AS
+create view accountCoordinatorsView AS
 select u.userID,
        u.userEmail,
        u.firstName,
        u.lastName,
        u.contactNumber,
-       u.activeStatus,
-       u.password,
        ur.roleID,
-       ur.[default],
-       r.roleName
-from USERS u,
-     USER_ROLE ur,
-     Role r
-where u.userID = ur.userID
-  AND ur.roleID = r.roleID
-  AND r.roleName = 'developer'
+       ur.[default]
+from USERS u
+         JOIN USER_ROLE ur on u.userID = ur.userID AND ur.roleID = 1
+go
+
+create view customersView AS
+select u.userID,
+       u.userEmail,
+       u.firstName,
+       u.lastName,
+       u.contactNumber,
+       ur.roleID,
+       ur.[default]
+from USERS u
+         JOIN USER_ROLE ur on u.userID = ur.userID AND ur.roleID = 0
+go
+
+create view developersView AS
+select u.userID,
+       u.userEmail,
+       u.firstName,
+       u.lastName,
+       u.contactNumber,
+       ur.roleID,
+       ur.[default]
+from USERS u
+         JOIN USER_ROLE ur on u.userID = ur.userID AND ur.roleID = 2
+go
+
+create view projectManagersView AS
+select u.userID,
+       u.userEmail,
+       u.firstName,
+       u.lastName,
+       u.contactNumber,
+       ur.roleID,
+       ur.[default]
+from USERS u
+         JOIN USER_ROLE ur on u.userID = ur.userID AND ur.roleID = 3
 go
 
 create view view_ac as
@@ -1319,6 +1351,8 @@ as
             from COMPLAINT_ATTACHMENT_DETAILS
             where complaintID = @_complaintID and subComplaintID = @_subComplaintID
 
+            select satisfaction, description from FEEDBACK where complaintID = @_complaintID and subComplaintID = 0
+
             return 0;
         end
     else
@@ -1369,6 +1403,8 @@ where userEmail = @_customerEmail;
             select *
             from COMPLAINT_ATTACHMENT_DETAILS
             where complaintID = @_complaintID and subComplaintID = @_subComplaintID
+            select satisfaction, description from FEEDBACK where complaintID = @_complaintID and subComplaintID = 0
+
             RETURN 0;
         end
     else
@@ -1883,7 +1919,7 @@ VALUES (iif(@userID is null, 1, @userID),
         @_firstname,
         @_lastname,
         @_contactNumber,
-        1,
+        0,
         null,
         @_createdAdmin,
         GETDATE(),
@@ -2013,6 +2049,34 @@ DECLARE @i int;
             SELECT * FROM COMMENT where complaintID = @_complaintID and commentID = @commentID
             SET @commentID = @commentID + 1
         END
+    if @senderID = ((select p.customerID
+                     from COMPLAINT c,
+                          PRODUCT p
+                     where c.productID = p.productID
+                       and c.complaintID = @_complaintID
+                       and c.subComplaintID = '0'))
+        begin
+            insert into NOTIFICATION
+            values ((select p.accountCoordinatorID
+                     from COMPLAINT c,
+                          PRODUCT p
+                     where c.productID = p.productID
+                       and c.complaintID = @_complaintID
+                       and c.subComplaintID = '0'), 'You have get massage from customer ', GETDATE(), 'false',
+                    'account-coordinator')
+        end
+    else
+        begin
+            insert into NOTIFICATION
+            VALUES ((select p.customerID
+                     from COMPLAINT c,
+                          PRODUCT p
+                     where c.productID = p.productID
+                       and c.complaintID = @_complaintID
+                       and c.subComplaintID = '0'), 'You have get massage from account-coordinator', GETDATE(), 'false',
+                    'customer')
+        end
+
 
     COMMIT TRANSACTION;
     RETURN 0;
@@ -2022,11 +2086,11 @@ DECLARE @i int;
     RETURN -1;
 go
 
-CREATE procedure updateAccountCoordinator @_cbc INT,
-                                          @_pdi INT
+CREATE procedure updateAccountCoordinator @_newAcID INT,
+                                          @_productID INT
 AS
 begin
-    UPDATE [dbo].[PRODUCT] SET [accountCoordinatorID] =@_cbc WHERE productID = @_pdi
+    UPDATE [dbo].[PRODUCT] SET [accountCoordinatorID] =@_newAcID WHERE productID = @_productID
 
 end
 go
@@ -2125,11 +2189,11 @@ CREATE procedure updateOrCreateSession @userID int,
     RETURN -1;
 go
 
-CREATE procedure updateProjectManger @_cbc INT,
-                                     @_pdi INT
+CREATE procedure updateProjectManger @_newPmID INT,
+                                     @_productID INT
 AS
 begin
-    UPDATE [dbo].[PRODUCT] SET [projectManagerID] =@_cbc WHERE productID = @_pdi
+    UPDATE [dbo].[PRODUCT] SET [projectManagerID] =@_newPmID WHERE productID = @_productID
 
 end
 go

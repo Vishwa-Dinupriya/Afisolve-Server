@@ -5,9 +5,8 @@ const {poolPromise} = require('../helpers/mssql-server-connection');
 const {sql} = require('../helpers/mssql-server-connection');
 const {verifyAccountCoordinator} = require('../helpers/verifyToken');
 const nodemailer = require("nodemailer");
-
-
 const {verifyToken} = require('../helpers/verifyToken');
+const fs = require("fs");
 
 router.get('/', (req, res) => {
     res.send('From authentication route');
@@ -38,9 +37,9 @@ router.post('/add-complaint', verifyToken, verifyAccountCoordinator, async (requ
         response.status(500).send({status: false});
     }
 });
-
+/*
 // update comman complaint status
-router.post('/update-common-complaint-status', verifyToken, verifyAccountCoordinator, async (request, response) => {
+router.post('/update-complaint-status', verifyToken, verifyAccountCoordinator, async (request, response) => {
 
     const pool = await poolPromise;
     console.log(request.body);
@@ -49,7 +48,7 @@ router.post('/update-common-complaint-status', verifyToken, verifyAccountCoordin
             .input('_ID', sql.Int, request.body.complaintID)
             .input('_subID', sql.Int, request.body.subComplaintID)
             .input('_Status', sql.VarChar(10), request.body.complaintStatus)
-            .execute('updateComplaintStatusDetails', (error, result) => {
+            .execute('updateComplaintStatusDetailsByAccoor', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -65,7 +64,33 @@ router.post('/update-common-complaint-status', verifyToken, verifyAccountCoordin
     }
 
 });
+*/
+//update-complaint-status
+router.post('/update-complaint-status', verifyToken, verifyAccountCoordinator, async (request, response) => {
 
+    const pool = await poolPromise;
+    console.log(request.body);
+    try {
+        pool.request()
+            .input('_ID', sql.Int, request.body.complaintID)
+            .input('_subID', sql.Int, request.body.subComplaintID)
+            .input('_Status', sql.VarChar(10), request.body.complaintStatus)
+            .execute('updateComplaintStatusDetailsByAccoor', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true
+                    });
+                }
+            })
+    }
+    catch (e) {
+        response.status(500).send({status: false});
+    }
+});
 //Complaint profile current
 router.post('/get-selected-accoorcomplaint-details-current', verifyToken, verifyAccountCoordinator, async (request, response) => {
     console.log(' complaintID: '+ request.body.complaintID);
@@ -84,6 +109,18 @@ router.post('/get-selected-accoorcomplaint-details-current', verifyToken, verify
                 } else {
                     if (result.returnValue === 0) {
                         console.log(JSON.stringify(result));
+                        let images = [ ];
+                        const nImages = result.recordsets[2].length;
+                        for(let i=0; i<nImages; i++){
+                            let img;
+                            try {//get the picture to 'img' from local memory
+                                img = fs.readFileSync('./pictures/complaint-pictures/' + result.recordsets[5][i].imageName, {encoding: 'base64'})
+                            } catch (error) {
+                                img = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
+                            }
+                            images.push(img);
+                        }
+
                         response.status(200).send({
                             status: true,
                             data: {
@@ -123,8 +160,31 @@ router.post('/get-accoorcomplaints-details', verifyToken, async (request, respon
     try {
         pool.request()
             .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
-            .query('select c.complaintID,c.subComplaintID,c.finishedDate,c.lastDateOfPending,c.submittedDate,c.wipStartDate,s.statusName,p.productName, p.category, c.productID from COMPLAINT c,COMPLAINT_STATUS s, PRODUCT p where c.status=s.statusID AND c.productID= p.productID AND p.accountCoordinatorEmail = @_accountCoordinatorEmail order by c.complaintID',
+            .query('select c.complaintID,c.subComplaintID,c.finishedDate,c.lastDateOfPending,c.submittedDate,c.wipStartDate,s.statusName,p.productName, p.category, c.productID from COMPLAINT c,COMPLAINT_STATUS s, PRODUCT p, Ayoma_AccountCoordinators aa where c.status=s.statusID AND c.productID= p.productID AND aa.userID=p.accountCoordinatorID AND aa.userEmail = @_accountCoordinatorEmail order by c.complaintID',
                 (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+// Get Overdue complaint details
+router.post('/get-overdue-accoorcomplaints-details', verifyToken, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
+            .query("select c.complaintID,c.subComplaintID,c.finishedDate,c.lastDateOfPending,c.submittedDate,c.wipStartDate,s.statusName,p.productName, p.category , c.productID from COMPLAINT c,COMPLAINT_STATUS s, PRODUCT p, Ayoma_AccountCoordinators aa where c.status=s.statusID AND c.productID= p.productID AND aa.userID=p.accountCoordinatorID AND aa.userEmail = @_accountCoordinatorEmail AND c.lastDateOfPending < GETDATE() and s.statusName = 'Pending' order by c.complaintID", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -147,7 +207,7 @@ router.post('/get-pending-accoorcomplaints-details', verifyToken, async (request
     try {
         pool.request()
             .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
-            .query("select c.complaintID,c.subComplaintID,c.finishedDate,c.lastDateOfPending,c.submittedDate,c.wipStartDate,s.statusName,p.productName, p.category , c.productID from COMPLAINT c,COMPLAINT_STATUS s, PRODUCT p where c.status=s.statusID AND c.productID= p.productID AND s.statusName = 'Pending' AND p.accountCoordinatorEmail = @_accountCoordinatorEmail order by c.complaintID", (error, result) => {
+            .query("select c.complaintID,c.subComplaintID,c.finishedDate,c.lastDateOfPending,c.submittedDate,c.wipStartDate,s.statusName,p.productName, p.category , c.productID from COMPLAINT c,COMPLAINT_STATUS s, PRODUCT p, Ayoma_AccountCoordinators aa where c.status=s.statusID AND c.productID= p.productID AND aa.userID=p.accountCoordinatorID AND aa.userEmail = @_accountCoordinatorEmail AND s.statusName = 'Pending' AND acViewedStatus = 0 order by c.complaintID", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -170,7 +230,7 @@ router.post('/get-InProgress-accoorcomplaints-details', verifyToken, async (requ
     try {
         pool.request()
             .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
-            .query("select c.complaintID,c.subComplaintID,c.finishedDate,c.lastDateOfPending,c.submittedDate,c.wipStartDate,s.statusName,p.productName, p.category, c.productID from COMPLAINT c,COMPLAINT_STATUS s, PRODUCT p where c.status=s.statusID AND c.productID= p.productID AND s.statusName = 'InProgress' AND p.accountCoordinatorEmail = @_accountCoordinatorEmail order by c.complaintID", (error, result) => {
+            .query("select c.complaintID,c.subComplaintID,c.finishedDate,c.lastDateOfPending,c.submittedDate,c.wipStartDate,s.statusName,p.productName, p.category, c.productID from COMPLAINT c,COMPLAINT_STATUS s, PRODUCT p, Ayoma_AccountCoordinators aa where c.status=s.statusID AND c.productID= p.productID AND aa.userID=p.accountCoordinatorID AND aa.userEmail = @_accountCoordinatorEmail AND s.statusName = 'InProgress' order by c.complaintID", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -193,7 +253,7 @@ router.post('/get-Solved-accoorcomplaints-details', verifyToken, async (request,
     try {
         pool.request()
             .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
-            .query("select c.complaintID,c.subComplaintID,c.finishedDate,c.lastDateOfPending,c.submittedDate,c.wipStartDate,s.statusName,p.productName, p.category, c.productID from COMPLAINT c,COMPLAINT_STATUS s, PRODUCT p where c.status=s.statusID AND c.productID= p.productID AND s.statusName = 'Completed' AND p.accountCoordinatorEmail = @_accountCoordinatorEmail order by c.complaintID", (error, result) => {
+            .query("select c.complaintID,c.subComplaintID,c.finishedDate,c.lastDateOfPending,c.submittedDate,c.wipStartDate,s.statusName,p.productName, p.category, c.productID from COMPLAINT c,COMPLAINT_STATUS s, PRODUCT p, Ayoma_AccountCoordinators aa where c.status=s.statusID AND c.productID= p.productID AND aa.userID=p.accountCoordinatorID AND aa.userEmail = @_accountCoordinatorEmail AND s.statusName = 'Completed'order by c.complaintID", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -216,7 +276,7 @@ router.post('/get-Closed-accoorcomplaints-details', verifyToken, async (request,
     try {
         pool.request()
             .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
-            .query("select c.complaintID,c.subComplaintID,c.finishedDate,c.lastDateOfPending,c.submittedDate,c.wipStartDate,s.statusName,p.productName, p.category, c.productID from COMPLAINT c,COMPLAINT_STATUS s, PRODUCT p where c.status=s.statusID AND c.productID= p.productID AND s.statusName = 'Closed' AND p.accountCoordinatorEmail = @_accountCoordinatorEmail order by c.complaintID", (error, result) => {
+            .query("select c.complaintID,c.subComplaintID,c.finishedDate,c.lastDateOfPending,c.submittedDate,c.wipStartDate,s.statusName,p.productName, p.category, c.productID from COMPLAINT c,COMPLAINT_STATUS s, PRODUCT p, Ayoma_AccountCoordinators aa where c.status=s.statusID AND c.productID= p.productID AND aa.userID=p.accountCoordinatorID AND aa.userEmail = @_accountCoordinatorEmail AND s.statusName = 'Closed' order by c.complaintID", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -247,6 +307,7 @@ router.post('/create-task', verifyToken, verifyAccountCoordinator, async (reques
             .input('_taskdescription', sql.VarChar(200), request.body.task_description)
             .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
             .input('_developerEmail', sql.VarChar(50), request.body.developerEmail)
+           // .input('_developerName', sql.VarChar(50), request.body.selectedName)
             .execute('createTask', (error, result) => {
                 if (error) {
                     response.status(500).send({
@@ -262,6 +323,130 @@ router.post('/create-task', verifyToken, verifyAccountCoordinator, async (reques
         response.status(500).send({status: false});
     }
 });
+router.post('/update-developer', verifyToken, verifyAccountCoordinator, async (request, response) => {
+
+    const pool = await poolPromise;
+    console.log(request.body)
+    try {
+        pool.request()
+            .input('_taskID', sql.Int, request.body.taskID)
+            .input('_developerEmail', sql.VarChar(50), request.body.developerEmail)
+            .input('_deadline', sql.DateTime, request.body.deadline)
+            .execute('updateDeveloperByAccoor', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+//------------------------------Developer Email list----------------------------------//
+
+router.post('/get-DeveloperList', verifyToken, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+           // .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
+            .query("select userEmail as developerEmail, firstName + ' ' + lastName as developerName from Ayoma_Developers", (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+//---------------------------Complaint Id list--------------------------------------------------------//
+router.post('/get-complaintIDlist', verifyToken,verifyAccountCoordinator, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            // .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
+            .query("select distinct complaintID from COMPLAINT", (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+//---------------------------Complaint Id list--------------------------------------------------------//
+router.post('/get-subComplaintIDlist', verifyToken,verifyAccountCoordinator, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            // .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
+            .query("select distinct subComplaintID from COMPLAINT", (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+//------------------------------Customer list----------------------------------//
+
+router.post('/get-CustomerList', verifyToken,verifyAccountCoordinator, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            // .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
+            .query("select userEmail as customerEmail, firstName + ' ' + lastName as customerName from Ayoma_Customers", (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+//-----------------------------------------------------------------------------------//
+
 //Get All task details
 router.post('/get-Task-All-details', verifyToken, async (request, response) => {
 
@@ -269,7 +454,30 @@ router.post('/get-Task-All-details', verifyToken, async (request, response) => {
     try {
         pool.request()
             .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
-            .query("select t.taskID,t.complaintID,t.subComplaintID,t.assignDate,t.deadline,t.task_status,t.developerEmail,u.firstName+\' \'+u.lastName as DevName from TASK t,USERS u where t.developerEmail=u.userEmail AND t.accountCoordinatorEmail = @_accountCoordinatorEmail order by t.complaintID", (error, result) => {
+            .query("select t.taskID,t.complaintID,t.subComplaintID,t.assignDate,t.deadline,t.task_status,ad.userEmail as developerEmail,ad.firstName+\' \'+ad.lastName as DevName from TASK t,Ayoma_AccountCoordinators aa, Ayoma_Developers ad where t.developerID=ad.userID AND t.accountCoordinatorID = aa.userID AND aa.userEmail = @_accountCoordinatorEmail order by t.complaintID", (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+//Get Overdue task details
+router.post('/get-Task-Overdue-details', verifyToken, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
+            .query("select t.taskID,t.complaintID,t.subComplaintID,t.assignDate,t.deadline,ad.userEmail as developerEmail,ad.firstName+\' \'+ad.lastName as DevName from TASK t,Ayoma_AccountCoordinators aa, Ayoma_Developers ad where t.developerID=ad.userID AND t.accountCoordinatorID = aa.userID AND aa.userEmail = @_accountCoordinatorEmail AND t.task_status='Pending' AND t.deadline < GETDATE()", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -292,7 +500,7 @@ router.post('/get-Task-New-details', verifyToken, async (request, response) => {
     try {
         pool.request()
             .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
-            .query("select t.taskID,t.complaintID,t.subComplaintID,t.assignDate,t.deadline,t.developerEmail,u.firstName+\' \'+u.lastName as DevName from TASK t,USERS u where t.developerEmail=u.userEmail AND t.task_status='Pending' AND t.accountCoordinatorEmail = @_accountCoordinatorEmail", (error, result) => {
+            .query("select t.taskID,t.complaintID,t.subComplaintID,t.assignDate,t.deadline,ad.userEmail as developerEmail,ad.firstName+\' \'+ad.lastName as DevName from TASK t,Ayoma_AccountCoordinators aa, Ayoma_Developers ad where t.developerID=ad.userID AND t.accountCoordinatorID = aa.userID AND aa.userEmail = @_accountCoordinatorEmail AND t.task_status='Pending'", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -315,7 +523,7 @@ router.post('/get-Task-IP-details', verifyToken, verifyAccountCoordinator, async
     try {
         pool.request()
             .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
-            .query("select t.taskID,t.complaintID,t.subComplaintID,t.assignDate,t.deadline,t.developerEmail,u.firstName+\' \'+u.lastName as DevName from TASK t,USERS u where t.developerEmail=u.userEmail AND t.task_status='InProgress' AND t.accountCoordinatorEmail = @_accountCoordinatorEmail", (error, result) => {
+            .query("select t.taskID,t.complaintID,t.subComplaintID,t.assignDate,t.deadline,ad.userEmail as developerEmail,ad.firstName+\' \'+ad.lastName as DevName from TASK t,Ayoma_AccountCoordinators aa, Ayoma_Developers ad where t.developerID=ad.userID AND t.accountCoordinatorID = aa.userID AND aa.userEmail = @_accountCoordinatorEmail AND t.task_status='InProgress'", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -338,7 +546,7 @@ router.post('/get-Task-Comple-details', verifyToken, async (request, response) =
     try {
         pool.request()
             .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
-            .query("select t.taskID,t.complaintID,t.subComplaintID,t.developerEmail,u.firstName+\' \'+u.lastName as DevName from TASK t,USERS u where t.developerEmail=u.userEmail AND t.task_status='Completed' AND t.accountCoordinatorEmail = @_accountCoordinatorEmail", (error, result) => {
+            .query("select t.taskID,t.complaintID,t.subComplaintID,ad.userEmail as developerEmail,ad.firstName+\' \'+ad.lastName as DevName from TASK t,Ayoma_AccountCoordinators aa, Ayoma_Developers ad where t.developerID=ad.userID AND t.accountCoordinatorID = aa.userID AND aa.userEmail = @_accountCoordinatorEmail AND t.task_status='Completed'", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -400,7 +608,7 @@ router.post('/get-allocation-details', verifyToken, verifyAccountCoordinator, as
     const pool = await poolPromise;
     try {
         pool.request()
-            .query("select a.productID, p.productName,u.firstName+' '+u.lastName as DevName, a.developerEmail, u.contactNumber from ALLOCATION a,USERS u,PRODUCT p where a.developerEmail=u.userEmail AND a.productID = p.productID order by a.productID", (error, result) => {
+            .query("select a.productID, p.productName,u.firstName+' '+u.lastName as DevName, u.userEmail as developerEmail, u.contactNumber from ALLOCATION a,Ayoma_Developers u,PRODUCT p where a.developerID=u.userID AND a.productID = p.productID order by a.productID", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -424,7 +632,7 @@ router.post('/get-product-details', verifyToken, verifyAccountCoordinator, async
     const pool = await poolPromise;
     try {
         pool.request()
-            .query("select p.productID,p.productName,p.category,u.firstName+' '+u.lastName as CusName,u.userEmail,u.contactNumber from PRODUCT p,USERS u where p.customerEmail=u.userEmail", (error, result) => {
+            .query("select p.productID,p.productName,p.category,u.firstName+' '+u.lastName as CusName,u.userEmail,u.contactNumber from PRODUCT p,USERS u where p.customerID=u.userID", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -442,8 +650,9 @@ router.post('/get-product-details', verifyToken, verifyAccountCoordinator, async
 });
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
+
 //-----------------------Send Mail-----------------------------//
-router.post('/sendMail', verifyToken, verifyAccountCoordinator, async (request, response) => {
+router.post('/sendMail', verifyToken, async (request, response) => {
     const data = request.body;
     console.log(data)
     const receiver= data.recMail;
@@ -473,7 +682,7 @@ router.post('/sendMail', verifyToken, verifyAccountCoordinator, async (request, 
 
         // send mail with defined transport object
         let info = await transporter.sendMail({
-            from: '"Senders Name" <foo@example.com>', // sender address
+            from:senderEmail, // sender address
             to: receiver, // list of receivers
             subject: subject, // Subject line
             text: message, // plain text body
@@ -496,58 +705,218 @@ router.post('/sendMail', verifyToken, verifyAccountCoordinator, async (request, 
 
 });
 
+//-----------------------Send Mail to Customer-----------------------------//
+router.post('/sendMailtoCustomer', verifyToken, async (request, response) => {
+    const data = request.body;
+    console.log(data)
+    const receiver= data.customerEmail;
+    const compID= data.complaintID;
+    const subject = data.cusSubject;
+    let Messeage;
+    const senderEmail = request.payload.username;
+    console.log(receiver);
+if(subject=='Complaint is in progress'){
+    Messeage = 'Dear Sir/Madam, \n'+
+               'This is in reference to the Complaint' + compID + 'that you have lodged. We got your complaint under supervision and currently the solving process is in progress.\n' +
+               'Thank you!'+
+        "\n" +
+    "    Best Regards,\n" +
+    "    afi-Solve Complaint Management Unit,\n" +
+    "    Afisol (Pvt) Ltd.   \n" +
+    " _________________________________________________________________________ \n" +
+    "    Disclaimer: This is a system-generated mail. For any queries, please contact the Company.\n"
+} else if(subject=='Complaint Resolved'){
+    Messeage = 'Dear Sir/Madam, \n'+
+        'This is in reference to the Complaint' + compID + 'that you have lodged. We happy to inform that the resolving process is completed. We are looking forward for your feedback.\n' +
+        'Thank you!'+
+        "\n" +
+        "    Best Regards,\n" +
+        "    afi-Solve Complaint Management Unit,\n" +
+        "    Afisol (Pvt) Ltd.   \n" +
+        " _________________________________________________________________________ \n" +
+        "    Disclaimer: This is a system-generated mail. For any queries, please contact the Company.\n"
+} else if(subject=='Complaint Closed'){
+    Messeage = 'Dear Sir/Madam, \n'+
+        'This is in reference to the Complaint' + compID + 'that you have lodged. We have closed your complaint as there were no further issues from your side.\n' +
+        'Thank you!'+
+        "\n" +
+        "    Best Regards,\n" +
+        "    afi-Solve Complaint Management Unit,\n" +
+        "    Afisol (Pvt) Ltd.   \n" +
+        " _________________________________________________________________________ \n" +
+        "    Disclaimer: This is a system-generated mail. For any queries, please contact the Company.\n"
+} else {
+    Messeage = 'Dear Sir/Madam, \n'+
+        'This is in reference to the Complaint' + compID + 'that you have lodged. We need some clarifications regarding to your complaint. Please check the comment section in afisolve app.\n' +
+        'Thank you!'+
+        "\n" +
+        "    Best Regards,\n" +
+        "    afi-Solve Complaint Management Unit,\n" +
+        "    Afisol (Pvt) Ltd.   \n" +
+        " _________________________________________________________________________ \n" +
+        "    Disclaimer: This is a system-generated mail. For any queries, please contact the Company.\n"
+}
+    // Nodemailer
+
+    // async..await is not allowed in global scope, must use a wrapper
+    async function main() {
+    let transporter = nodemailer.createTransport({
+        service: "gmail",
+        auth: {
+                user: 'info.afisolve@gmail.com', // generated ethereal user
+                pass: 'codered09', // generated ethereal password
+            },
+        });
+    // send mail with defined transport object
+        let info = await transporter.sendMail({
+            from:'info.afisolve@gmail.com', // sender address
+            to: receiver, // list of receivers
+            subject: subject, // Subject line
+            text: Messeage,
+        });
+}
+main().catch(console.error);
+    response.status(200).send({
+        status: true,
+
+    });
+
+});
+
+//-----------------------Send Mail to Developer-----------------------------//
+router.post('/sendMailtoDeveloper', verifyToken, async (request, response) => {
+    const data = request.body;
+    console.log(data)
+    const receiver= data.developerEmail;
+    const taskID= data.taskID;
+    const subject = data.devSubject;
+    let Messeage;
+    const senderEmail = request.payload.username;
+    console.log(receiver);
+    if(subject=='Overdue Task'){
+        Messeage = 'Dear Sir/Madam, \n'+
+            'This is in reference to the Task' + taskID +'. Please pay your attention to complete the task ASAP.\n' +
+            'Thank you!'+
+            "\n" +
+            "    Best Regards,\n" +
+            "    afi-Solve Complaint Management Unit,\n" +
+            "    Afisol (Pvt) Ltd.   \n" +
+            " _________________________________________________________________________ \n" +
+            "    Disclaimer: This is a system-generated mail. For any queries, please contact the relevant Account Coordinator.\n"
+    } else if(subject=='New Task'){
+        Messeage = 'Dear Sir/Madam, \n'+
+            'You are assigned to the Task' + taskID + '. Please go through the task and complete before the deadline.\n' +
+            'Thank you!'+
+            "\n" +
+            "    Best Regards,\n" +
+            "    afi-Solve Complaint Management Unit,\n" +
+            "    Afisol (Pvt) Ltd.   \n" +
+            " _________________________________________________________________________ \n" +
+            "    Disclaimer: This is a system-generated mail. For any queries, please contact the relevant Account Coordinator.\n"
+    } else if(subject=='Urgent Task'){
+        Messeage = 'Dear Sir/Madam, \n'+
+            'This is in reference to the Task' + taskID + '. Please pay your attention to speedup your work.\n' +
+            'Thank you!'+
+            "\n" +
+            "    Best Regards,\n" +
+            "    afi-Solve Complaint Management Unit,\n" +
+            "    Afisol (Pvt) Ltd.   \n" +
+            " _________________________________________________________________________ \n" +
+            "    Disclaimer: This is a system-generated mail. For any queries, please contact the relevant Account Coordinator.\n"
+    } else {
+        Messeage = 'Dear Sir/Madam, \n'+
+            'This is in reference to the Task' + taskID + '. Please go through the task againg as there is some issues related to the solution.\n' +
+            'Thank you!'+
+            "\n" +
+            "    Best Regards,\n" +
+            "    afi-Solve Complaint Management Unit,\n" +
+            "    Afisol (Pvt) Ltd.   \n" +
+            " _________________________________________________________________________ \n" +
+            "    Disclaimer: This is a system-generated mail. For any queries, please contact the relevant Account Coordinator.\n"
+    }
+    // Nodemailer
+
+    // async..await is not allowed in global scope, must use a wrapper
+    async function main() {
+        let transporter = nodemailer.createTransport({
+            service: "gmail",
+            auth: {
+                user: 'info.afisolve@gmail.com', // generated ethereal user
+                pass: 'codered09', // generated ethereal password
+            },
+        });
+        // send mail with defined transport object
+        let info = await transporter.sendMail({
+            from:'info.afisolve@gmail.com', // sender address
+            to: receiver, // list of receivers
+            subject: subject, // Subject line
+            text: Messeage,
+        });
+    }
+    main().catch(console.error);
+    response.status(200).send({
+        status: true,
+
+    });
+
+});
+
+
 //-------------------------------------------------customer-comments---------------------------------------------------------------------------------------------------------
 
+
 //--get comments for requested complaint ID
-router.get('/get-comments', verifyToken, verifyAccountCoordinator, async (request, response) => {
-    console.log(request.payload);
+// i removed verifyAccountCoordinator middleware function from this route  because of refreshNeeded subject problem. (i should have to learn websocket)
+router.get('/get-comments', verifyToken, async (request, response) => {
     const pool = await poolPromise;
     try {
         pool.request()
             .input('_complaintID', sql.Int, request.query.complaintID)
-            .query('SELECT * FROM COMMENT C WHERE complaintID=@_complaintID ORDER BY C.submittedTime ', (error, result) => {
+            .input('_reqSenderUname', sql.VarChar(50), request.payload.username)
+            .query('SELECT * FROM COMMENT C WHERE complaintID=@_complaintID ORDER BY C.submittedTime \n'+
+                ' select userID from USERS U WHERE userEmail=@_reqSenderUname', (error, result) => {
                 if (error) {
-                    console.log(error);
-                    response.status(500).send({
-                        status: false
-                    });
-                } else {
-                    let comments = [];
-                    let textOrImage;
-                    let avatarPicture;
-                    const nComments = result.recordsets[0].length;
-                    for (let i = 0; i < nComments; i++) {
-                        if (result.recordsets[0][i].isImage == true) {
-                            try {//get the picture to 'img' from local memory
-                                textOrImage = fs.readFileSync('./pictures/comment-pictures/' + result.recordsets[0][i].textOrImageName, {encoding: 'base64'})
-                            } catch (error) {
-                                textOrImage = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
-                            }
-                        } else { // when comment is not an image
-                            textOrImage = result.recordsets[0][i].textOrImageName
+                console.log(error);
+                response.status(500).send({
+                    status: false
+                });
+            } else {
+                let comments = [];
+                let textOrImage;
+                let avatarPicture;
+                const nComments = result.recordsets[0].length;
+                for (let i = 0; i < nComments; i++) {
+                    if (result.recordsets[0][i].isImage == true) {
+                        try {//get the picture to 'img' from local memory
+                            textOrImage = fs.readFileSync('./pictures/comment-pictures/' + result.recordsets[0][i].textOrImageName, {encoding: 'base64'})
+                        } catch (error) {
+                            textOrImage = fs.readFileSync('./pictures/comment-pictures/default-comment-picture.png', {encoding: 'base64'});
                         }
-                        if (result.recordsets[0][i].senderEmail !== request.payload.username) {
-                            console.log(result.recordsets[0][i].senderEmail);
-                            try {//get the picture to 'img' from local memory
-                                avatarPicture = fs.readFileSync('./pictures/profile-pictures/' + result.recordsets[0][i].senderEmail + '.png', {encoding: 'base64'})
-                            } catch (error) {
-                                avatarPicture = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
-                            }
-                        } else { // when comment is not an image
-                            avatarPicture = null;
-                        }
-                        comments[i] = {
-                            IsImage: result.recordsets[0][i].isImage,
-                            content: textOrImage,
-                            senderEmail: result.recordsets[0][i].senderEmail,
-                            senderAvatarPicture: avatarPicture
-                        }
+                    } else { // when comment is not an image
+                        textOrImage = result.recordsets[0][i].textOrImageName
                     }
-                    response.status(200).send({
-                        status: true,
-                        data: comments
-                    });
+                    if (result.recordsets[0][i].senderID !== request.payload.userID) {
+                        // console.log(result.recordsets[0][i]);
+                        try {//get the picture to 'img' from local memory
+                            avatarPicture = fs.readFileSync('./pictures/profile-pictures/' + result.recordsets[0][i].senderID + '.png', {encoding: 'base64'})
+                        } catch (error) {
+                            avatarPicture = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
+                        }
+                    } else {
+                        avatarPicture = null;
+                    }
+                    comments[i] = {
+                        IsImage: result.recordsets[0][i].isImage,
+                        content: textOrImage,
+                        senderID: result.recordsets[0][i].senderID,
+                        senderAvatarPicture: avatarPicture
+                    }
                 }
+                response.status(200).send({
+                    status: true,
+                    data: comments
+                });
+            }
             });
     } catch (e) {
         response.status(500).send({status: false});
@@ -575,7 +944,7 @@ router.put('/save-comment_', verifyToken, verifyAccountCoordinator, async (reque
                     });
 
                 } else {
-                    console.log(JSON.stringify(result) + '330 accountCoordinator');
+                    // console.log(JSON.stringify(result) + ' : 330 customer');
                     if (result.recordsets.length !== 0) {
                         for (let i = 0; i < result.recordsets.length; i++) {
                             //encoding and save the picture to the local memory
@@ -596,7 +965,119 @@ router.put('/save-comment_', verifyToken, verifyAccountCoordinator, async (reque
 
 })
 
+//////////////////////////////////////////////////////////////////////////////////////
+/*
+router.post('/get-edit-task-details', verifyToken,verifyAccountCoordinator, async (request, response) => {
 
+    const pool = await poolPromise;
+    console.log(' taskID: '+ request.body.taskID);
+    try {
+        pool.request()
+            .input('_taskID', sql.Int, request.body.taskID)
+            .execute('getSelectedTaskDetails', (error, result) => {
+                if (error) {
+                    console.log('cannot run getSelectedTaskDetails');
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    if (result.returnValue === 0) {
+                        console.log(JSON.stringify(result));
+                        response.status(200).send({
+                            status: true,
+                            data: {
+                                developerEmail: result.recordsets[1][1].userEmail,
+                                deadline: result.recordsets[0][0].deadline,
+                                task_description: result.recordsets[0][0].task_description,
+                            }
+                        })
+                    } else {
+                        console.log('getSelectedTaskDetails return -1');
+                        response.status(500).send({message: 'return value = -1'});
+                    }
+                }
+            })
+        ;
+    } catch (e) {
+        response.status(500).send(
+            {
+                status: false
+            }
+        )
+    }
+});
+
+
+ */
+
+router.get('/get-month-count', verifyToken, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .input('_acEmail', sql.VarChar(50), request.payload.username)
+            .execute('getComplaintCountMonthForAc', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: {
+                            first: result.recordsets[0][0].num,
+                            second: result.recordsets[1][0].num,
+                            third: result.recordsets[2][0].num,
+                            fourth: result.recordsets[3][0].num,
+                            fifth: result.recordsets[4][0].num,
+                            firstm: result.recordsets[0][0].month,
+                            secondm: result.recordsets[1][0].month,
+                            thirdm: result.recordsets[2][0].month,
+                            fourthm: result.recordsets[3][0].month,
+                            fifthm: result.recordsets[4][0].month,
+                            alll: result.recordsets[5][0].alll,
+                            pen: result.recordsets[6][0].pen,
+                            work: result.recordsets[7][0].work,
+                            fin: result.recordsets[8][0].fin,
+                            clos: result.recordsets[9][0].clos
+                        }
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+
+router.get('/get-task-count', verifyToken, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .input('_acEmail', sql.VarChar(50), request.payload.username)
+            .execute('getTaskCountAc', (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: {
+                            alll: result.recordsets[0][0].alll,
+                            pen: result.recordsets[1][0].pen,
+                            work: result.recordsets[2][0].wor,
+                            fin: result.recordsets[3][0].fin,
+                            latet: result.recordsets[4][0].count
+                        }
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
 
 
 //////////////////////////////////////////////////////////////////////////////////////

@@ -53,23 +53,7 @@ router.get('/get-complaint-details', verifyToken, async (request, response) => {
     const pool = await poolPromise;
     try {
          pool.request()
-            .query('select c.complaintID, p.productID\n' +
-                '                       ,c.description\n' +
-                '                       ,c.submittedDate\n' +
-                '                      , c.lastDateOfPending\n' +
-                '                      ,u.firstName\n' +
-                '                      ,u.lastName\n' +
-                '                     , u.userEmail\n' +
-                '                      , p.accountCoordinatorID\n' +
-                '                from COMPLAINT c\n' +
-                '                     ,PRODUCT p\n' +
-                '                     ,COMPLAINT_STATUS s\n' +
-                '                     ,USERS u\n' +
-                '                where c.productID = p.productID\n' +
-                '                  and c.status = s.statusID\n' +
-                '                  and u.userID = p.accountCoordinatorID\n' +
-                '                  and c.status = \'0\'\n' +
-                '                  and c.lastDateOfPending < GETDATE()', (error, result) => {
+            .execute('getOverdueComplaintsForCeo', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -257,7 +241,7 @@ router.post('/update-name', verifyToken, async (request, response)=> {
         pool.request()
             .input('_cbc', sql.Int, data.b.userID)
             .input('_pdi', sql.Int, data.a.productID )
-            .execute('updateAccountCoordinator', (error, result) => {
+            .execute('updateAccountCoordinatorForCEO', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -332,7 +316,7 @@ router.post('/update-reminder', verifyToken, async (request, response)=> {
             .input('_aoni', sql.Int, data.accountCoordinatorID)
             .input('_kan', sql.VarChar(20), charithe)
             .input('_wan', sql.VarChar(20), whaction)
-            .execute('newreminder', (error, result) => {
+            .execute('newreminderForCEO', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false

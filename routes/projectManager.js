@@ -73,7 +73,8 @@ router.get('/get-complaint-details', verifyToken, verifyProjectManager,  async (
                 '                  and c.status = s.statusID\n' +
                 '                  and u.userID = p.accountCoordinatorID\n' +
                 '                  and c.status = \'0\'\n' +
-                '                  and c.lastDateOfPending < GETDATE() and p.projectManagerID= (select userID from USERS where userEmail= @_pmEmail)', (error, result) => {
+                '                  and c.acViewedStatus = \'false\'\n' +
+                '                  and c.lastDateOfPending < GETDATE() and p.projectManagerID= (select userID from USERS where userEmail= @_pmEmail) order by submittedDate ASC', (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
