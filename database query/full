@@ -1584,6 +1584,33 @@ where userEmail = @_customerEmail;
         end
 go
 
+CREATE procedure getSelectedDevTaskDetails(@_taskID int)
+as
+    if exists(select 1
+              from TASK
+              where taskID = @_taskID)
+        begin
+            select * from TASK where taskID = @_taskID
+            select u.contactNumber, u.firstName + ' ' + u.lastName as accoorName, u.userEmail as accountCoordinatorEmail
+            from USERS u,
+                 TASK t
+            where u.userID = t.accountCoordinatorID
+
+
+            return 0;
+        end
+    else
+        begin
+            GOTO errorHandler;
+        end
+    COMMIT TRANSACTION;
+    RETURN 0;
+
+    errorHandler:
+    ROLLBACK TRANSACTION
+    RETURN -1
+go
+
 CREATE procedure getSelectedFeedbackDetails(@_complaintID int)
 as
     if exists(select 1

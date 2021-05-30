@@ -82,14 +82,14 @@ router.post('/get-selected-accoorcomplaint-details-current', verifyToken, verify
                 } else {
                     if (result.returnValue === 0) {
                         console.log(JSON.stringify(result));
-                        let images = [ ];
+                        let images = [];
                         const nImages = result.recordsets[2].length;
                         for(let i=0; i<nImages; i++){
                             let img;
                             try {//get the picture to 'img' from local memory
-                                img = fs.readFileSync('./pictures/complaint-pictures/' + result.recordsets[5][i].imageName, {encoding: 'base64'})
+                                img = fs.readFileSync('./pictures/complaint-pictures/' + result.recordsets[2][i].imageName, {encoding: 'base64'})
                             } catch (error) {
-                                img = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
+                                img = fs.readFileSync('./pictures/complaint-pictures/default-complaint-picture.png', {encoding: 'base64'});
                             }
                             images.push(img);
                         }
@@ -107,6 +107,7 @@ router.post('/get-selected-accoorcomplaint-details-current', verifyToken, verify
                                 projectManagerEmail: result.recordsets[1][0].userEmail,
                                 projectManagerFirstName: result.recordsets[1][0].firstName,
                                 projectManagerLastName: result.recordsets[1][0].lastName,
+                                images: images
 
                             }
                         })
