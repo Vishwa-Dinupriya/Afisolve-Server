@@ -553,7 +553,7 @@ router.post('/get-selected-complaint-details', verifyToken, verifyAdmin, async (
                                 customerEmail: result.recordsets[5][0].userEmail,
                                 customerFirstName: result.recordsets[5][0].firstName,
                                 customerLastName: result.recordsets[5][0].lastName,
-                                feedbackSatisfaction: (result.recordsets[7][0]? result.recordsets[7][0].satisfaction: undefined) ,
+                                feedbackSatisfaction: (result.recordsets[7][0]? result.recordsets[7][0].satisfaction: undefined),
                                 feedbackDescription: (result.recordsets[7][0]? result.recordsets[7][0].description: undefined)
 
                             },
