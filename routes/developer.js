@@ -6,6 +6,7 @@ const {sql} = require('../helpers/mssql-server-connection');
 const {verifyToken} = require('../helpers/verifyToken');
 const {verifyDeveloper} = require('../helpers/verifyToken');
 const nodemailer = require("nodemailer");
+const fs = require("fs");
 
 router.get('/', (req, res) => {
     res.send('From authentication route');
@@ -43,6 +44,28 @@ router.post('/get-AccoorList', verifyToken, async (request, response) => {
     try {
         pool.request()
             .query("select userEmail, firstName + ' ' + lastName as userName from Ayoma_AccountCoordinators", (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+router.post('/get-UserList', verifyToken,verifyDeveloper, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            // .input('_accountCoordinatorEmail', sql.VarChar(50), request.payload.username)
+            .query("select userEmail, firstName + ' ' + lastName as userName from USERS", (error, result) => {
                 if (error) {
                     response.status(500).send({
                         status: false
@@ -246,6 +269,30 @@ router.post('/get-devComplaints-details', verifyToken,verifyDeveloper, async (re
 });
 
 //Get Product Details
+router.post('/get-devMyProducts-details', verifyToken,verifyDeveloper, async (request, response) => {
+
+    const pool = await poolPromise;
+    try {
+        pool.request()
+            .input('_developerEmail', sql.VarChar(50), request.payload.username)
+            .query("select p.productID, p.productName, p.category, ap.firstName +' '+ ap.lastName as projectManagerName , ap.userEmail as projectManagerEmail, aa.firstName +' '+ aa.lastName as accountCoordinatorName, aa.userEmail as accountCoordinatorEmail from PRODUCT p, Ayoma_ProjectManagers ap, Ayoma_AccountCoordinators aa, ALLOCATION al where p.projectManagerID = ap.userID AND p.accountCoordinatorID = aa.userID AND p.productID = al.productID AND al.developerID = (select userID from USERS where userEmail = @_developerEmail)  ", (error, result) => {
+                if (error) {
+                    response.status(500).send({
+                        status: false
+                    });
+                } else {
+                    response.status(200).send({
+                        status: true,
+                        data: result.recordset
+                    });
+                }
+            });
+    } catch (e) {
+        response.status(500).send({status: false});
+    }
+});
+
+//Get Product Details
 router.post('/get-devProducts-details', verifyToken,verifyDeveloper, async (request, response) => {
 
     const pool = await poolPromise;
@@ -267,33 +314,33 @@ router.post('/get-devProducts-details', verifyToken,verifyDeveloper, async (requ
         response.status(500).send({status: false});
     }
 });
-// Get selected complaint details
-router.post('/get-selected-complaint-details', verifyToken,verifyDeveloper,  async (request, response) => {
-    console.log(' complaintID: ' + request.body.complaintID);
-    console.log(' subComplaintID: ' + request.body.subComplaintID);
+
+router.post('/get-selected-complaint-details', verifyToken, verifyDeveloper, async (request, response) => {
+    // console.log(' complaintID: ' + request.body.complaintID);
+    // console.log(' subComplaintID: ' + request.body.subComplaintID);
 
     const pool = await poolPromise;
     try {
         pool.request()
             .input('_complaintID', sql.Int, request.body.complaintID)
             .input('_subComplaintID', sql.Int, request.body.subComplaintID)
-            .execute('getSelectedComplaintDetails', (error, result) => {
+            .execute('getSelectedComplaintDetailsAdmin', (error, result) => {
                 if (error) {
-                    console.log('cannot run getSelectedUserDetails');
+                    console.log('cannot run getSelectedComplaintDetailsAdmin');
                     response.status(500).send({
                         status: false
                     });
                 } else {
                     if (result.returnValue === 0) {
-                        console.log(JSON.stringify(result) + ' 322 developer.js');
-                        let images = [ ];
-                        const nImages = result.recordsets[5].length;
-                        for(let i=0; i<nImages; i++){
+                        // console.log(JSON.stringify(result) + ' 322 admin.js');
+                        let images = [];
+                        const nImages = result.recordsets[6].length;
+                        for (let i = 0; i < nImages; i++) {
                             let img;
                             try {//get the picture to 'img' from local memory
-                                img = fs.readFileSync('./pictures/complaint-pictures/' + result.recordsets[5][i].imageName, {encoding: 'base64'})
+                                img = fs.readFileSync('./pictures/complaint-pictures/' + result.recordsets[6][i].imageName, {encoding: 'base64'})
                             } catch (error) {
-                                img = fs.readFileSync('./pictures/profile-pictures/default-profile-picture.png', {encoding: 'base64'});
+                                img = fs.readFileSync('./pictures/complaint-pictures/default-complaint-picture.png', {encoding: 'base64'});
                             }
                             images.push(img);
                         }
@@ -316,12 +363,15 @@ router.post('/get-selected-complaint-details', verifyToken,verifyDeveloper,  asy
                                 projectManagerLastName: result.recordsets[3][0].lastName,
                                 accountCoordinatorEmail: result.recordsets[4][0].userEmail,
                                 accountCoordinatorFirstName: result.recordsets[4][0].firstName,
-                                accountCoordinatorLastName: result.recordsets[4][0].lastName
+                                accountCoordinatorLastName: result.recordsets[4][0].lastName,
+                                customerEmail: result.recordsets[5][0].userEmail,
+                                customerFirstName: result.recordsets[5][0].firstName,
+                                customerLastName: result.recordsets[5][0].lastName
                             },
                             images: images
                         })
                     } else {
-                        console.log('getSelectedUserDetails return -1');
+                        console.log('getSelectedComplaintDetailsAdmin return -1');
                         response.status(500).send({message: 'return value = -1'});
                     }
                 }
