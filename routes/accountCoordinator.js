@@ -942,7 +942,7 @@ router.get('/get-comments', verifyToken, async (request, response) => {
 })
 
 //--save comments for requested complaint ID
-router.put('/save-comment_', verifyToken, verifyCustomer, async (request, response) => {
+router.put('/save-comment_', verifyToken, verifyAccountCoordinator, async (request, response) => {
     console.log(request.payload.username);
     console.log('nOfImages: ' + request.body.images.length);
     console.log('text' + request.body.text);
