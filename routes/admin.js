@@ -822,6 +822,7 @@ router.post('/get-selected-product-details', verifyToken, verifyAdmin, async (re
                                 projectManagerFirstName: result.recordsets[2][0].firstName,
                                 projectManagerLastName: result.recordsets[2][0].lastName,
                                 complaintsDetails: result.recordsets[4],
+                                developersDetails: result.recordsets[5],
                                 dev: result.recordsets[5]
 
                             }

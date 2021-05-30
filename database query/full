@@ -218,7 +218,7 @@ create table TASK
     assignDate           datetime,
     deadline             datetime,
     task_status          varchar(20),
-    task_description     varchar(200),
+    task_description     varchar(5000),
     accountCoordinatorID int
         constraint TASK_USERS_userID_fk
             references USERS,
@@ -577,7 +577,7 @@ go
 CREATE PROCEDURE createTask @_complaintID int,
                             @_subComplaintID int,
                             @_deadline datetime,
-                            @_taskdescription varchar(200),
+                            @_taskdescription varchar(5000),
                             @_accountCoordinatorEmail varchar(50),
                             @_developerEmail varchar(50)
 AS
@@ -597,6 +597,10 @@ VALUES (@taskID,
         @_taskdescription,
         (select userID from USERS where userEmail = @_accountCoordinatorEmail),
         (select userID from USERS where userEmail = @_developerEmail))
+
+INSERT INTO NOTIFICATION
+VALUES ((select userID from USERS where userEmail = @_developerEmail), ('You have a new task'), GETDATE(), 'false',
+        'developer')
     IF @@ROWCOUNT = 0 GOTO errorHandler;
 
     COMMIT TRANSACTION;
@@ -959,6 +963,68 @@ begin
 end
 go
 
+CREATE procedure getComplaintCountDev(@_devEmail VARCHAR(50))
+as
+begin
+
+    SELECT COUNT(*) as num, format(EOMONTH(DATEADD(month, 0, Current_timestamp)), 'yyyy-MM') as month
+    from TASK
+    where format(assignDate, 'yyyy-MM') = format(EOMONTH(DATEADD(month, 0, Current_timestamp)), 'yyyy-MM')
+      and developerID = (select userID from USERS where userEmail = @_devEmail)
+
+    SELECT COUNT(*) as num, format(EOMONTH(DATEADD(month, -1, Current_timestamp)), 'yyyy-MM') as month
+    from TASK
+    where format(assignDate, 'yyyy-MM') = format(EOMONTH(DATEADD(month, -1, Current_timestamp)), 'yyyy-MM')
+      and developerID = (select userID from USERS where userEmail = @_devEmail)
+
+    SELECT COUNT(*) as num, format(EOMONTH(DATEADD(month, -2, Current_timestamp)), 'yyyy-MM') as month
+    from TASK
+    where format(assignDate, 'yyyy-MM') = format(EOMONTH(DATEADD(month, -2, Current_timestamp)), 'yyyy-MM')
+      and developerID = (select userID from USERS where userEmail = @_devEmail)
+
+    SELECT COUNT(*) as num, format(EOMONTH(DATEADD(month, -3, Current_timestamp)), 'yyyy-MM') as month
+    from TASK
+    where format(assignDate, 'yyyy-MM') = format(EOMONTH(DATEADD(month, -3, Current_timestamp)), 'yyyy-MM')
+      and developerID = (select userID from USERS where userEmail = @_devEmail)
+
+    SELECT COUNT(*) as num, format(EOMONTH(DATEADD(month, -4, Current_timestamp)), 'yyyy-MM') as month
+    from TASK
+    where format(assignDate, 'yyyy-MM') = format(EOMONTH(DATEADD(month, -4, Current_timestamp)), 'yyyy-MM')
+      and developerID = (select userID from USERS where userEmail = @_devEmail)
+
+    select COUNT(*) as alll
+    from TASK
+    where accountCoordinatorID = (select userID from USERS where userEmail = @_devEmail)
+
+    select COUNT(*) as pen
+    from TASK
+    where developerID = (select userID from USERS where userEmail = @_devEmail)
+      and task_status = 'Pending'
+
+    select COUNT(*) as wor
+    from TASK
+    where developerID = (select userID from USERS where userEmail = @_devEmail)
+      and task_status = 'InProgress'
+
+    select COUNT(*) as fin
+    from TASK
+    where developerID = (select userID from USERS where userEmail = @_devEmail)
+      and task_status = 'Completed'
+
+    select COUNT(*) as count
+    from TASK
+    where developerID = (select userID from USERS where userEmail = @_devEmail)
+      and task_status != 'completed'
+      and deadline < GETDATE()
+
+    select COUNT(*) as clos
+    from TASK
+    where developerID = (select userID from USERS where userEmail = @_devEmail)
+      and task_status = 'closed'
+    return 0;
+end
+go
+
 CREATE procedure getComplaintCountForCustomer(@_pmEmail VARCHAR(50))
 as
 begin
@@ -1034,6 +1100,82 @@ begin
          PRODUCT p
     where p.productID = c.productID
       and p.projectManagerID = (select userID from USERS where userEmail = @_pmEmail)
+      and c.status = '3'
+    return 0;
+end
+go
+
+CREATE procedure getComplaintCountMonthForAc(@_acEmail VARCHAR(50))
+as
+begin
+
+    SELECT COUNT(*) as num, format(EOMONTH(DATEADD(month, 0, Current_timestamp)), 'yyyy-MM') as month
+    from COMPLAINT c,
+         PRODUCT p
+    where format(submittedDate, 'yyyy-MM') = format(EOMONTH(DATEADD(month, 0, Current_timestamp)), 'yyyy-MM')
+      and c.productID = p.productID
+      and p.accountCoordinatorID = (select userID from USERS where userEmail = @_acEmail)
+
+    SELECT COUNT(*) as num, format(EOMONTH(DATEADD(month, -1, Current_timestamp)), 'yyyy-MM') as month
+    from COMPLAINT c,
+         PRODUCT p
+    where format(submittedDate, 'yyyy-MM') = format(EOMONTH(DATEADD(month, -1, Current_timestamp)), 'yyyy-MM')
+      and c.productID = p.productID
+      and p.accountCoordinatorID = (select userID from USERS where userEmail = @_acEmail)
+
+    SELECT COUNT(*) as num, format(EOMONTH(DATEADD(month, -2, Current_timestamp)), 'yyyy-MM') as month
+    from COMPLAINT c,
+         PRODUCT p
+    where format(submittedDate, 'yyyy-MM') = format(EOMONTH(DATEADD(month, -2, Current_timestamp)), 'yyyy-MM')
+      and c.productID = p.productID
+      and p.accountCoordinatorID = (select userID from USERS where userEmail = @_acEmail)
+
+    SELECT COUNT(*) as num, format(EOMONTH(DATEADD(month, -3, Current_timestamp)), 'yyyy-MM') as month
+    from COMPLAINT c,
+         PRODUCT p
+    where format(submittedDate, 'yyyy-MM') = format(EOMONTH(DATEADD(month, -3, Current_timestamp)), 'yyyy-MM')
+      and c.productID = p.productID
+      and p.accountCoordinatorID = (select userID from USERS where userEmail = @_acEmail)
+
+    SELECT COUNT(*) as num, format(EOMONTH(DATEADD(month, -4, Current_timestamp)), 'yyyy-MM') as month
+    from COMPLAINT c,
+         PRODUCT p
+    where format(submittedDate, 'yyyy-MM') = format(EOMONTH(DATEADD(month, -4, Current_timestamp)), 'yyyy-MM')
+      and c.productID = p.productID
+      and p.accountCoordinatorID = (select userID from USERS where userEmail = @_acEmail)
+
+    select COUNT(*) as alll
+    from COMPLAINT c,
+         PRODUCT p
+    where p.productID = c.productID
+      and p.accountCoordinatorID = (select userID from USERS where userEmail = @_acEmail)
+
+    select COUNT(*) as pen
+    from COMPLAINT c,
+         PRODUCT p
+    where p.productID = c.productID
+      and p.accountCoordinatorID = (select userID from USERS where userEmail = @_acEmail)
+      and c.status = '0'
+
+    select COUNT(*) as work
+    from COMPLAINT c,
+         PRODUCT p
+    where p.productID = c.productID
+      and p.accountCoordinatorID = (select userID from USERS where userEmail = @_acEmail)
+      and c.status = '1'
+
+    select COUNT(*) as fin
+    from COMPLAINT c,
+         PRODUCT p
+    where p.productID = c.productID
+      and p.accountCoordinatorID = (select userID from USERS where userEmail = @_acEmail)
+      and c.status = '2'
+
+    select COUNT(*) as clos
+    from COMPLAINT c,
+         PRODUCT p
+    where p.productID = c.productID
+      and p.accountCoordinatorID = (select userID from USERS where userEmail = @_acEmail)
       and c.status = '3'
     return 0;
 end
@@ -1266,6 +1408,35 @@ begin
 end
 go
 
+CREATE procedure getOverdueComplaintsForCeo
+as
+begin
+    select c.complaintID
+         , p.productID
+         , c.description
+         , c.submittedDate
+         , c.lastDateOfPending
+         , u.firstName
+         , u.lastName
+         , u.userEmail
+         , p.accountCoordinatorID
+         , (select firstName from USERS where userID = p.projectManagerID) as pfirst
+         , (select lastName from USERS where userID = p.projectManagerID)  as plast
+    from COMPLAINT c
+       , PRODUCT p
+       , COMPLAINT_STATUS s
+       , USERS u
+    where c.productID = p.productID
+      and c.status = s.statusID
+      and u.userID = p.accountCoordinatorID
+      and c.status = '0'
+      and c.acViewedStatus = 'false'
+      and c.lastDateOfPending < GETDATE()
+    order by submittedDate ASC
+    return 0;
+end
+go
+
 CREATE procedure getSelectedAccComplaintDetailsCurrent(@_complaintID int,
                                                        @_subComplaintID int)
 as
@@ -1490,6 +1661,12 @@ as
             where P3.productID = @_productID
 
             select complaintID, submittedDate from COMPLAINT where productID = @_productID and subComplaintID = 0
+
+            select U.userEmail, U.firstName, U.lastName
+            from ALLOCATION A
+                     join USERS U on U.userID = A.developerID
+            where productID = @_productID;
+
             RETURN 0;
         end
     else
@@ -1570,6 +1747,41 @@ as
         begin
             RETURN 1;
         end
+go
+
+CREATE procedure getTaskCountAc(@_acEmail VARCHAR(50))
+as
+begin
+
+    select COUNT(*) as alll
+    from TASK
+    where accountCoordinatorID = (select userID from USERS where userEmail = @_acEmail)
+
+    select COUNT(*) as pen
+    from TASK
+    where accountCoordinatorID = (select userID from USERS where userEmail = @_acEmail)
+      and task_status = 'Pending'
+
+    select COUNT(*) as wor
+    from TASK
+    where accountCoordinatorID = (select userID from USERS where userEmail = @_acEmail)
+      and task_status = 'InProgress'
+
+    select COUNT(*) as fin
+    from TASK
+    where accountCoordinatorID = (select userID from USERS where userEmail = @_acEmail)
+      and task_status = 'Completed'
+
+    select COUNT(*) as count
+    from COMPLAINT c,
+         PRODUCT p
+    where p.productID = c.productID
+      and p.accountCoordinatorID = (select userID from USERS where userEmail = @_acEmail)
+      and c.status = '0'
+      and c.lastDateOfPending < GETDATE()
+
+    return 0;
+end
 go
 
 CREATE PROCEDURE lodgeComplaint @_customerEmail varchar(50),
@@ -1754,23 +1966,105 @@ CREATE procedure newreminder @_rem INT,
                              @_kan VARCHAR(20),
                              @_wan VARCHAR(20)
 AS
-begin
-    INSERT INTO [dbo].[CHANGINGHISTORY]
-    ( [productID]
-    , [submittedTime]
-    , [exAcID]
-    , [action]
-    , [doneBy]
-    , [exAcName]
-    , [readStatus])
-    VALUES ( @_rem
-           , getdate()
-           , @_aoni
-           , @_wan
-           , @_kan
-           , (@_aon + ' ' + @_sec)
-           , 'false')
 
+DECLARE @_prod varchar(10);
+SELECT @_prod = CAST(@_rem as varchar(10))
+begin
+    BEGIN
+        INSERT INTO [dbo].[CHANGINGHISTORY]
+        ( [productID]
+        , [submittedTime]
+        , [exAcID]
+        , [action]
+        , [doneBy]
+        , [exAcName]
+        , [readStatus])
+        VALUES ( @_rem
+               , getdate()
+               , @_aoni
+               , @_wan
+               , @_kan
+               , (@_aon + ' ' + @_sec)
+               , 'false')
+    END
+    BEGIN
+        begin
+            INSERT INTO [dbo].[NOTIFICATION]
+            ( [receiverID]
+            , [description]
+            , [submittedTime]
+            , [readStatus]
+            , [role])
+            values ( @_aoni
+                   , ('You have a reminder for product Id ' + @_prod +
+                      ' product. please, pay attention quickly for this complaint.')
+                   , GETDATE()
+                   , 'false'
+                   , 'account-coordinator')
+        end
+    end
+
+end
+go
+
+CREATE procedure newreminderForCEO @_rem INT,
+                                   @_aoni INT,
+                                   @_aon VARCHAR(40),
+                                   @_sec VARCHAR(40),
+                                   @_kan VARCHAR(20),
+                                   @_wan VARCHAR(20)
+AS
+
+DECLARE @_prod varchar(10);
+SELECT @_prod = CAST(@_rem as varchar(10))
+begin
+    BEGIN
+        INSERT INTO [dbo].[CHANGINGHISTORY]
+        ( [productID]
+        , [submittedTime]
+        , [exAcID]
+        , [action]
+        , [doneBy]
+        , [exAcName]
+        , [readStatus])
+        VALUES ( @_rem
+               , getdate()
+               , @_aoni
+               , @_wan
+               , @_kan
+               , (@_aon + ' ' + @_sec)
+               , 'false')
+    END
+    BEGIN
+        begin
+            INSERT INTO [dbo].[NOTIFICATION]
+            ( [receiverID]
+            , [description]
+            , [submittedTime]
+            , [readStatus]
+            , [role])
+            values ( (select projectManagerID from PRODUCT where productID = @_rem)
+                   , ('CEO send reminder to account coordinator of the product Id ' + @_prod + ' product.')
+                   , GETDATE()
+                   , 'false'
+                   , 'project-manager')
+        end
+    end
+
+    begin
+        INSERT INTO [dbo].[NOTIFICATION]
+        ( [receiverID]
+        , [description]
+        , [submittedTime]
+        , [readStatus]
+        , [role])
+        values ( @_aoni
+               , ('You have a reminder for product Id ' + @_prod +
+                  ' product. please, pay attention quickly for this complaint.')
+               , GETDATE()
+               , 'false'
+               , 'account-coordinator')
+    end
 
 end
 go
@@ -2095,6 +2389,24 @@ begin
 end
 go
 
+CREATE procedure updateAccountCoordinatorForCEO @_cbc INT,
+                                                @_pdi INT
+AS
+DECLARE @_prod varchar(10);
+SELECT @_prod = CAST(@_pdi as varchar(10))
+begin
+    UPDATE [dbo].[PRODUCT] SET [accountCoordinatorID] =@_cbc WHERE productID = @_pdi
+
+end
+
+begin
+    INSERT INTO NOTIFICATION
+    VALUES ((select projectManagerID from PRODUCT where productID = @_pdi),
+            'CEO change the account coordinator of the product Id ' + @_prod + ' product.', GETDATE(), 'false',
+            'project-manager')
+end
+go
+
 CREATE procedure updateComplaintStatusDetailsByAccoor(@_ID INT, @_subID INT, @_Status varchar(10))
 AS
     BEGIN TRANSACTION
@@ -2125,6 +2437,14 @@ AS
                 WHERE complaintID = @_ID
                   AND subComplaintID = @_subID
             end
+
+INSERT INTO NOTIFICATION
+VALUES ((SELECT p.customerID
+         from COMPLAINT c,
+              PRODUCT p
+         where c.complaintID = @_ID
+           and c.subComplaintID = @_subID
+           and c.productID = p.productID), ('Complaint is ' + @_Status + '.'), GETDATE(), 'false', 'customer')
     IF @@ROWCOUNT = 0 GOTO errorHandler;
     COMMIT TRANSACTION;
     RETURN 0;
@@ -2140,6 +2460,12 @@ AS
 UPDATE TASK
 SET task_status = @_task_status
 WHERE taskID = @_taskID;
+DECLARE @accountCooID int;
+    SET @accountCooID = (select accountCoordinatorID
+                         from TASK
+                         where taskID = @_taskID)
+INSERT INTO NOTIFICATION
+VALUES (@accountCooID, ('Task is ' + @_task_status), GETDATE(), 'false', 'account-coordinator')
     IF @@ROWCOUNT = 0 GOTO errorHandler;
     COMMIT TRANSACTION;
     RETURN 0;
@@ -2157,10 +2483,57 @@ SET developerID = (select userID from USERS where userEmail = @_developerEmail),
     task_status = 'Pending',
     deadline=@_deadline
 WHERE taskID = @_taskID
+begin
+    INSERT INTO NOTIFICATION
+    VALUES ( (SELECT userID from Ayoma_Developers where userEmail = @_developerEmail)
+           , ('You have an updated task.')
+           , GETDATE()
+           , 'false'
+           , 'developer')
+end
     IF @@ROWCOUNT = 0 GOTO errorHandler;
     COMMIT TRANSACTION;
     RETURN 0;
 
+    errorHandler:
+    ROLLBACK TRANSACTION
+    RETURN -1;
+go
+
+CREATE PROCEDURE updateDevelopersByAdmin @_prodID INT,
+                                         @_developers developers READONLY
+AS
+    BEGIN TRANSACTION
+DECLARE
+    developer_cursor CURSOR LOCAL FOR SELECT *
+                                      FROM @_developers
+DECLARE @developerIDTemp INT;
+begin
+    begin
+        OPEN developer_cursor
+        FETCH NEXT FROM developer_cursor INTO @developerIDTemp
+        WHILE @@FETCH_STATUS = 0
+            BEGIN
+                DELETE FROM ALLOCATION WHERE productID = @_prodID
+                FETCH NEXT FROM developer_cursor INTO @developerIDTemp
+            END
+        CLOSE developer_cursor
+    end
+
+    begin
+        OPEN developer_cursor
+        FETCH NEXT FROM developer_cursor INTO @developerIDTemp
+        WHILE @@FETCH_STATUS = 0
+            BEGIN
+                INSERT INTO ALLOCATION VALUES (@developerIDTemp, @_prodID);
+                FETCH NEXT FROM developer_cursor INTO @developerIDTemp
+            END
+        CLOSE developer_cursor
+    end
+
+    COMMIT TRANSACTION;
+    RETURN 0;
+end
     errorHandler:
     ROLLBACK TRANSACTION
     RETURN -1;
