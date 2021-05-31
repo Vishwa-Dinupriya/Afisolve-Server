@@ -720,10 +720,10 @@ router.post('/get-user-details-register-product', verifyToken, verifyAdmin, asyn
     const pool = await poolPromise;
     try {
         pool.request()
-            .query('select firstName, lastName, userID, userEmail from customersView \n' +
-                ' select firstName, lastName, userID, userEmail from accountCoordinatorsView  \n' +
-                ' select firstName, lastName, userID, userEmail from projectManagersView  \n' +
-                ' select firstName, lastName, userID, userEmail from developersView  \n', (error, result) => {
+            .query('select firstName, lastName, userID, userEmail from customersView ORDER BY firstName \n' +
+                ' select firstName, lastName, userID, userEmail from accountCoordinatorsView ORDER BY firstName \n' +
+                ' select firstName, lastName, userID, userEmail from projectManagersView ORDER BY firstName \n' +
+                ' select firstName, lastName, userID, userEmail from developersView ORDER BY firstName \n', (error, result) => {
                 if (error) {
                     console.log(error);
                     response.status(500).send({
